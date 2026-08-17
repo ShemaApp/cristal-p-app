@@ -10,7 +10,7 @@
 
 /* ── Modelo de permisos: constantes de rol + helpers de acceso ──
    (movido de app-core.js, sin cambios de lógica) */
-const TABS_INFO = [['productos', '📦', 'Productos'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '📦', 'Transferencias'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
+const TABS_INFO = [['productos', '📦', 'Productos'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
 const EDICION_INFO = [['productos', '📦', 'Editar / dar de alta productos'], ['clientes', '👥', 'Editar / dar de alta clientes'], ['creditos', '💳', 'Registrar abonos a créditos']];
 const ACCIONES_INFO = [['camara', '📷', 'Usar cámara (escanear QR de cliente)'], ['csv', '📄', 'Descargar reportes en CSV'], ['gps', '📍', 'Compartir ubicación en vivo (GPS)'], ['password', '🔑', 'Cambiar su propia contraseña']];
 const ACCIONES_DEFAULT_ROL = {
@@ -50,6 +50,7 @@ const TABS_DEFAULT_ROL = {
     clientes: true,
     creditos: true,
     ruta: true,
+    vehiculos: true,
     repartidores: true,
     inventario: true,
     reportes: true,
@@ -61,6 +62,7 @@ const TABS_DEFAULT_ROL = {
     clientes: true,
     creditos: true,
     ruta: false,
+    vehiculos: false,
     repartidores: false,
     inventario: true,
     reportes: false,
@@ -72,6 +74,7 @@ const TABS_DEFAULT_ROL = {
     clientes: true,
     creditos: true,
     ruta: true,
+    vehiculos: true,
     repartidores: true,
     inventario: false,
     reportes: false,
@@ -106,6 +109,7 @@ const permisoTabs = u => {
     tabs.clientes = true;
     tabs.creditos = true;
     tabs.ruta = true;
+    tabs.vehiculos = true;
     tabs.repartidores = true;
     tabs.gerencia = true;
     // Restricciones estructurales: no se pueden reactivar desde UI.

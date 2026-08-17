@@ -85,12 +85,12 @@ function Dashboard({
   const acciones = (isRepartidor ? [{
     icon: '🧾',
     label: 'Venta rápida',
-    detalle: rutaActiva ? 'Vender desde mi transferencia' : 'Revisar transferencia',
+    detalle: rutaActiva ? 'Vender durante mi jornada' : 'Revisar jornada',
     onClick: irA('ruta')
   }, {
     icon: '🧭',
     label: 'Mi distribución',
-    detalle: 'Revisar transferencias y clientes QR',
+    detalle: 'Revisar jornada, vehículo y clientes QR',
     onClick: irA('repartidores')
   }, {
     icon: '💰',
@@ -106,7 +106,7 @@ function Dashboard({
   }, {
     icon: '⚡',
     label: 'Venta rápida',
-    detalle: 'Venta directa desde almacén, sin transferencia',
+    detalle: 'Venta directa desde almacén, sin jornada',
     onClick: onVentaRapida,
     tab: 'nota',
     soloAdmin: true
@@ -124,8 +124,8 @@ function Dashboard({
     tab: 'creditos'
   }, {
     icon: '📦',
-    label: 'Transferencias',
-    detalle: 'Cargar, conciliar o recibir',
+    label: 'Jornadas',
+    detalle: 'Iniciar, recargar y cerrar jornadas',
     onClick: irA('ruta'),
     tab: 'ruta',
     soloAdmin: true
@@ -137,7 +137,7 @@ function Dashboard({
     tab: 'inventario'
   }]).filter(a => (a.soloAdmin ? isAdmin : true) && (!a.tab || tabsPermitidos[a.tab]));
   const tituloAcciones = isRepartidor ? 'Herramientas de campo' : 'Acciones rápidas';
-  const ayudaAcciones = isRepartidor ? 'Accesos para vender desde tu transferencia, identificar clientes y consultar tu corte.' : 'Accesos directos para las tareas operativas más frecuentes.';
+  const ayudaAcciones = isRepartidor ? 'Accesos para operar tu jornada, identificar clientes y consultar tu corte.' : 'Accesos directos para las tareas operativas más frecuentes.';
   return React.createElement("div", {
     style: {
       padding: '16px 12px'
@@ -165,7 +165,7 @@ function Dashboard({
       fontWeight: 800,
       color: 'var(--warn-text)'
     }
-  }, '🔔 Transferencias pendientes'), React.createElement("button", {
+  }, '🔔 Operaciones pendientes'), React.createElement("button", {
     onClick: () => onIrA('ruta'),
     style: {
       border: 'none',
@@ -210,7 +210,7 @@ function Dashboard({
     }
   }, isRepartidor ? React.createElement(React.Fragment, null, React.createElement(StatTile, {
     value: misNotasHoy.length,
-    label: "Ventas de transferencia hoy",
+    label: "Ventas de jornada hoy",
     bg: "var(--rail)",
     color: "var(--rail-ink)",
     onClick: irA('ruta')
@@ -227,8 +227,8 @@ function Dashboard({
     color: "#fff",
     onClick: irA('ruta')
   }), React.createElement(StatTile, {
-    value: rutaActiva ? 'Activa' : 'Sin transferencia',
-    label: "Estado de tu transferencia",
+    value: rutaActiva ? 'Activa' : 'Sin jornada',
+    label: "Estado de tu jornada",
     bg: rutaActiva ? 'var(--ok)' : 'var(--warn)',
     color: "#fff",
     onClick: irA('ruta')

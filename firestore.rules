@@ -14,6 +14,8 @@ service cloud.firestore {
     //   ✅ inventario_historial ✅ creditos           ✅ rutas
     //   ✅ clientes             ✅ devoluciones       ✅ gastos
     //   ✅ cierres_caja         ✅ usuarios           ✅ _meta
+    //   ✅ vehiculos/medidores  ✅ jornadas y subcolecciones
+    //   ✅ rutas_catalogo        ✅ tarifas_agua
     // Si agregas una colección nueva en el código: agrégala aquí también, o
     // sus lecturas/escrituras van a fallar en silencio (ya nos ocurrió con
     // una colección operativa sin regla explícita).
@@ -254,6 +256,135 @@ service cloud.firestore {
       allow create: if false;
       allow update: if isAdmin();
       allow delete: if isAdmin() && request.auth.uid != uid;
+    }
+
+    // ── vehículos y medidores fijos ──
+    match /vehiculos/{vehiculoId} {
+      allow read: if signedIn() && (isAdmin() || role() == 'repartidor');
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn() && role() == 'repartidor'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'jornadaActivaId', 'medidorUltimaLectura', 'actualizadoEn'
+          ])
+          && (
+            (request.resource.data.jornadaActivaId is string
+              && request.resource.data.jornadaActivaId != ''
+              && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(request.resource.data.jornadaActivaId)).data.repartidorId == request.auth.uid
+              && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(request.resource.data.jornadaActivaId)).data.estado == 'activa')
+            || (request.resource.data.jornadaActivaId == ''
+              && resource.data.jornadaActivaId is string
+              && resource.data.jornadaActivaId != ''
+              && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(resource.data.jornadaActivaId)).data.estado == 'cerrada')
+          ));
+      allow delete: if false;
+
+      match /jornadas/{jornadaId} {
+        allow read: if signedIn() && (isAdmin() || resource.data.repartidorId == request.auth.uid);
+        allow create: if signedIn()
+          && (isAdmin() || (role() == 'repartidor' && request.resource.data.repartidorId == request.auth.uid))
+          && request.resource.data.vehiculoId == vehiculoId
+          && request.resource.data.medidorId is string
+          && request.resource.data.lecturaInicial >= 0
+          && request.resource.data.factorLitrosPorUnidad > 0;
+        allow update: if signedIn()
+          && (isAdmin() || (role() == 'repartidor' && resource.data.repartidorId == request.auth.uid))
+          && (
+            (resource.data.estado == 'activa'
+              && request.resource.data.estado == 'cerrada'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'estado', 'lecturaCierre', 'fechaCierre', 'litrosCalculados', 'cierreId'
+              ])
+              && request.resource.data.lecturaCierre >= resource.data.lecturaInicial)
+            || (resource.data.estado == 'activa'
+              && request.resource.data.estado == 'activa'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'ultimaLectura', 'litrosVendidosAcumulados', 'ventasCount'
+              ])
+              && request.resource.data.ultimaLectura >= resource.data.ultimaLectura
+              && request.resource.data.litrosVendidosAcumulados >= resource.data.litrosVendidosAcumulados
+              && request.resource.data.ventasCount == resource.data.ventasCount + 1)
+          );
+        allow delete: if false;
+
+        match /lecturas/{lecturaId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.jornadaId == jornadaId
+            && request.resource.data.vehiculoId == vehiculoId
+            && request.resource.data.lectura >= 0
+            && (isAdmin() || request.resource.data.creadoPorUid == request.auth.uid);
+          allow update, delete: if false;
+        }
+        match /recargas/{recargaId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.jornadaId == jornadaId
+            && request.resource.data.vehiculoId == vehiculoId
+            && request.resource.data.litrosRecargados > 0
+            && (isAdmin() || request.resource.data.capturadoPorUid == request.auth.uid);
+          allow update, delete: if false;
+        }
+        match /ventas/{ventaId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.jornadaId == jornadaId
+            && request.resource.data.vehiculoId == vehiculoId
+            && request.resource.data.lecturaFinal > request.resource.data.lecturaInicial
+            && request.resource.data.litros > 0
+            && request.resource.data.subtotal >= 0
+            && (isAdmin() || request.resource.data.capturadoPorUid == request.auth.uid);
+          allow update, delete: if false;
+        }
+        match /cierres/{cierreId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.jornadaId == jornadaId
+            && request.resource.data.vehiculoId == vehiculoId
+            && request.resource.data.lecturaCierre >= request.resource.data.lecturaInicial
+            && (isAdmin() || request.resource.data.cerradoPorUid == request.auth.uid);
+          allow update, delete: if false;
+        }
+        match /incidencias/{incidenciaId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.jornadaId == jornadaId
+            && request.resource.data.vehiculoId == vehiculoId
+            && request.resource.data.motivo is string
+            && request.resource.data.motivo.size() > 0
+            && (isAdmin() || request.resource.data.capturadoPorUid == request.auth.uid);
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /medidores/{medidorId} {
+      allow read: if signedIn() && (isAdmin() || role() == 'repartidor');
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── tarifas de agua ──
+    match /tarifas_agua/{tarifaId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0
+        && request.resource.data.precioPorGarrafon > 0
+        && request.resource.data.litrosPorGarrafon == 19;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── catálogo de rutas y clientes configurables ──
+    match /rutas_catalogo/{rutaId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0
+        && request.resource.data.clienteIds is list;
+      allow update: if isAdmin();
+      allow delete: if false;
     }
 
     // ── _meta (control interno de sembrado de datos) ──

@@ -5,7 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v2-blue-products-menu';
+const CACHE_NAME = 'flutt-water-v3-vehicle-ledger';
 // Cache aparte para tiles de mapa offline: a propósito NO se borra cuando
 // sube la versión del shell (ver 'activate' más abajo) — si viviera en
 // CACHE_NAME, cada actualización de la app borraría el mapa descargado.
@@ -28,6 +28,7 @@ const SHELL_URLS = [
   './pedidos.js',
   './creditos.js',
   './ruta.js',
+  './vehiculos.js',
   './config.js',
   './app.js',
   './rutas-repartidores.js',
