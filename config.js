@@ -51,12 +51,6 @@ function Configuracion({
   useEffect(() => {
     if (abrirUsuarios && isAdmin) {
       setSub('usuarios');
-      setForm({
-        nombre: '',
-        email: '',
-        password: '',
-        role: 'usuario'
-      });
       onAbrirUsuariosConsumido && onAbrirUsuariosConsumido();
     }
   }, [abrirUsuarios]);
@@ -94,36 +88,24 @@ function Configuracion({
     }
   };
   const saveUser = async () => {
-    if (!form.nombre || !form.email || !form.id && !form.password) {
-      flash('Completa todos los campos', true);
+    if (!form?.id) {
+      flash('Las cuentas nuevas se crean desde Firebase Console.', true);
+      return;
+    }
+    if (!form.nombre || !form.email) {
+      flash('Completa el nombre del usuario', true);
       return;
     }
     try {
-      if (form.id) {
-        await db.collection('usuarios').doc(form.id).update({
-          nombre: form.nombre,
-          role: form.role
-        });
-        flash('✅ Usuario actualizado');
-      } else {
-        if (form.password.length < 6) {
-          flash('La contraseña debe tener mínimo 6 caracteres', true);
-          return;
-        }
-        const secondary = firebase.apps.find(a => a.name === 'Secondary') || firebase.initializeApp(firebaseConfig, 'Secondary');
-        const secAuth = secondary.auth();
-        const cred = await secAuth.createUserWithEmailAndPassword(form.email.trim(), form.password);
-        await db.collection('usuarios').doc(cred.user.uid).set({
-          nombre: form.nombre,
-          email: form.email.trim(),
-          role: form.role
-        });
-        await secAuth.signOut();
-        flash('✅ Usuario creado');
-      }
+      await db.collection('usuarios').doc(form.id).update({
+        nombre: form.nombre,
+        role: form.role,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      flash('✅ Perfil actualizado');
       setForm(null);
     } catch (e) {
-      flash('Error: ' + e.message, true);
+      flash('No se pudo actualizar el perfil', true);
     }
   };
   const delUser = async u => {
@@ -340,19 +322,16 @@ function Configuracion({
       cursor: 'pointer',
       marginTop: 18
     }
-  }, "Cancelar"))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement(Row, {
+  }, "Cancelar"))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
-      justifyContent: 'flex-end',
+      background: 'var(--surface-2)',
+      borderRadius: 8,
+      padding: '10px 12px',
+      fontSize: 12,
+      color: 'var(--ink-soft)',
       marginBottom: 10
     }
-  }, React.createElement(BFill, {
-    onClick: () => setForm({
-      nombre: '',
-      email: '',
-      password: '',
-      role: 'usuario'
-    })
-  }, "+ Nuevo usuario")), React.createElement("div", {
+  }, "Las cuentas nuevas se crean desde Firebase Console. Aquí solo se editan perfiles y roles."), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -443,7 +422,7 @@ function Configuracion({
   })), sub === 'permisos' && isAdmin && React.createElement(Permisos, {
     currentUser: currentUser
   }), form && React.createElement(Modal, {
-    title: form.id ? 'Editar Usuario' : 'Nuevo Usuario',
+    title: 'Editar Usuario',
     onClose: () => {
       setForm(null);
       setErr('');
@@ -470,13 +449,7 @@ function Configuracion({
       marginBottom: 10,
       opacity: form.id ? 0.6 : 1
     }
-  }), !form.id && React.createElement(React.Fragment, null, React.createElement(Lbl, null, "Contraseña"), React.createElement(PwInp, {
-    value: form.password,
-    onChange: e => setForm(f => ({
-      ...f,
-      password: e.target.value
-    }))
-  })), React.createElement(Lbl, null, "Rol"), React.createElement("select", {
+  }), React.createElement(Lbl, null, "Rol"), React.createElement("select", {
     value: form.role,
     onChange: e => setForm(f => ({
       ...f,
@@ -509,5 +482,5 @@ function Configuracion({
     style: {
       width: '100%'
     }
-  }, "💾 Guardar")));
+  }, "💾 Guardar cambios")));
 }
