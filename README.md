@@ -1,48 +1,37 @@
-# Control de Operaciones PWA
+# Flutt-Water
 
-PWA inicial construida con **HTML, CSS y JavaScript vanilla**. La autenticación utiliza Firebase Authentication mediante el proveedor **Correo electrónico/contraseña**.
+PWA para la operación de distribución de agua: productos, clientes, ventas, créditos, inventario, jornadas, reportes y configuración de usuarios.
 
-## Alcance actual
+## Stack
 
-Esta primera fase incluye únicamente:
-
-- Inicio de sesión con `signInWithEmailAndPassword`.
-- Persistencia de la sesión administrada por Firebase Auth.
-- Detección de sesión con `onAuthStateChanged`.
-- Cierre de sesión.
-- Vista protegida básica.
-- Manifest de PWA y service worker para recursos estáticos.
-- Sin registro público.
-- Sin recuperación de contraseña implementada.
-- Sin clientes, rutas, ventas, inventario ni escrituras en Firestore.
+La interfaz usa HTML, CSS y JavaScript con React cargado desde CDN. Firebase Authentication gestiona el inicio de sesión y Cloud Firestore almacena los datos operativos. La aplicación mantiene soporte offline de Firestore cuando el navegador lo permite.
 
 ## Ejecución local
 
-La aplicación debe servirse mediante HTTP, no abriendo el archivo directamente con `file://`, para que el service worker funcione correctamente y para aproximarse al entorno real de despliegue.
-
-Por ejemplo, desde esta carpeta puede usarse cualquier servidor estático local compatible:
+Sirve los archivos desde un servidor HTTP; no abras `index.html` directamente porque los módulos externos, el service worker y Firebase requieren un origen HTTP o HTTPS.
 
 ```bash
-npx serve .
+python3 -m http.server 8080
 ```
 
-Después se abre la URL local mostrada por el servidor.
+Después abre `http://localhost:8080/`.
 
-## Configuración de Firebase
+## Firebase
 
-La configuración web de Firebase está en `src/auth.js`. Es normal que la configuración web contenga `apiKey`, `projectId` y `appId`; no es una cuenta de servicio ni una credencial administrativa. Nunca se deben introducir en el repositorio contraseñas, tokens privados, certificados ni archivos de cuenta de servicio.
+La aplicación está configurada para el proyecto web `flutt-water`. Deben habilitarse en Firebase Authentication los proveedores necesarios y agregar los dominios de desarrollo/publicación a la lista de dominios autorizados. Las reglas se encuentran en `firestore.rules` y la configuración CLI en `firebase.json` y `.firebaserc`.
 
-En Firebase Console debe permanecer habilitado únicamente el flujo requerido: **Authentication → Sign-in method → Email/Password**. Los usuarios se crean desde la consola o desde un futuro panel administrativo autorizado. No se debe añadir una función `createUserWithEmailAndPassword` al cliente público.
+Antes de desplegar reglas en un proyecto real, probarlas en un proyecto de desarrollo o con Firebase Emulator Suite. No colocar cuentas de servicio, tokens de WhatsApp, claves de Admin SDK ni contraseñas en este repositorio.
 
-## Prueba manual
+## Identificadores QR
 
-1. Abrir la PWA servida por HTTP.
-2. Introducir el correo del usuario creado en Firebase Console.
-3. Introducir su contraseña directamente en el formulario; no compartirla con el equipo de desarrollo ni guardarla en archivos.
-4. Confirmar que aparece el panel protegido.
-5. Cerrar sesión y confirmar que vuelve el formulario.
-6. Probar una contraseña incorrecta y confirmar que se muestra un mensaje genérico, sin revelar si el correo existe.
+Los códigos de cliente usan el formato `FLW-CLIENTE:<id>`. El QR no debe incluir datos personales ni financieros; únicamente referencia el identificador que Firebase valida.
 
-## Siguiente aprobación requerida
+## WhatsApp
 
-Antes de crear la estructura de Firestore se deben aprobar los roles, organizaciones, rutas, clientes, unidades de medida, precios, estados de jornada, movimientos de caja y reglas de autorización. Ningún módulo de negocio debe escribirse hasta acordar ese modelo.
+La PWA genera enlaces `wa.me` con mensajes de comprobante o guía. Un enlace prellenado no confirma entrega. La automatización futura debe realizarse mediante backend y un proveedor autorizado; nunca se debe guardar un token de WhatsApp en el navegador.
+
+## Migración
+
+Esta versión reutiliza lógica funcional de una aplicación anterior, pero separa el proyecto Firebase, elimina branding heredado, sustituye QR y cachés, y usa iconos neutrales de Flutt-Water. El repositorio productivo de origen no forma parte de este proyecto ni debe modificarse durante la migración.
+
+Consulta `SECURITY.md` antes de añadir colecciones, permisos o integraciones externas.

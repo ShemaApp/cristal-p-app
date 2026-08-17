@@ -1,40 +1,151 @@
-const CACHE_NAME = "control-operaciones-shell-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/index.html",
-  "/styles.css",
-  "/manifest.webmanifest",
+// sw.js — Flutt-Water Service Worker
+// Cachea el "app shell" (HTML + librerías CDN) para que la app cargue sin internet.
+// Los DATOS (productos, clientes, etc.) los maneja Firestore con enablePersistence()
+// en el propio HTML — este SW no toca esos datos.
+
+// Cambia esta versión en cada publicación para invalidar el shell anterior.
+const CACHE_PREFIX = 'flutt-water-';
+const CACHE_NAME = 'flutt-water-v1-migrated';
+// Cache aparte para tiles de mapa offline: a propósito NO se borra cuando
+// sube la versión del shell (ver 'activate' más abajo) — si viviera en
+// CACHE_NAME, cada actualización de la app borraría el mapa descargado.
+const TILES_CACHE = 'flutt-water-tiles-v1';
+const TILE_HOST = 'tile.openstreetmap.org';
+
+// Ajusta la ruta de tu HTML principal si tu index no se llama exactamente así.
+const SHELL_URLS = [
+  './',
+  './index.html',
+  './firebase-init.js',
+  './offline.html',
+  './app-core.js',
+  './ventas-offline.js',
+  './sesion.js',
+  './auth.js',
+  './dashboard.js',
+  './productos.js',
+  './clientes.js',
+  './pedidos.js',
+  './creditos.js',
+  './ruta.js',
+  './config.js',
+  './app.js',
+  './rutas-repartidores.js',
+  './inventario.js',
+  './reportes.js',
+  './gerencia.js',
+  './permisos.js',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
+  'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
+  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-auth-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-firestore-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-check-compat.js',
+  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
-  self.skipWaiting();
+// --- Instalación atómica: no se activa una versión incompleta del shell ---
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+      // addAll resuelve únicamente cuando TODOS los recursos requeridos se guardaron.
+      // Si falla uno, se conserva activo el Service Worker anterior y su shell completo.
+      await cache.addAll(SHELL_URLS);
+      await self.skipWaiting();
+    } catch (error) {
+      // Evita reutilizar una caché parcial cuando el navegador reintente instalar esta versión.
+      await caches.delete(CACHE_NAME);
+      throw error;
+    }
+  })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
+// --- Activación: conserva tiles y elimina solo versiones antiguas de esta PWA ---
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
       keys
-        .filter((key) => key !== CACHE_NAME)
-        .map((key) => caches.delete(key)),
-    )),
-  );
-  self.clients.claim();
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME && key !== TILES_CACHE)
+        .map((key) => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
+// --- Fetch: network-first para navegación (HTML), cache-first para el resto ---
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
 
-  // Firebase Auth y otros servicios externos nunca se cachean aquí.
-  if (requestUrl.origin !== self.location.origin || event.request.method !== "GET") return;
+  // La Cache API solo soporta requests GET; deja pasar cualquier otro método sin tocar
+  if (request.method !== 'GET') return;
 
+  // No interceptar llamadas a Firestore/Auth (dejar que Firebase maneje su propio offline)
+  if (
+    request.url.includes('firestore.googleapis.com') ||
+    request.url.includes('identitytoolkit.googleapis.com') ||
+    request.url.includes('securetoken.googleapis.com')
+  ) {
+    return; // deja pasar sin interceptar
+  }
+
+  // Tiles de mapa (OpenStreetMap): cache-first puro, sin red si ya están
+  // descargadas — esto es lo que hace que el mapa funcione sin conexión
+  // dentro de la zona que se haya descargado desde la pestaña Mapa.
+  if (request.url.includes(TILE_HOST)) {
+    event.respondWith(
+      caches.open(TILES_CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          if (cached) return cached;
+          return fetch(request).then((res) => {
+            if (res && res.ok) cache.put(request, res.clone());
+            return res;
+          }).catch(() => cached);
+        })
+      )
+    );
+    return;
+  }
+
+  // Navegación: cache-first con actualización en segundo plano. Evita que una
+  // red lenta retrase la entrada en visitas posteriores y conserva la página
+  // offline si no hay conectividad.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const update = fetch(request)
+          .then((res) => {
+            if (res && res.ok) caches.open(CACHE_NAME).then((c) => c.put(request, res.clone()));
+            return res;
+          })
+          .catch(() => cached || caches.match('./offline.html'));
+        event.waitUntil(update);
+        return cached || update;
+      })
+    );
+    return;
+  }
+
+  // Assets estáticos (JS de CDN, etc.): cache-first, con actualización en segundo plano
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-      }
-      return response;
-    })),
+    caches.match(request).then((cached) => {
+      const fetchPromise = fetch(request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+          return res;
+        })
+        .catch(() => cached);
+      return cached || fetchPromise;
+    })
   );
 });

@@ -1,107 +1,113 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="description" content="Panel seguro de control de operaciones." />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/src/configuracion.css" />
-    <title>Flutt-Water</title>
-  </head>
-  <body>
-    <main class="app-shell">
-      <section id="login-view" class="card auth-card" aria-labelledby="login-title">
-        <div class="brand-mark" aria-hidden="true">FW</div>
-        <p class="eyebrow">Flutt-Water</p>
-        <h1 id="login-title">Iniciar sesión</h1>
-        <p class="muted">Acceso exclusivo para usuarios autorizados.</p>
-        <form id="login-form" novalidate>
-          <label for="email">Correo electrónico</label>
-          <input id="email" name="email" type="email" autocomplete="username" required maxlength="254" />
-          <label for="password">Contraseña</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="6" maxlength="128" />
-          <button id="login-button" class="primary-button" type="submit">Entrar</button>
-          <p id="login-status" class="status" role="alert" aria-live="polite"></p>
-        </form>
-      </section>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Flutt-Water</title>
+<link rel="manifest" href="./manifest.json"/>
+<meta name="theme-color" content="#1E211D"/>
+<link rel="icon" href="./icons/icon-192.png"/>
+<!-- iOS: Safari no lee manifest.json, necesita estas etiquetas aparte -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Flutt-Water"/>
+<link rel="apple-touch-icon" href="./icons/icon-192.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet"/>
+<script defer crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script defer crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-auth-compat.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-firestore-compat.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-check-compat.js"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-      <section id="app-view" class="app-view hidden" aria-labelledby="app-title">
-        <div id="sidebar-backdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
-        <aside id="sidebar" class="sidebar" aria-label="Navegación principal">
-          <div class="sidebar-header">
-            <div><p class="eyebrow">Flutt-Water</p><h2>Control</h2></div>
-            <button id="close-sidebar-button" class="icon-button" type="button" aria-label="Cerrar menú">×</button>
-          </div>
-          <nav>
-            <button class="nav-item active" type="button" data-view="home-view" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Inicio</span></button>
-            <button class="nav-item" type="button" data-view="config-view"><span class="nav-icon" aria-hidden="true">⚙</span><span>Configuración</span></button>
-          </nav>
-          <div class="sidebar-footer"><span class="session-label">Usuario</span><strong id="sidebar-user-email"></strong><span id="sidebar-user-role" class="role-badge">Perfil</span></div>
-        </aside>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    /* ── Tokens: industrial / logística, tema claro ── */
+    --bg:#ECEDE7; --surface:#FFFFFF; --surface-2:#F1F1EA;
+    --ink:#1B1D19; --ink-soft:#585D53; --ink-faint:#8B8F84;
+    --line:#DEE0D5; --line-strong:#C7C9BB;
+    --rail:#1E211D; --rail-border:#34372E; --rail-ink:#ECEDE7; --rail-ink-faint:#9A9E90;
+    --accent:#E8A400; --accent-text:#8A5A00; --accent-ink:#1B1D19;
+    --info:#3E7CA6; --info-text:#1F4E6E; --info-bg:#DEE7EC;
+    --ok:#2E8B45; --ok-text:#1E6630; --ok-bg:#DFEFE2;
+    --danger:#C23B2E; --danger-text:#8C2A20; --danger-bg:#F4DEDA;
+    --warn:#C2601D; --warn-text:#8C4515; --warn-bg:#F3E4D3;
+    --admin:#3B4B6B; --font-display:'Oswald',sans-serif; --font-body:'IBM Plex Sans',system-ui,sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--font-body)}
+  #root{max-width:420px;margin:0 auto;min-height:100vh;position:relative}
+  body{scrollbar-width:none}
 
-        <div class="main-content">
-          <header class="topbar">
-            <button id="open-sidebar-button" class="icon-button menu-button" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-            <div><p class="eyebrow">Sección activa</p><h1 id="app-title">Inicio</h1></div>
-            <button id="logout-button" class="secondary-button" type="button">Cerrar sesión</button>
-          </header>
-
-          <section id="home-view" class="content-view">
-            <div class="content-card"><p class="eyebrow">Bienvenido</p><h2>Hola mundo</h2><p class="muted">Estás en Inicio. Desde aquí se integrarán los módulos autorizados.</p></div>
-          </section>
-
-          <section id="config-view" class="content-view hidden" aria-labelledby="config-title">
-            <div class="section-heading"><div><p class="eyebrow">Administración</p><h2 id="config-title">Configuración</h2><p class="muted">Gestiona tu perfil, los datos de ticket y la seguridad de la cuenta.</p></div><span id="config-role-label" class="role-badge">Cargando perfil</span></div>
-            <div id="config-status" class="status" role="status" aria-live="polite"></div>
-
-            <div class="config-grid">
-              <form id="profile-form" class="config-section">
-                <div class="section-label">Mi perfil</div>
-                <label for="profile-name">Nombre para notificaciones</label>
-                <input id="profile-name" name="displayName" type="text" autocomplete="name" maxlength="120" required />
-                <label for="profile-phone">Teléfono de contacto</label>
-                <input id="profile-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" />
-                <label for="profile-email">Correo autenticado</label>
-                <input id="profile-email" type="email" readonly />
-                <button class="primary-button" type="submit">Guardar perfil</button>
-              </form>
-
-              <form id="branding-form" class="config-section">
-                <div class="section-label">Bienvenida y ticket</div>
-                <label for="company-name">Nombre de empresa</label>
-                <input id="company-name" name="applicationName" type="text" maxlength="80" value="Flutt-Water" />
-                <label for="ticket-phone">Teléfono empresarial para créditos</label>
-                <input id="ticket-phone" name="whatsappCreditPhone" type="tel" maxlength="20" placeholder="+526371375399" />
-                <label for="welcome-template">Plantilla de bienvenida</label>
-                <input id="welcome-template" name="welcomeTemplate" type="text" maxlength="180" value="Bienvenido a {applicationName}, {displayName}" />
-                <button class="primary-button" type="submit">Guardar configuración</button>
-              </form>
-
-              <form id="password-form" class="config-section">
-                <div class="section-label">Seguridad</div>
-                <label for="current-password">Contraseña actual</label>
-                <input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required minlength="6" maxlength="128" />
-                <label for="new-password">Nueva contraseña</label>
-                <input id="new-password" name="newPassword" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
-                <label for="confirm-password">Confirmar nueva contraseña</label>
-                <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
-                <button class="primary-button" type="submit">Cambiar contraseña</button>
-              </form>
-
-              <section id="users-section" class="config-section admin-only hidden" aria-labelledby="users-title">
-                <div class="section-label" id="users-title">Usuarios y roles</div>
-                <p class="muted compact">La asignación de roles requiere un administrador y backend seguro. Esta sección no crea cuentas desde el navegador.</p>
-                <div class="permission-row"><span>Rol actual</span><strong id="current-role">admin</strong></div>
-                <div class="permission-row"><span>Alta de usuarios</span><strong>Firebase Console / backend</strong></div>
-                <div class="permission-row"><span>Registro público</span><strong>No permitido</strong></div>
-              </section>
-            </div>
-          </section>
-        </div>
-      </section>
-    </main>
-    <script type="module" src="/src/auth.js"></script>
-  </body>
+  /* Frittz v47: la experiencia móvil sigue siendo la base. Estas reglas
+     solo se activan en pantallas anchas y no alteran el layout compacto. */
+  @media (min-width:768px){
+    #root{max-width:none!important;margin:0}
+    .frittz-topbar,.frittz-accent-bar,.frittz-offline-banner,.frittz-nav-shell{
+      max-width:none!important;left:0!important;transform:none!important
+    }
+    .frittz-main-content{
+      width:100%;max-width:1600px;margin:0 auto;
+      padding-left:260px;padding-right:28px
+    }
+    .frittz-topbar{padding-left:260px!important;padding-right:28px!important}
+    .frittz-offline-banner{
+      padding-left:260px!important;padding-right:28px!important;text-align:left!important
+    }
+    .frittz-nav-shell{right:0!important}
+    .frittz-nav-shell nav{
+      transform:translateX(0)!important;box-shadow:none!important
+    }
+    .frittz-menu-toggle{display:none!important}
+    .frittz-login-shell{padding:48px 24px!important}
+    .frittz-login-logo{width:100px!important;height:100px!important}
+    .frittz-login-title{font-size:32px!important}
+    .frittz-login-subtitle{font-size:13px!important;margin-bottom:32px!important}
+    .frittz-login-panel{max-width:460px!important;padding:32px!important}
+  }
+  @media (min-width:1280px){
+    .frittz-main-content{padding-left:280px;padding-right:40px}
+    .frittz-topbar{padding-left:280px!important;padding-right:40px!important}
+    .frittz-offline-banner{padding-left:280px!important;padding-right:40px!important}
+  }
+  ::-webkit-scrollbar{display:none}
+  input:focus{outline:none!important;border-color:var(--accent-text)!important}
+  button,select{font-family:inherit}
+  *{-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+<div id="root"><div style="display:flex;justify-content:center;align-items:center;height:100vh;color:var(--ink-soft);font-size:14px">Iniciando…</div></div>
+<script defer src="./firebase-init.js"></script>
+  <script defer src="./app-core.js"></script>
+  <script defer src="./ventas-offline.js"></script>
+  <script defer src="./sesion.js"></script>
+<script defer src="./auth.js"></script>
+<script defer src="./dashboard.js"></script>
+<script defer src="./productos.js"></script>
+<script defer src="./clientes.js"></script>
+<script defer src="./pedidos.js"></script>
+<script defer src="./creditos.js"></script>
+<script defer src="./ruta.js"></script>
+<script defer src="./config.js"></script>
+<script defer src="./app.js"></script>
+<script defer src="./rutas-repartidores.js"></script>
+<script defer src="./inventario.js"></script>
+<script defer src="./reportes.js"></script>
+<script defer src="./gerencia.js"></script>
+<script defer src="./permisos.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('SW registrado:', reg.scope))
+        .catch(err => console.warn('SW no se pudo registrar:', err));
+    });
+  }
+</script>
+</body>
 </html>

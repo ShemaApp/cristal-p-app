@@ -1,66 +1,273 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Cobertura de colecciones ──
+    // Cada colección que el código realmente usa (grep de .collection('...')
+    // en todos los .js, incluida la lista dinámica del respaldo en
+    // rutas-repartidores.js) tiene su propio bloque `match` más abajo, con
+    // reglas explícitas de read/create/update/delete. Ninguna depende del
+    // catch-all final para funcionar — ese catch-all solo existe para
+    // bloquear colecciones NO anticipadas (typos, nombres nuevos que se
+    // agreguen en el código sin agregar su regla aquí).
+    //   ✅ productos            ✅ notas              ✅ pedidos
+    //   ✅ inventario_historial ✅ creditos           ✅ rutas
+    //   ✅ clientes             ✅ devoluciones       ✅ gastos
+    //   ✅ cierres_caja         ✅ usuarios           ✅ _meta
+    // Si agregas una colección nueva en el código: agrégala aquí también, o
+    // sus lecturas/escrituras van a fallar en silencio (ya nos ocurrió con
+    // una colección operativa sin regla explícita).
+
+    // ── Helpers ──
     function signedIn() {
       return request.auth != null;
     }
-
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    function role() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role;
     }
-
-    function activeUser() {
-      return signedIn() && userDoc().data.active == true;
-    }
-
     function isAdmin() {
-      return activeUser() && userDoc().data.role == 'admin';
+      return signedIn() && role() == 'admin';
+    }
+    function isStaff() {
+      // admin y vendedor ('usuario') tienen los mismos permisos de escritura
+      // en la mayoría de las colecciones.
+      return signedIn() && (role() == 'admin' || role() == 'usuario');
+    }
+    function datosUsuario() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    // Refleja los permisos concedidos desde Configuración → Permisos (permisos.js)
+    // en la app: cada usuario puede tener overrides en usuarios/{uid}.permisos.edita
+    // que se combinan sobre el valor por defecto de su rol (mismo criterio que
+    // permisoEdita() en app-core.js — si se cambia uno, cambiar el otro).
+    // 'recurso' es uno de: 'productos', 'clientes', 'creditos'.
+    // El permiso de productos no concede al repartidor ajustes manuales; su
+    // única excepción está declarada en match /productos/{id} y se valida con
+    // el documento de la transferencia creada en la misma transacción.
+    function permisoEdicion(recurso) {
+      let datos = datosUsuario();
+      let overrides = ('permisos' in datos) && ('edita' in datos.permisos) ? datos.permisos.edita : {};
+      let porDefecto = datos.role == 'usuario'
+        || (datos.role == 'repartidor'
+          && (recurso == 'clientes' || recurso == 'creditos'));
+      let valor = recurso in overrides ? overrides[recurso] == true : porDefecto;
+      // El repartidor nunca obtiene edición manual de productos, aunque exista
+      // un override antiguo en usuarios/{uid}.permisos.edita.
+      return signedIn()
+        && !(recurso == 'productos' && datos.role == 'repartidor')
+        && (datos.role == 'admin' || valor);
     }
 
-    function sameOrganization(organizationId) {
-      return activeUser() && userDoc().data.organizationId == organizationId;
+    // ── productos ──
+    match /productos/{id} {
+      allow read: if signedIn();
+      allow create: if permisoEdicion('productos');
+      // Admin/usuario pueden ajustar inventario según permisos. El repartidor
+      // solo puede descontar stock en la creación atómica de una transferencia
+      // nueva que queda asignada a él; no puede hacer ajustes posteriores.
+      allow update: if permisoEdicion('productos')
+        || (signedIn() && role() == 'repartidor'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'stock', 'ultimaTransferenciaId',
+            'ultimaTransferenciaRepartidorUid',
+            'ultimaTransferenciaCantidad', 'ultimaTransferenciaFecha'
+          ])
+          && request.resource.data.ultimaTransferenciaRepartidorUid == request.auth.uid
+          && request.resource.data.ultimaTransferenciaId is string
+          && request.resource.data.ultimaTransferenciaCantidad > 0
+          && request.resource.data.stock
+            == resource.data.stock - request.resource.data.ultimaTransferenciaCantidad
+          && !exists(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId))
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.repartidorId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.estado == 'activa'
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items.keys().hasAny([id])
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items[id].cantCargada == request.resource.data.ultimaTransferenciaCantidad);
+      allow delete: if isAdmin();
     }
 
-    function unchangedRole() {
-      return request.resource.data.role == resource.data.role;
+    // ── inventario_historial ──
+    // Solo admin lee. Cualquiera autenticado puede crear su propio registro
+    // (usuarioUid debe coincidir con quien está autenticado) — la escritura
+    // real de stock que acompaña a este log ya está protegida por su propia
+    // regla (productos: permisoEdicion), así que aquí basta con el ownership.
+    // Los registros de ajuste pertenecen a almacén; el repartidor solo
+    // descuenta stock mediante la excepción transaccional de productos.
+    match /inventario_historial/{id} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && role() != 'repartidor'
+        && request.resource.data.usuarioUid == request.auth.uid;
+      allow update, delete: if false;
     }
 
-    match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role == 'pending'
-        && request.resource.data.active == true
-        && request.resource.data.organizationId is string;
-      allow update: if signedIn() && (
-        (request.auth.uid == uid
-          && unchangedRole()
-          && request.resource.data.organizationId == resource.data.organizationId
-          && request.resource.data.email == resource.data.email)
-        || isAdmin()
-      );
-      allow delete: if isAdmin() && uid != request.auth.uid;
-    }
-
-    match /organizations/{organizationId} {
-      allow read: if sameOrganization(organizationId);
-      allow create, update: if isAdmin() && sameOrganization(organizationId);
+    // ── clientes ──
+    match /clientes/{id} {
+      allow read: if signedIn();
+      allow create: if permisoEdicion('clientes')
+        && (role() != 'repartidor'
+          || request.resource.data.creadoPorUid == request.auth.uid);
+      allow update: if permisoEdicion('clientes');
       allow delete: if false;
     }
 
-    match /notifications/{notificationId} {
-      allow read: if activeUser() && resource.data.recipientUid == request.auth.uid;
-      allow update: if activeUser()
-        && resource.data.recipientUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt', 'status']);
-      allow create, delete: if false;
+    // ── notas (ventas) ──
+    // Son inmutables. La venta desde transferencia exige una transacción que
+    // agregue su entrega a la misma transferencia del responsable autenticado.
+    match /notas/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.capturadoPorUid == request.auth.uid
+        && (
+          (request.resource.data.origen == 'almacen' && permisoEdicion('productos'))
+          || ((request.resource.data.origen == 'transferencia_almacen' || request.resource.data.origen == 'qr_cliente_ruta')
+            && request.resource.data.transferenciaId is string
+            && request.resource.data.rutaId == request.resource.data.transferenciaId
+            && (isAdmin() || getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.repartidorId == request.auth.uid)
+            && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.estado == 'activa'
+            && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.entregas.size() == get(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.entregas.size() + 1)
+        );
+      allow update, delete: if false;
     }
 
-    match /audit_logs/{auditId} {
-      allow read: if isAdmin();
-      allow write: if false;
+    // ── creditos ──
+    match /creditos/{id} {
+      allow read: if signedIn();
+      allow create: if permisoEdicion('creditos')
+        || (signedIn() && role() == 'repartidor' && request.resource.data.capturadoPorUid == request.auth.uid);
+      allow update: if permisoEdicion('creditos');
+      allow delete: if false;
     }
 
+    // ── pedidos ──
+    match /pedidos/{id} {
+      allow read: if isStaff()
+        || (signedIn() && role() == 'repartidor'
+          && resource.data.repartidorId == request.auth.uid);
+
+      // Oficina crea borradores. Administración asigna pedidos a terceros.
+      // El repartidor crea únicamente pedidos asignados a sí mismo.
+      allow create: if (
+          (isStaff() && request.resource.data.creadoPorUid == request.auth.uid)
+          || (signedIn() && role() == 'repartidor'
+            && request.resource.data.creadoPorUid == request.auth.uid
+            && request.resource.data.repartidorId == request.auth.uid
+            && request.resource.data.estado == 'asignado_pendiente_transferencia')
+        );
+
+      allow update: if isAdmin()
+        || (signedIn() && role() == 'repartidor'
+          && resource.data.repartidorId == request.auth.uid
+          && request.resource.data.repartidorId == request.auth.uid
+          && resource.data.estado == 'asignado_pendiente_transferencia'
+          && request.resource.data.estado == 'transferencia_confirmada'
+          && request.resource.data.transferenciaId is string
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estado', 'transferenciaId', 'fechaConfirmacionTransferencia',
+            'confirmadaPorUid', 'confirmadaPorNombre', 'fechaActualizacion'
+          ])
+          && request.resource.data.confirmadaPorUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.repartidorId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.estado == 'activa')
+        || (signedIn() && role() == 'repartidor'
+          && resource.data.repartidorId == request.auth.uid
+          && request.resource.data.repartidorId == request.auth.uid
+          && resource.data.estado == 'transferencia_confirmada'
+          && request.resource.data.estado == 'entregado'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estado', 'notaId', 'fechaEntrega', 'entregadoPorUid',
+            'entregadoPorNombre', 'fechaActualizacion', 'requiereRevision'
+          ])
+          && request.resource.data.entregadoPorUid == request.auth.uid);
+
+      allow delete: if false;
+    }
+
+    // ── rutas ──
+    // La colección mantiene transferencias desde almacén. El repartidor puede
+    // crear solo una transferencia propia y operar únicamente sus documentos.
+    match /rutas/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && role() == 'repartidor' && resource.data.repartidorId == request.auth.uid);
+      allow create: if isAdmin()
+        || (signedIn() && role() == 'repartidor'
+          && request.resource.data.repartidorId == request.auth.uid
+          && request.resource.data.asignadaPorUid == request.auth.uid
+          && request.resource.data.tipo == 'transferencia_almacen'
+          && request.resource.data.origen == 'almacen'
+          && request.resource.data.estado == 'activa'
+          && request.resource.data.items.size() > 0);
+      allow update: if isAdmin()
+        || (signedIn() && role() == 'repartidor'
+          && resource.data.repartidorId == request.auth.uid
+          && request.resource.data.repartidorId == request.auth.uid
+          && (
+            // Mientras está abierta, el responsable comparte GPS o registra una venta.
+            (resource.data.estado == 'activa'
+              && request.resource.data.estado == 'activa'
+              && (
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ubicacionActual'])
+                || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items', 'entregas'])
+                  && request.resource.data.entregas.size() == resource.data.entregas.size() + 1)
+              ))
+            // Al terminar, únicamente solicita que almacén reciba y concilie.
+            || (resource.data.estado == 'activa'
+              && request.resource.data.estado == 'pendiente_recepcion'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'estado', 'estadoTransferencia', 'fechaSolicitudCierre',
+                'solicitadoPorUid', 'solicitadoPorNombre'
+              ])
+              && request.resource.data.solicitadoPorUid == request.auth.uid)
+          ));
+      allow delete: if false;
+    }
+
+    // ── devoluciones (usado por rutas-repartidores.js, panel de admin/repartidor) ──
+    match /devoluciones/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        || (signedIn() && role() == 'usuario'
+          && request.resource.data.capturadoPorUid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ── gastos (Gerencia: salidas de efectivo/tarjeta) ──
+    // Cualquiera crea, siempre y cuando capturadoPorUid sea su propio uid.
+    // Cada quien lee solo lo suyo; admin lee todo. Solo admin edita/elimina.
+    match /gastos/{id} {
+      allow read: if signedIn() && (isAdmin() || resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.capturadoPorUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Comprobantes de cierre de caja — inmutables una vez creados (nadie
+    // "corrige" un cierre, se genera uno nuevo si algo cambió).
+    match /cierres_caja/{id} {
+      allow read: if signedIn() && (isAdmin() || resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.capturadoPorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ── usuarios (perfiles) ──
+    match /usuarios/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin() && request.auth.uid != uid;
+    }
+
+    // ── _meta (control interno de sembrado de datos) ──
+    // Lectura abierta porque app.js revisa _meta/seed en cada inicio de
+    // sesión (para decidir si sembrar datos de ejemplo). Escritura solo
+    // admin: antes cualquier persona autenticada podía escribir aquí.
+    match /_meta/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── Todo lo demás: denegado por defecto ──
+    // Nunca debería activarse en operación normal — es un backstop de
+    // seguridad, no una regla "viva". Si alguna vez una acción legítima
+    // termina cayendo aquí, es señal de que falta agregar esa colección
+    // arriba, en la lista de "Cobertura de colecciones".
     match /{document=**} {
       allow read, write: if false;
     }
