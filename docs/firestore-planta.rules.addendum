@@ -1,0 +1,168 @@
+// ANEXO NO DESPLEGADO: reglas para el módulo futuro de Planta.
+//
+// Este archivo no es un ruleset autónomo. Debe insertarse dentro de:
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     ...
+//   }
+// }
+//
+// Debe colocarse antes del catch-all final:
+// match /{document=**} { allow read, write: if false; }
+//
+// Requiere que existan en el archivo principal los helpers:
+// signedIn(), role(), isAdmin().
+//
+// Diseño conservador:
+// - El cliente solo puede crear operaciones en estado pendiente_sync.
+// - La confirmación y los movimientos físicos/monetarios deben provenir de
+//   un proceso confiable de conciliación, idealmente Cloud Functions/Admin SDK.
+// - Los movimientos confirmados son inmutables.
+// - No se crean usuarios, clientes, rutas ni vehículos desde este anexo.
+
+function esOperadorPlanta() {
+  return signedIn() && (isAdmin() || role() == 'usuario');
+}
+
+function operacionPropia(data) {
+  return signedIn() && data.operadorUid == request.auth.uid;
+}
+
+function operacionConfirmada(operacionId) {
+  return getAfter(/databases/$(database)/documents/operaciones/$(operacionId)).data.estado == 'confirmada'
+    && getAfter(/databases/$(database)/documents/operaciones/$(operacionId)).data.operacionId == operacionId;
+}
+
+match /ubicaciones/{ubicacionId} {
+  allow read: if esOperadorPlanta();
+  allow create, update: if isAdmin();
+  allow delete: if false;
+}
+
+match /plantas/{plantaId} {
+  allow read: if esOperadorPlanta();
+  allow create, update: if isAdmin();
+  allow delete: if false;
+}
+
+match /inventario_saldos/{saldoId} {
+  allow read: if esOperadorPlanta();
+  allow create, update: if esOperadorPlanta()
+    && request.resource.data.ubicacionId is string
+    && request.resource.data.productoId is string
+    && request.resource.data.ultimaOperacionId is string
+    && request.resource.data.cantidad >= 0
+    && operacionConfirmada(request.resource.data.ultimaOperacionId);
+  allow delete: if false;
+}
+
+match /operaciones/{operacionId} {
+  allow read: if isAdmin() || (signedIn() && resource.data.operadorUid == request.auth.uid);
+
+  // La PWA deja la intención pendiente. La confirmación no se concede
+  // directamente al cliente para evitar manipulación de inventario y caja.
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId == operacionId
+    && request.resource.data.idempotencyKey is string
+    && request.resource.data.idempotencyKey.size() >= 16
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.estado == 'pendiente_sync'
+    && request.resource.data.tipo in [
+      'llenado_planta',
+      'venta_planta_producto',
+      'venta_planta_agua',
+      'venta_planta_garrafon_nuevo'
+    ];
+
+  // Solo un proceso administrativo confiable debe cambiar pendiente_sync a
+  // confirmada o requiere_revision. La PWA no obtiene este permiso.
+  allow update, delete: if false;
+
+  match /detalles/{detalleId} {
+    allow read: if isAdmin()
+      || (signedIn() && get(/databases/$(database)/documents/operaciones/$(operacionId)).data.operadorUid == request.auth.uid);
+    allow create: if esOperadorPlanta()
+      && getAfter(/databases/$(database)/documents/operaciones/$(operacionId)).data.estado == 'confirmada'
+      && getAfter(/databases/$(database)/documents/operaciones/$(operacionId)).data.operadorUid == request.auth.uid;
+    allow update, delete: if false;
+  }
+}
+
+match /movimientos_inventario/{movimientoId} {
+  allow read: if esOperadorPlanta();
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId is string
+    && request.resource.data.movimientoId == movimientoId
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.ubicacionId is string
+    && request.resource.data.productoId is string
+    && request.resource.data.tipoMovimiento in ['entrada', 'salida', 'ajuste']
+    && operacionConfirmada(request.resource.data.operacionId);
+  allow update, delete: if false;
+}
+
+match /llenados_planta/{llenadoId} {
+  allow read: if esOperadorPlanta();
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId is string
+    && request.resource.data.plantaId is string
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.litrosConsumidos > 0
+    && operacionConfirmada(request.resource.data.operacionId);
+  allow update, delete: if false;
+}
+
+match /ventas/{ventaId} {
+  allow read: if isAdmin() || (signedIn() && resource.data.operadorUid == request.auth.uid);
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId is string
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.origen == 'planta'
+    && request.resource.data.cajaId is string
+    && request.resource.data.total >= 0
+    && operacionConfirmada(request.resource.data.operacionId);
+  allow update, delete: if false;
+}
+
+match /movimientos_caja/{movimientoId} {
+  allow read: if isAdmin() || (signedIn() && resource.data.operadorUid == request.auth.uid);
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId is string
+    && request.resource.data.cajaId is string
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.monto >= 0
+    && operacionConfirmada(request.resource.data.operacionId);
+  allow update, delete: if false;
+}
+
+match /envases_prestados/{prestamoId} {
+  allow read: if isAdmin() || (signedIn() && resource.data.operadorUid == request.auth.uid);
+  allow create: if esOperadorPlanta()
+    && request.resource.data.operacionId is string
+    && request.resource.data.operadorUid == request.auth.uid
+    && request.resource.data.clienteId is string
+    && request.resource.data.productoId is string
+    && request.resource.data.cantidad > 0
+    && operacionConfirmada(request.resource.data.operacionId);
+  allow update, delete: if false;
+}
+
+// Reemplazo recomendado para el match existente de cajas_jornada cuando
+// Planta se implemente. No debe coexistir con dos matches distintos para la
+// misma ruta; integra estas condiciones en el bloque activo.
+//
+// match /cajas_jornada/{cajaId} {
+//   allow read: if isAdmin()
+//     || (signedIn() && resource.data.operadorUid == request.auth.uid)
+//     || (signedIn() && resource.data.repartidorId == request.auth.uid);
+//   allow create: if esOperadorPlanta()
+//     && request.resource.data.operadorUid == request.auth.uid
+//     && request.resource.data.estado == 'abierta'
+//     && request.resource.data.tipoCaja in ['planta', 'vehiculo'];
+//   allow update: if isAdmin()
+//     || (signedIn()
+//       && resource.data.operadorUid == request.auth.uid
+//       && resource.data.estado == 'abierta'
+//       && request.resource.data.estado == 'cerrada');
+//   allow delete: if false;
+// }
