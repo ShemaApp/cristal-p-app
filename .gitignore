@@ -1,0 +1,32 @@
+# Firebase y credenciales privadas
+**/service-account*.json
+**/*serviceAccount*.json
+**/google-services.json
+**/GoogleService-Info.plist
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+
+# Sistema y herramientas
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.swp
+
+# Capturas y archivos adjuntos locales
+Screenshot_*.jpg
+/home/ubuntu/upload/

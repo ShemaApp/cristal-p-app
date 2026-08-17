@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Panel seguro de control de operaciones." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/src/configuracion.css" />
+    <title>Flutt-Water</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="login-view" class="card auth-card" aria-labelledby="login-title">
+        <div class="brand-mark" aria-hidden="true">FW</div>
+        <p class="eyebrow">Flutt-Water</p>
+        <h1 id="login-title">Iniciar sesión</h1>
+        <p class="muted">Acceso exclusivo para usuarios autorizados.</p>
+        <form id="login-form" novalidate>
+          <label for="email">Correo electrónico</label>
+          <input id="email" name="email" type="email" autocomplete="username" required maxlength="254" />
+          <label for="password">Contraseña</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="6" maxlength="128" />
+          <button id="login-button" class="primary-button" type="submit">Entrar</button>
+          <p id="login-status" class="status" role="alert" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="app-view" class="app-view hidden" aria-labelledby="app-title">
+        <div id="sidebar-backdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
+        <aside id="sidebar" class="sidebar" aria-label="Navegación principal">
+          <div class="sidebar-header">
+            <div><p class="eyebrow">Flutt-Water</p><h2>Control</h2></div>
+            <button id="close-sidebar-button" class="icon-button" type="button" aria-label="Cerrar menú">×</button>
+          </div>
+          <nav>
+            <button class="nav-item active" type="button" data-view="home-view" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Inicio</span></button>
+            <button class="nav-item" type="button" data-view="config-view"><span class="nav-icon" aria-hidden="true">⚙</span><span>Configuración</span></button>
+          </nav>
+          <div class="sidebar-footer"><span class="session-label">Usuario</span><strong id="sidebar-user-email"></strong><span id="sidebar-user-role" class="role-badge">Perfil</span></div>
+        </aside>
+
+        <div class="main-content">
+          <header class="topbar">
+            <button id="open-sidebar-button" class="icon-button menu-button" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
+            <div><p class="eyebrow">Sección activa</p><h1 id="app-title">Inicio</h1></div>
+            <button id="logout-button" class="secondary-button" type="button">Cerrar sesión</button>
+          </header>
+
+          <section id="home-view" class="content-view">
+            <div class="content-card"><p class="eyebrow">Bienvenido</p><h2>Hola mundo</h2><p class="muted">Estás en Inicio. Desde aquí se integrarán los módulos autorizados.</p></div>
+          </section>
+
+          <section id="config-view" class="content-view hidden" aria-labelledby="config-title">
+            <div class="section-heading"><div><p class="eyebrow">Administración</p><h2 id="config-title">Configuración</h2><p class="muted">Gestiona tu perfil, los datos de ticket y la seguridad de la cuenta.</p></div><span id="config-role-label" class="role-badge">Cargando perfil</span></div>
+            <div id="config-status" class="status" role="status" aria-live="polite"></div>
+
+            <div class="config-grid">
+              <form id="profile-form" class="config-section">
+                <div class="section-label">Mi perfil</div>
+                <label for="profile-name">Nombre para notificaciones</label>
+                <input id="profile-name" name="displayName" type="text" autocomplete="name" maxlength="120" required />
+                <label for="profile-phone">Teléfono de contacto</label>
+                <input id="profile-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" />
+                <label for="profile-email">Correo autenticado</label>
+                <input id="profile-email" type="email" readonly />
+                <button class="primary-button" type="submit">Guardar perfil</button>
+              </form>
+
+              <form id="branding-form" class="config-section">
+                <div class="section-label">Bienvenida y ticket</div>
+                <label for="company-name">Nombre de empresa</label>
+                <input id="company-name" name="applicationName" type="text" maxlength="80" value="Flutt-Water" />
+                <label for="ticket-phone">Teléfono empresarial para créditos</label>
+                <input id="ticket-phone" name="whatsappCreditPhone" type="tel" maxlength="20" placeholder="+526371375399" />
+                <label for="welcome-template">Plantilla de bienvenida</label>
+                <input id="welcome-template" name="welcomeTemplate" type="text" maxlength="180" value="Bienvenido a {applicationName}, {displayName}" />
+                <button class="primary-button" type="submit">Guardar configuración</button>
+              </form>
+
+              <form id="password-form" class="config-section">
+                <div class="section-label">Seguridad</div>
+                <label for="current-password">Contraseña actual</label>
+                <input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required minlength="6" maxlength="128" />
+                <label for="new-password">Nueva contraseña</label>
+                <input id="new-password" name="newPassword" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
+                <label for="confirm-password">Confirmar nueva contraseña</label>
+                <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
+                <button class="primary-button" type="submit">Cambiar contraseña</button>
+              </form>
+
+              <section id="users-section" class="config-section admin-only hidden" aria-labelledby="users-title">
+                <div class="section-label" id="users-title">Usuarios y roles</div>
+                <p class="muted compact">La asignación de roles requiere un administrador y backend seguro. Esta sección no crea cuentas desde el navegador.</p>
+                <div class="permission-row"><span>Rol actual</span><strong id="current-role">admin</strong></div>
+                <div class="permission-row"><span>Alta de usuarios</span><strong>Firebase Console / backend</strong></div>
+                <div class="permission-row"><span>Registro público</span><strong>No permitido</strong></div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/auth.js"></script>
+  </body>
+</html>
