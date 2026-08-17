@@ -113,6 +113,8 @@ profileForm.addEventListener("submit", async (event) => {
     displayName,
     phone,
     organizationId,
+    role: currentProfile?.role || "pending",
+    active: currentProfile?.active !== false,
     updatedAt: serverTimestamp(),
   };
 
