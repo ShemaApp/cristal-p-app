@@ -92,8 +92,6 @@ function Productos({
   const [sel, setSel] = useState([]);
   const [selMode, setSelMode] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const pressTimer = useRef(null);
-  const longPressed = useRef(false);
   const [q, setQ] = useState('');
   const [form, setForm] = useState(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -130,26 +128,8 @@ function Productos({
     setSelMode(false);
     setSel([]);
   };
-  const startPress = id => {
-    longPressed.current = false;
-    clearTimeout(pressTimer.current);
-    pressTimer.current = setTimeout(() => {
-      longPressed.current = true;
-      if (navigator.vibrate) navigator.vibrate(12);
-      setExpandedId(eid => eid === id ? null : id);
-    }, 500);
-  };
-  const cancelPress = () => clearTimeout(pressTimer.current);
-  const onCardTap = id => {
-    if (longPressed.current) {
-      longPressed.current = false;
-      return;
-    }
-    if (selMode) {
-      togSel(id);
-      return;
-    }
-    if (expandedId === id) setExpandedId(null);
+  const toggleMenu = id => {
+    setExpandedId(eid => eid === id ? null : id);
   };
   const logInventario = (productoId, productoNombre, stockAnterior, stockNuevo, motivo) => {
     if (stockAnterior === stockNuevo) return Promise.resolve();
@@ -245,7 +225,7 @@ function Productos({
       color: 'var(--ink-faint)',
       marginBottom: 10
     }
-  }, "Mantén presionado un producto para editar, eliminar o seleccionar."), selMode && React.createElement(Row, {
+  }, "Usa el botón ⋮ de cada producto para ver sus acciones."), selMode && React.createElement(Row, {
     style: {
       marginBottom: 10,
       background: 'var(--danger-bg)',
@@ -292,19 +272,16 @@ function Productos({
         overflow: 'hidden'
       }
     }, React.createElement("div", {
-      onMouseDown: () => startPress(p.id),
-      onMouseUp: cancelPress,
-      onMouseLeave: cancelPress,
-      onTouchStart: () => startPress(p.id),
-      onTouchEnd: cancelPress,
-      onTouchMove: cancelPress,
-      onClick: () => onCardTap(p.id),
+
+      onClick: () => {
+        if (selMode) togSel(p.id);
+      },
       style: {
         display: 'flex',
         alignItems: 'flex-start',
         gap: 10,
         padding: '12px 14px',
-        cursor: 'pointer',
+        cursor: selMode ? 'pointer' : 'default',
         userSelect: 'none',
         WebkitTapHighlightColor: 'transparent',
         background: selMode && sel.includes(p.id) ? 'var(--surface-2)' : 'none'
@@ -336,7 +313,33 @@ function Productos({
         color: 'var(--accent-text)',
         fontSize: 14
       }
-    }, fmt(p.precio))), React.createElement(Row, {
+    }, fmt(p.precio)), React.createElement("button", {
+      type: "button",
+      title: `Acciones de ${p.nombre}`,
+      'aria-label': `Abrir acciones de ${p.nombre}`,
+      'aria-expanded': expanded,
+      onClick: e => {
+        e.stopPropagation();
+        if (selMode) {
+          togSel(p.id);
+          return;
+        }
+        toggleMenu(p.id);
+      },
+      style: {
+        border: '1px solid var(--line-strong)',
+        background: expanded ? 'var(--info-bg)' : 'var(--surface-2)',
+        color: expanded ? 'var(--info-text)' : 'var(--ink-soft)',
+        borderRadius: 6,
+        minWidth: 34,
+        height: 32,
+        padding: '0 7px',
+        cursor: 'pointer',
+        fontSize: 20,
+        lineHeight: 1,
+        fontWeight: 800
+      }
+    }, '⋮')), React.createElement(Row, {
       style: {
         marginTop: 4
       }
@@ -350,7 +353,7 @@ function Productos({
       }
     }, "🏷️ ", p.codigoBarras))), React.createElement("div", {
       style: {
-        maxHeight: expanded ? 120 : 0,
+        maxHeight: expanded ? 180 : 0,
         overflow: 'hidden',
         transition: 'max-height .2s ease'
       }
