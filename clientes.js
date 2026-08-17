@@ -500,7 +500,14 @@ function Clientes({
   creditos,
   currentUser
 }) {
-  const puedeEditar = currentUser?.role === 'admin' || permisoEdita(currentUser).clientes;
+  const esAdmin = currentUser?.role === 'admin';
+  const puedeEditar = esAdmin;
+  const puedeCrear = esAdmin || currentUser?.role === 'repartidor';
+  const [rutasAsignadas, setRutasAsignadas] = useState([]);
+  const [solicitudFor, setSolicitudFor] = useState(null);
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [decisionSolicitud, setDecisionSolicitud] = useState(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('activos');
   const [filtroCredito, setFiltroCredito] = useState('todos');
   const [q, setQ] = useState('');
@@ -512,16 +519,31 @@ function Clientes({
   const [detallesFor, setDetallesFor] = useState(null);
   const [filtroGPS, setFiltroGPS] = useState('todos');
   const [filtroLocalidad, setFiltroLocalidad] = useState('todos');
+  const [filtroRuta, setFiltroRuta] = useState('todos');
   const [capturaRapidaFor, setCapturaRapidaFor] = useState(null);
   const [estadoCapturaGPS, setEstadoCapturaGPS] = useState('confirmar');
   const [lecturaGPS, setLecturaGPS] = useState(null);
   const [errorCapturaGPS, setErrorCapturaGPS] = useState('');
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    const ref = db.collection('rutas_catalogo');
+    const query = esAdmin ? ref.where('activa', '==', true) : ref.where('repartidorId', '==', currentUser.uid);
+    return query.onSnapshot(snap => setRutasAsignadas(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.activa !== false)), () => setRutasAsignadas([]));
+  }, [currentUser?.uid, esAdmin]);
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    const ref = db.collection('solicitudes_desactivacion_clientes');
+    const query = esAdmin ? ref.where('estado', '==', 'pendiente') : ref.where('repartidorId', '==', currentUser.uid);
+    return query.onSnapshot(snap => setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setSolicitudes([]));
+  }, [currentUser?.uid, esAdmin]);
+  const rutasPermitidas = new Set(rutasAsignadas.flatMap(r => r.clienteIds || []));
+  const clientesVisibles = esAdmin ? clientes : clientes.filter(c => rutasPermitidas.has(c.id) || (c.creadoPorUid === currentUser.uid && c.repartidorId === currentUser.uid));
   const cmap = creditos.reduce((m, c) => {
     const saldo = Number(c.saldo || 0);
     if (Number.isFinite(saldo) && saldo > 0) m[c.clienteId] = (m[c.clienteId] || 0) + saldo;
     return m;
   }, {});
-  const clientesPorEstado = clientes.filter(c => filtroEstado === 'todos' ? true : filtroEstado === 'activos' ? c.activo : !c.activo);
+  const clientesPorEstado = clientesVisibles.filter(c => filtroEstado === 'todos' ? true : filtroEstado === 'activos' ? c.activo : !c.activo);
   const localidades = (() => {
     const porClave = new Map();
     [...LOCALIDADES_BASE_CABORCA, ...clientes.map(cliente => cliente.localidad || cliente.domicilio || '')].forEach(valor => {
@@ -545,10 +567,11 @@ function Clientes({
     return [cliente.nombre, cliente.telefono, localidadDeCliente(cliente)].some(valor => String(valor || '').toLowerCase().includes(termino));
   };
   const coincideLocalidad = cliente => filtroLocalidad === 'todos' ? true : filtroLocalidad === LOCALIDAD_SIN_CLASIFICAR ? !localidadDeCliente(cliente) : claveLocalidad(localidadDeCliente(cliente)) === claveLocalidad(filtroLocalidad);
+  const coincideRuta = cliente => filtroRuta === 'todos' || (cliente.rutaIds || []).includes(filtroRuta) || cliente.rutaId === filtroRuta;
   const contarClientes = condicion => clientesPorEstado.filter(condicion).length;
   const contarLocalidad = localidad => clientesPorEstado.filter(cliente => claveLocalidad(localidadDeCliente(cliente)) === claveLocalidad(localidad)).length;
   const sinLocalidad = clientesPorEstado.filter(cliente => !localidadDeCliente(cliente)).length;
-  const list = clientesPorEstado.filter(c => filtroCredito === 'credito' ? tieneCredito(c) : filtroCredito === 'sin-credito' ? !tieneCredito(c) : true).filter(c => filtroGPS === 'sin-gps' ? !c.ubicacion : filtroGPS === 'con-gps' ? !!c.ubicacion : true).filter(coincideLocalidad).filter(coincideBusqueda).slice().sort((a, b) => {
+  const list = clientesPorEstado.filter(c => filtroCredito === 'credito' ? tieneCredito(c) : filtroCredito === 'sin-credito' ? !tieneCredito(c) : true).filter(c => filtroGPS === 'sin-gps' ? !c.ubicacion : filtroGPS === 'con-gps' ? !!c.ubicacion : true).filter(coincideLocalidad).filter(coincideRuta).filter(coincideBusqueda).slice().sort((a, b) => {
     const localidadA = localidadDeCliente(a) || 'Sin clasificar';
     const localidadB = localidadDeCliente(b) || 'Sin clasificar';
     const porLocalidad = localidadA.localeCompare(localidadB, 'es', { sensitivity: 'base' });
@@ -573,21 +596,42 @@ function Clientes({
       alert('Selecciona una localidad existente o escribe una nueva.');
       return;
     }
+    if (form.id && !esAdmin) {
+      alert('El repartidor solo puede leer clientes existentes.');
+      return;
+    }
+    const rutaId = form.rutaId || rutasAsignadas[0]?.id || '';
+    if (!form.id && currentUser.role === 'repartidor' && !rutaId) {
+      alert('Administración debe asignarte una ruta antes de crear clientes.');
+      return;
+    }
     const item = {
       nombre: form.nombre,
       telefono: form.telefono || '',
       localidad,
-      // Conserva compatibilidad con pantallas históricas que todavía leen domicilio.
       domicilio: localidad,
       activo: form.activo !== undefined ? form.activo : true,
       ubicacion: form.ubicacion || null
     };
     if (form.id) await db.collection('clientes').doc(form.id).update(item);else await db.collection('clientes').add({
       ...item,
+      rutaId,
+      rutaIds: rutaId ? [rutaId] : [],
+      repartidorId: currentUser.uid,
+      repartidorIds: [currentUser.uid],
       creadoPorUid: currentUser.uid,
       fechaAlta: new Date().toISOString()
     });
     setForm(null);
+  };
+  const escanearClienteQR = raw => {
+    const texto = String(raw || '').trim();
+    const prefix = 'FLW-CLIENTE:';
+    const clienteId = texto.startsWith(prefix) ? texto.slice(prefix.length) : texto;
+    const cliente = clientesVisibles.find(c => c.id === clienteId);
+    setScannerOpen(false);
+    if (!cliente) { alert('QR no válido o cliente fuera de la ruta autorizada.'); return; }
+    window.dispatchEvent(new CustomEvent('flutt-water:abrir-ticket-medidor', { detail: cliente }));
   };
   const verQR = c => {
     setQrFor(c);
@@ -685,6 +729,30 @@ function Clientes({
       setEstadoCapturaGPS('error');
     }
   };
+  const solicitarDesactivacion = async () => {
+    if (!solicitudFor || esAdmin || !solicitudFor.motivo?.trim()) { alert('Captura el motivo de desactivación.'); return; }
+    try {
+      await db.collection('solicitudes_desactivacion_clientes').add({
+        tipo: 'solicitud_desactivacion_cliente', clienteId: solicitudFor.id, clienteNombre: solicitudFor.nombre,
+        rutaId: solicitudFor.rutaId || '', repartidorId: currentUser.uid, repartidorNombre: currentUser.nombre || '',
+        jornadaId: solicitudFor.jornadaId || '', envaseDevuelto: true, baseDevuelta: true,
+        tipoEnvase: solicitudFor.tipoEnvase || 'garrafon', cantidadEnvases: Number(solicitudFor.cantidadEnvases || 1),
+        motivo: solicitudFor.motivo.trim(), estado: 'pendiente', creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      setSolicitudFor(null); alert('Solicitud enviada a administración.');
+    } catch (e) { alert('No se pudo registrar la solicitud: ' + e.message); }
+  };
+  const resolverDesactivacion = async (autorizar) => {
+    if (!esAdmin || !decisionSolicitud) return;
+    if (!autorizar && !decisionSolicitud.motivoRechazo?.trim()) { alert('El motivo de rechazo es obligatorio.'); return; }
+    try {
+      const req = db.collection('solicitudes_desactivacion_clientes').doc(decisionSolicitud.id);
+      const batch = db.batch();
+      batch.update(req, { estado: autorizar ? 'autorizada' : 'rechazada', decision: autorizar ? 'si' : 'no', motivoRechazo: autorizar ? '' : decisionSolicitud.motivoRechazo.trim(), decididoPorUid: currentUser.uid, decididoPorNombre: currentUser.nombre || '', decididoEn: firebase.firestore.FieldValue.serverTimestamp() });
+      if (autorizar) batch.update(db.collection('clientes').doc(decisionSolicitud.clienteId), { activo: false, desactivadoPorUid: currentUser.uid, desactivadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+      await batch.commit(); setDecisionSolicitud(null); alert(autorizar ? 'Cliente desactivado.' : 'Solicitud rechazada.');
+    } catch (e) { alert('No se pudo resolver la solicitud: ' + e.message); }
+  };
   const detalleHistorial = detallesFor ? historialCliente(detallesFor.id) : [];
   const detalleSaldo = detallesFor ? Number(cmap[detallesFor.id] || 0) : 0;
   return React.createElement("div", {
@@ -701,21 +769,21 @@ function Clientes({
       fontSize: 20,
       fontWeight: 800
     }
-  }, "👥 Clientes"), puedeEditar && React.createElement(BFill, {
+  }, "👥 Clientes"), React.createElement(Row, { style: { gap: 6 } }, React.createElement(BOut, { onClick: () => setScannerOpen(true), title: 'Escanear QR y abrir ticket', 'aria-label': 'Escanear QR y abrir ticket' }, '📷 QR'), puedeCrear && React.createElement(BFill, {
     onClick: () => setForm({
       nombre: '',
       telefono: '',
       domicilio: '',
-      localidad: ''
+      localidad: '', rutaId: rutasAsignadas[0]?.id || ''
     })
-  }, "+ Nuevo")), React.createElement(Inp, {
+  }, "+ Nuevo")), esAdmin && solicitudes.filter(s => s.estado === 'pendiente').length > 0 && React.createElement(Card, { style: { marginBottom: 12, border: '1px solid var(--warn-text)' } }, React.createElement('strong', null, '🔔 Solicitudes de desactivación'), solicitudes.filter(s => s.estado === 'pendiente').map(s => React.createElement(Row, { key: s.id, style: { justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } }, React.createElement('span', { style: { fontSize: 12 } }, s.clienteNombre, ' · ', s.repartidorNombre), React.createElement(Row, { style: { gap: 5 } }, React.createElement(BFill, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'Sí'), React.createElement(BOut, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'No'))))), React.createElement(Inp, {
     placeholder: "🔍 Buscar por nombre, teléfono o localidad…",
     value: q,
     onChange: e => setQ(e.target.value),
     style: {
       marginBottom: 12
     }
-  }), React.createElement("div", {
+  }), React.createElement('select', { value: filtroRuta, onChange: e => setFiltroRuta(e.target.value), style: { width: '100%', padding: 8, marginBottom: 10, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 6 } }, React.createElement('option', { value: 'todos' }, esAdmin ? 'Todas las rutas' : 'Todas mis rutas'), rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -974,18 +1042,10 @@ function Clientes({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"), puedeEditar && React.createElement(BOut, {
-      onClick: () => {
-        db.collection('clientes').doc(c.id).update({
-          activo: !c.activo
-        });
-        setExpandedId(null);
-      },
-      color: c.activo ? 'var(--danger-text)' : 'var(--ok-text)',
-      style: {
-        flex: 1
-      }
-    }, c.activo ? '🚫 Desactivar' : '✅ Activar')), React.createElement(Row, {
+    }, "✏️ Editar"), !esAdmin && c.activo && React.createElement(BOut, {
+      onClick: () => { setSolicitudFor({ ...c, motivo: '', tipoEnvase: 'garrafon', cantidadEnvases: 1, jornadaId: '' }); setExpandedId(null); },
+      color: 'var(--danger-text)', style: { flex: 1 }
+    }, '🚫 Solicitar baja'), React.createElement(Row, {
       style: {
         gap: 6
       }
@@ -1058,12 +1118,13 @@ function Clientes({
       }
     }, fmt(n.total)), React.createElement(Tag, {
       color: n.formaPago === 'credito' ? 'var(--warn-text)' : 'var(--ok-text)'
-    }, n.formaPago))))));
-  }), form && React.createElement(Modal, {
+    }, n.formaPago)))))));
+  }), scannerOpen && React.createElement(BarcodeScanner, { onDetected: escanearClienteQR, onClose: () => setScannerOpen(false) }), solicitudFor && React.createElement(Modal, { title: 'Solicitar desactivación', onClose: () => setSolicitudFor(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'La devolución de envase y base es obligatoria para enviar la solicitud.'), React.createElement(Lbl, null, 'Cliente'), React.createElement('div', { style: { fontWeight: 700, marginBottom: 10 } }, solicitudFor.nombre), React.createElement(Lbl, null, 'Motivo'), React.createElement('textarea', { value: solicitudFor.motivo, onChange: e => setSolicitudFor({ ...solicitudFor, motivo: e.target.value }), style: { width: '100%', minHeight: 80, padding: 8, marginTop: 4 } }), React.createElement(BFill, { onClick: solicitarDesactivacion, style: { width: '100%', marginTop: 12 } }, 'Enviar solicitud')), decisionSolicitud && React.createElement(Modal, { title: 'Resolver desactivación', onClose: () => setDecisionSolicitud(null) }, React.createElement('div', { style: { fontSize: 13, marginBottom: 10 } }, decisionSolicitud.clienteNombre), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Envase y base reportados como devueltos.'), React.createElement(Lbl, null, 'Motivo obligatorio si rechazas'), React.createElement('textarea', { value: decisionSolicitud.motivoRechazo || '', onChange: e => setDecisionSolicitud({ ...decisionSolicitud, motivoRechazo: e.target.value }), style: { width: '100%', minHeight: 75, padding: 8, marginTop: 4 } }), React.createElement(Row, { style: { gap: 8, marginTop: 12 } }, React.createElement(BFill, { onClick: () => resolverDesactivacion(true), style: { flex: 1 } }, 'Sí, autorizar'), React.createElement(BOut, { onClick: () => resolverDesactivacion(false), color: 'var(--danger-text)', style: { flex: 1 } }, 'No, rechazar'))), form && React.createElement(Modal, {
     title: form.id ? 'Editar Cliente' : 'Nuevo Cliente',
     onClose: () => setForm(null)
   }, React.createElement(Lbl, null, "Nombre"), React.createElement(Inp, {
     value: form.nombre,
+    disabled: !!form.id && !esAdmin,
     onChange: e => setForm(f => ({
       ...f,
       nombre: e.target.value
@@ -1074,6 +1135,7 @@ function Clientes({
   }), React.createElement(Lbl, null, "Teléfono"), React.createElement(Inp, {
     type: "tel",
     value: form.telefono,
+    disabled: !!form.id && !esAdmin,
     onChange: e => setForm(f => ({
       ...f,
       telefono: e.target.value
@@ -1238,5 +1300,5 @@ function Clientes({
     onCerrar: () => {
       if (estadoCapturaGPS !== 'buscando' && estadoCapturaGPS !== 'guardando') setCapturaRapidaFor(null);
     }
-  }));
+  })));
 }

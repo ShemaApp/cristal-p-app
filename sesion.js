@@ -314,6 +314,15 @@ function useSesion() {
     const pedidosQuery = currentUser.role === 'repartidor'
       ? db.collection('pedidos').where('repartidorId', '==', currentUser.uid)
       : db.collection('pedidos').orderBy('fechaCreacion', 'desc').limit(500);
+    const clientesQuery = currentUser.role === 'repartidor'
+      ? db.collection('clientes').where('repartidorIds', 'array-contains', currentUser.uid)
+      : db.collection('clientes');
+    const notasQuery = currentUser.role === 'repartidor'
+      ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid)
+      : db.collection('notas').orderBy('fecha', 'desc').limit(500);
+    const creditosQuery = currentUser.role === 'repartidor'
+      ? db.collection('creditos').where('capturadoPorUid', '==', currentUser.uid)
+      : db.collection('creditos');
     const unsubs = [db.collection('productos').onSnapshot({
       includeMetadataChanges: true
     }, snap => {
@@ -322,7 +331,7 @@ function useSesion() {
         ...d.data()
       })));
       pend('productos', snap);
-    }, errorHandler), db.collection('clientes').onSnapshot({
+    }, errorHandler), clientesQuery.onSnapshot({
       includeMetadataChanges: true
     }, snap => {
       setClientes(snap.docs.map(d => ({
@@ -330,7 +339,7 @@ function useSesion() {
         ...d.data()
       })));
       pend('clientes', snap);
-    }, errorHandler), db.collection('notas').orderBy('fecha', 'desc').limit(500).onSnapshot({
+    }, errorHandler), notasQuery.onSnapshot({
       includeMetadataChanges: true
     }, snap => {
       setNotas(snap.docs.map(d => ({
@@ -338,7 +347,7 @@ function useSesion() {
         ...d.data()
       })));
       pend('notas', snap);
-    }, errorHandler), db.collection('creditos').onSnapshot({
+    }, errorHandler), creditosQuery.onSnapshot({
       includeMetadataChanges: true
     }, snap => {
       setCreditos(snap.docs.map(d => ({
