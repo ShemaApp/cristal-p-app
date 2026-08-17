@@ -262,6 +262,8 @@ function useSesion() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [firestoreError, setFirestoreError] = useState(null);
+  const [profilePending, setProfilePending] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
   const [locked, setLocked] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [productos, setProductos] = useState([]);
@@ -333,6 +335,8 @@ function useSesion() {
     const unsub = auth.onAuthStateChanged(async fbUser => {
       if (!fbUser) {
         setCurrentUser(null);
+        setProfilePending(false);
+        setPendingEmail('');
         setAuthChecked(true);
         return;
       }
@@ -357,28 +361,35 @@ function useSesion() {
         const ref = db.collection('usuarios').doc(fbUser.uid);
         const snap = await ref.get();
         let perfil;
-        if (snap.exists) {
-          perfil = snap.data();
-        } else {
-          // Primer inicio de sesión sin perfil: se crea como admin (útil
-          // para la primera cuenta del sistema).
-          perfil = {
-            nombre: fbUser.email.split('@')[0],
-            email: fbUser.email,
-            role: 'admin'
-          };
-          await ref.set(perfil);
+        if (!snap.exists) {
+          localStorage.removeItem(cacheKey);
+          setCurrentUser(null);
+          setProfilePending(true);
+          setPendingEmail(fbUser.email || '');
+          setFirestoreError('La cuenta existe en Firebase Authentication, pero aún no tiene perfil operativo en Firestore. Un administrador debe crear usuarios/' + fbUser.uid + ' desde un flujo autorizado.');
+          return;
         }
+        perfil = snap.data();
+        if (!perfil || perfil.active === false || !perfil.role || !perfil.nombre) {
+          localStorage.removeItem(cacheKey);
+          setCurrentUser(null);
+          setProfilePending(true);
+          setPendingEmail(fbUser.email || '');
+          setFirestoreError('El perfil operativo está incompleto o inactivo. Solicita al administrador que lo configure en Firestore.');
+          return;
+        }
+        setProfilePending(false);
+        setPendingEmail('');
+        setFirestoreError(null);
         localStorage.setItem(cacheKey, JSON.stringify(perfil));
         setCurrentUser({ uid: fbUser.uid, ...perfil });
       } catch (e) {
+        console.error('No se pudo verificar el perfil operativo:', e);
         if (!perfilCache) {
-          setCurrentUser({
-            uid: fbUser.uid,
-            nombre: fbUser.email,
-            email: fbUser.email,
-            role: 'usuario'
-          });
+          setCurrentUser(null);
+          setProfilePending(false);
+          setPendingEmail('');
+          setFirestoreError('No se pudo verificar tu perfil operativo. Intenta nuevamente cuando haya conexión.');
         }
       } finally {
         setAuthChecked(true);
@@ -497,7 +508,7 @@ function useSesion() {
   }, [currentUser]);
 
   return {
-    currentUser, authChecked, firestoreError,
+    currentUser, authChecked, firestoreError, profilePending, pendingEmail,
     locked, setLocked,
     isOnline,
     productos, clientes, notas, creditos, rutas, pedidos,

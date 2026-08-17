@@ -249,15 +249,17 @@ service cloud.firestore {
     // ── usuarios (perfiles) ──
     match /usuarios/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // Los perfiles no se autocrean desde la PWA. El alta debe venir de un
+      // flujo administrativo autorizado o de una operación controlada de backend.
+      allow create: if false;
       allow update: if isAdmin();
       allow delete: if isAdmin() && request.auth.uid != uid;
     }
 
     // ── _meta (control interno de sembrado de datos) ──
-    // Lectura abierta porque app.js revisa _meta/seed en cada inicio de
-    // sesión (para decidir si sembrar datos de ejemplo). Escritura solo
-    // admin: antes cualquier persona autenticada podía escribir aquí.
+    // La PWA puede leer el estado interno de datos de ejemplo; la escritura
+    // permanece restringida a administración. El cliente no crea perfiles.
+    
     match /_meta/{id} {
       allow read: if signedIn();
       allow write: if isAdmin();

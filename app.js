@@ -1,6 +1,6 @@
 function App() {
   const {
-    currentUser, authChecked, firestoreError,
+    currentUser, authChecked, firestoreError, profilePending, pendingEmail,
     locked, setLocked,
     isOnline,
     productos, clientes, notas, creditos, rutas, pedidos,
@@ -66,6 +66,46 @@ function App() {
       background: 'var(--bg)'
     }
   }, "Cargando…");
+  if (profilePending) return React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+      background: 'var(--bg)'
+    }
+  }, React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 420,
+      background: 'var(--surface)',
+      border: '1px solid var(--line)',
+      borderTop: '4px solid var(--warn)',
+      borderRadius: 6,
+      padding: 24,
+      textAlign: 'center'
+    }
+  }, React.createElement("div", {
+    style: { fontSize: 38, marginBottom: 10 }
+  }, "🔐"), React.createElement("h1", {
+    style: { fontSize: 20, margin: '0 0 8px' }
+  }, "Perfil pendiente"), React.createElement("p", {
+    style: { color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }
+  }, "La cuenta ", pendingEmail, " está autenticada, pero no tiene un perfil operativo activo. Un administrador debe crear y configurar el perfil desde un flujo autorizado."), React.createElement("button", {
+    onClick: () => auth.signOut(),
+    style: {
+      width: '100%',
+      marginTop: 12,
+      padding: 11,
+      border: 'none',
+      borderRadius: 5,
+      background: 'var(--surface-2)',
+      color: 'var(--ink)',
+      cursor: 'pointer',
+      fontWeight: 700
+    }
+  }, "Cerrar sesión")));
   if (!currentUser) return React.createElement(Login, null);
   if (locked) return React.createElement(PinLock, {
     currentUser: currentUser,
