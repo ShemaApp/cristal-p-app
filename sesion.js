@@ -149,112 +149,6 @@ const clearPin = uid_ => localStorage.removeItem(pinKey(uid_));
 
 /* ── Datos semilla (solo la primera vez que Firestore está vacío) ──
    (movido de app-core.js, sin cambios de lógica) */
-const S_PROD = [{
-  identificación: 'p1',
-  nombre: 'Paquete jumbo',
-  precio: 250.00,
-  existencias: 298,
-  unidad: 'paquete',
-  código: '750000000010'
-}, {
-  identificación: 'p2',
-  nombre: 'Sueros',
-  precio: 290.00,
-  existencias: 300,
-  unidad: 'paquete (12 pzas)',
-  código: '750000000015'
-}, {
-  identificación: 'p3',
-  nombre: 'Papa ondulada',
-  precio: 13.00,
-  existencias: 5050,
-  unidad: 'pieza',
-  código: '750000000003'
-}, {
-  identificación: 'p4',
-  nombre: 'Paquete fiesta',
-  precio: 85.00,
-  existencias: 200,
-  unidad: 'paquete',
-  código: '01 526371137561 002'
-}, {
-  identificación: 'p5',
-  nombre: 'Paquete Maruchan',
-  precio: 185.00,
-  existencias: 299,
-  unidad: 'paquete (12 pzas)',
-  código: '750000000012'
-}, {
-  identificación: 'p6',
-  nombre: 'Amper Energy',
-  precio: 210.00,
-  existencias: 300,
-  unidad: '12 pack',
-  código: '750000000014'
-}, {
-  identificación: 'p7',
-  nombre: 'Chicharrón de puerco',
-  precio: 27.00,
-  existencias: 500,
-  unidad: 'pieza',
-  código: '750000000004'
-}, {
-  identificación: 'p8',
-  nombre: 'Paquete grande',
-  precio: 30.00,
-  existencias: 200,
-  unidad: 'paquete',
-  código: '750000000008'
-}, {
-  identificación: 'p9',
-  nombre: 'Frituras',
-  precio: 10.00,
-  existencias: 10000,
-  unidad: 'pieza',
-  código: '750000000001'
-}, {
-  identificación: 'p10',
-  nombre: 'Paquete mixto grande',
-  precio: 35.00,
-  existencias: 200,
-  unidad: 'paquete',
-  código: '750000000009'
-}, {
-  identificación: 'p11',
-  nombre: 'Bolis pack',
-  precio: 72.00,
-  existencias: 299,
-  unidad: 'Pqt',
-  código: '750000000005'
-}, {
-  identificación: 'p12',
-  nombre: 'Cacahuates',
-  precio: 15.00,
-  existencias: 4997,
-  unidad: 'pieza',
-  código: '750000000002'
-}, {
-  identificación: 'p13',
-  nombre: 'Bolis pieza',
-  precio: 6.00,
-  existencias: 9999,
-  unidad: 'pieza',
-  código: '750000000006'
-}];
-const S_CLI = [{
-  identificación: 'c1',
-  nombre: 'Doña María los Sapos',
-  dirección: 'Campo los Sapos'
-}, {
-  identificación: 'c2',
-  nombre: 'Doña Luz',
-  dirección: 'Santa Cecilia'
-}, {
-  identificación: 'c3',
-  nombre: 'Doña Cecilia los Sapos',
-  dirección: 'Los sapos'
-}];
-
 /* ── useSesion(): auth, perfil, sembrado inicial, suscripciones ──
    (movido de app.js, sin cambios de lógica — mismos efectos, mismo orden,
    mismas dependencias, solo ahora detrás de un hook en vez de inline en App) */
@@ -400,52 +294,11 @@ function useSesion() {
 
   useEffect(() => {
     if (!currentUser) return;
-    (async () => {
-      try {
-        const seedRef = db.collection('_meta').doc('seed');
-        const seedSnap = await seedRef.get();
-        const seeded = seedSnap.exists ? seedSnap.data() : {};
-        if (!seeded.productos) {
-          const batch = db.batch();
-          S_PROD.forEach(p => {
-            const {
-              id,
-              ...rest
-            } = p;
-            batch.set(db.collection('productos').doc(), rest);
-          });
-          batch.set(seedRef, {
-            productos: true
-          }, {
-            merge: true
-          });
-          await batch.commit();
-        }
-        if (!seeded.clientes) {
-          const batch = db.batch();
-          S_CLI.forEach(c => {
-            const {
-              id,
-              ...rest
-            } = c;
-            batch.set(db.collection('clientes').doc(), rest);
-          });
-          batch.set(seedRef, {
-            clientes: true
-          }, {
-            merge: true
-          });
-          await batch.commit();
-        }
-      } catch (e) {
-        console.error('Error al sembrar datos iniciales', e);
-      }
-    })();
-    const errorHandler = err => {
+  const errorHandler = err => {
       console.error('Firestore error:', err);
       setFirestoreError('⚠️ Error de conexión con la base de datos. Revisa tus permisos.');
-    };
-    const pend = (col, snap) => setPendCounts(p => ({
+  };
+  const pend = (col, snap) => setPendCounts(p => ({
       ...p,
       [col]: snap.docs.filter(d => d.metadata.hasPendingWrites).length
     }));

@@ -5,8 +5,7 @@ const {
 } = React;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const snapTienePendientes = snap => snap.docs.some(d => d.metadata.hasPendingWrites);
-// pinKey/hashPin/savePin/clearPin y S_PROD/S_CLI se movieron a sesion.js
-// (capa de servicios) — siguen siendo globales, solo cambió el archivo.
+// Los helpers de sesión y almacenamiento local viven en módulos separados.
 const fmt = n => '$' + Number(n || 0).toFixed(2);
 const fDate = d => new Date(d).toLocaleDateString('es-MX', {
   day: '2-digit',
