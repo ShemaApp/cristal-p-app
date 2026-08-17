@@ -8,6 +8,8 @@ function Configuracion({
   const [sub, setSub] = useState('perfil');
   const [users, setUsersList] = useState([]);
   const [form, setForm] = useState(null);
+  const [vehicleForm, setVehicleForm] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
   const [pw, setPw] = useState({
     old: '',
     new_: '',
@@ -56,6 +58,13 @@ function Configuracion({
   }, [abrirUsuarios]);
   useEffect(() => {
     if (!isAdmin) return;
+    const unsub = db.collection('vehiculos').orderBy('nombre').onSnapshot(snap => {
+      setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, () => setVehicles([]));
+    return unsub;
+  }, [isAdmin]);
+  useEffect(() => {
+    if (!isAdmin) return;
     const unsub = db.collection('usuarios').onSnapshot(snap => {
       setUsersList(snap.docs.map(d => ({
         id: d.id,
@@ -86,6 +95,33 @@ function Configuracion({
     } catch (e) {
       flash('Contraseña actual incorrecta', true);
     }
+  };
+  const saveVehicle = async () => {
+    if (!isAdmin || !vehicleForm?.nombre?.trim() || !vehicleForm?.placa?.trim() || !vehicleForm?.numeroSerie?.trim()) {
+      flash('Completa nombre, placa y número de serie del medidor', true); return;
+    }
+    const factor = Number(vehicleForm.factorLitrosPorUnidad);
+    if (!Number.isFinite(factor) || factor <= 0) {
+      flash('El factor de litros por unidad debe ser mayor que cero', true); return;
+    }
+    try {
+      const vehicleRef = db.collection('vehiculos').doc();
+      const meterRef = db.collection('medidores').doc();
+      const fecha = firebase.firestore.FieldValue.serverTimestamp();
+      const base = {
+        nombre: vehicleForm.nombre.trim(), placa: vehicleForm.placa.trim().toUpperCase(), activo: true,
+        medidorId: meterRef.id, numeroSerieMedidor: vehicleForm.numeroSerie.trim(), factorLitrosPorUnidad: factor,
+        rutaBaseId: '', creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: fecha
+      };
+      const batch = db.batch();
+      batch.set(vehicleRef, base);
+      batch.set(meterRef, {
+        tipo: 'vehiculo', vehiculoId: vehicleRef.id, numeroSerie: vehicleForm.numeroSerie.trim(),
+        factorLitrosPorUnidad: factor, unidadLectura: 'unidad', permiteDecimales: true, activo: true, creadoEn: fecha
+      });
+      await batch.commit();
+      setVehicleForm(null); flash('✅ Vehículo y medidor autorizados fueron registrados');
+    } catch (e) { flash('No se pudo registrar el vehículo: ' + e.message, true); }
   };
   const saveUser = async () => {
     if (!form?.id) {
@@ -190,7 +226,7 @@ function Configuracion({
       gap: 6,
       marginBottom: 16
     }
-  }, [['perfil', '👤 Perfil'], ...(permisoAcciones(currentUser).password ? [['password', '🔑 Contraseña']] : []), ['pin', '🔒 PIN'], ...(isAdmin ? [['usuarios', '👥 Usuarios'], ['permisos', '🔐 Permisos']] : [])].map(([v, l]) => React.createElement("button", {
+  }, [['perfil', '👤 Perfil'], ...(permisoAcciones(currentUser).password ? [['password', '🔑 Contraseña']] : []), ['pin', '🔒 PIN'], ...(isAdmin ? [['usuarios', '👥 Usuarios'], ['vehiculos', '🚚 Vehículos'], ['permisos', '🔐 Permisos']] : [])].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => {
       setSub(v);
@@ -322,7 +358,7 @@ function Configuracion({
       cursor: 'pointer',
       marginTop: 18
     }
-  }, "Cancelar"))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, "Cancelar"))), sub === 'vehiculos' && isAdmin && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, marginBottom: 10 } }, React.createElement('div', null, React.createElement('strong', null, 'Vehículos autorizados'), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, 'Cada unidad conserva su medidor fijo y factor de conversión.')), React.createElement(BFill, { onClick: () => setVehicleForm({ nombre: '', placa: '', numeroSerie: '', factorLitrosPorUnidad: '10' }) }, '＋ Alta'))), vehicles.length === 0 ? React.createElement('div', { style: { color: 'var(--ink-faint)', fontSize: 12 } }, 'No hay vehículos registrados.') : vehicles.map(v => React.createElement(Card, { key: v.id }, React.createElement(Row, { style: { justifyContent: 'space-between' } }, React.createElement('div', null, React.createElement('strong', null, v.nombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 } }, `${v.placa || 'Sin placa'} · Medidor ${v.numeroSerieMedidor || 'Sin serie'}`)), React.createElement(Tag, { color: v.activo === false ? 'var(--danger-text)' : 'var(--ok-text)' }, v.activo === false ? 'INACTIVO' : 'ACTIVO')), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 6 } }, `1 unidad del medidor = ${Number(v.factorLitrosPorUnidad || 10)} L`)))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface-2)',
       borderRadius: 8,
@@ -421,7 +457,7 @@ function Configuracion({
     }, "🗑 Eliminar"))));
   })), sub === 'permisos' && isAdmin && React.createElement(Permisos, {
     currentUser: currentUser
-  }), form && React.createElement(Modal, {
+  }), vehicleForm && React.createElement(Modal, { title: 'Alta de vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Solo administración puede registrar unidades. El repartidor únicamente selecciona vehículos existentes.'), React.createElement(Lbl, null, 'Nombre de vehículo'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Número de serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Litros por unidad de lectura'), React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: vehicleForm.factorLitrosPorUnidad, onChange: e => setVehicleForm({ ...vehicleForm, factorLitrosPorUnidad: e.target.value }) }), React.createElement(BFill, { onClick: saveVehicle, style: { width: '100%', marginTop: 14 } }, 'Guardar vehículo autorizado')), form && React.createElement(Modal, {
     title: 'Editar Usuario',
     onClose: () => {
       setForm(null);

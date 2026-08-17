@@ -12,7 +12,6 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
   const [selectedJornadaId, setSelectedJornadaId] = useState('');
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
-  const [vehicleForm, setVehicleForm] = useState(null);
   const [routeForm, setRouteForm] = useState(null);
   const [tarifaForm, setTarifaForm] = useState(null);
   const [tarifas, setTarifas] = useState([]);
@@ -92,39 +91,6 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       }, () => flash('⚠️ No se pudieron cargar las jornadas del vehículo'));
     return unsub;
   }, [selectedVehicleId]);
-
-  const crearVehiculo = async () => {
-    if (!isAdmin || !vehicleForm?.nombre?.trim() || !vehicleForm?.placa?.trim() || !vehicleForm?.numeroSerie?.trim()) {
-      flash('⚠️ Captura nombre, placa y número de serie del medidor');
-      return;
-    }
-    if (!validDecimal(vehicleForm.factorLitrosPorUnidad) || number(vehicleForm.factorLitrosPorUnidad) <= 0) {
-      flash('⚠️ El factor de litros por unidad debe ser mayor que cero');
-      return;
-    }
-    setSaving(true);
-    try {
-      const ref = db.collection('vehiculos').doc();
-      const medidorRef = db.collection('medidores').doc();
-      const data = {
-        nombre: vehicleForm.nombre.trim(), placa: vehicleForm.placa.trim().toUpperCase(), activo: true,
-        medidorId: medidorRef.id, numeroSerieMedidor: vehicleForm.numeroSerie.trim(),
-        factorLitrosPorUnidad: number(vehicleForm.factorLitrosPorUnidad), rutaBaseId: vehicleForm.rutaBaseId || '',
-        creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: now()
-      };
-      const batch = db.batch();
-      batch.set(ref, data);
-      batch.set(medidorRef, {
-        tipo: 'vehiculo', vehiculoId: ref.id, numeroSerie: vehicleForm.numeroSerie.trim(),
-        factorLitrosPorUnidad: number(vehicleForm.factorLitrosPorUnidad), unidadLectura: 'unidad',
-        permiteDecimales: true, activo: true, creadoEn: now()
-      });
-      await batch.commit();
-      setVehicleForm(null);
-      flash('✅ Vehículo y medidor registrados');
-    } catch (e) { flash('❌ No se pudo registrar el vehículo: ' + e.message); }
-    setSaving(false);
-  };
 
   const crearTarifa = async () => {
     if (!isAdmin || !tarifaForm?.nombre?.trim() || !validDecimal(tarifaForm.precioPorGarrafon) || number(tarifaForm.precioPorGarrafon) <= 0) {
@@ -349,7 +315,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       React.createElement('select', { value: selectedVehicleId, onChange: e => { setSelectedVehicleId(e.target.value); setSelectedJornadaId(''); }, style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 3 } },
         React.createElement('option', { value: '' }, 'Selecciona un vehículo'), vehiculos.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.nombre} · ${v.placa} · ${v.numeroSerieMedidor || 'sin serie'}`))),
       currentVehicle && React.createElement('div', { style: { marginTop: 8, fontSize: 12, color: 'var(--ink-soft)' } }, `Medidor: ${currentVehicle.numeroSerieMedidor || 'sin serie'} · 1 unidad = ${factor(currentVehicle)} L`),
-      isAdmin && React.createElement(Row, { style: { gap: 8, marginTop: 12, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => setVehicleForm({ nombre: '', placa: '', numeroSerie: '', factorLitrosPorUnidad: '10', rutaBaseId: '' }) }, '＋ Vehículo'), React.createElement(BOut, { onClick: () => { setRouteClients([]); setRouteForm({ nombre: '', vehiculoBaseId: selectedVehicleId }); } }, '＋ Ruta'), React.createElement(BOut, { onClick: () => setTarifaForm({ nombre: '', precioPorGarrafon: '' }) }, '＋ Tarifa')),
+      isAdmin && React.createElement(Row, { style: { gap: 8, marginTop: 12, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => { setRouteClients([]); setRouteForm({ nombre: '', vehiculoBaseId: selectedVehicleId }); } }, '＋ Ruta'), React.createElement(BOut, { onClick: () => setTarifaForm({ nombre: '', precioPorGarrafon: '' }) }, '＋ Tarifa')),
       currentVehicle && React.createElement(Row, { style: { gap: 8, marginTop: 10, flexWrap: 'wrap' } }, React.createElement(BFill, { onClick: () => setStartForm({ lecturaInicial: currentVehicle.medidorUltimaLectura ?? lastClosed?.lecturaCierre ?? '', lecturaCierreAnterior: currentVehicle.medidorUltimaLectura ?? lastClosed?.lecturaCierre ?? '', repartidorId: isAdmin ? '' : currentUser.uid, rutaId: currentVehicle.rutaBaseId || '', motivoDesfase: '' }) }, 'Iniciar jornada'), isAdmin && React.createElement(BOut, { onClick: exportarLibro }, 'Exportar Excel'))),
     currentVehicle && React.createElement(Card, null,
       React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 8 } }, React.createElement('strong', null, 'Jornadas del vehículo'), React.createElement(Tag, { color: activeJornada ? 'var(--ok-text)' : 'var(--ink-faint)' }, activeJornada ? 'ACTIVA' : 'SIN JORNADA')),
@@ -362,7 +328,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       currentJornada.estado === 'cerrada' && React.createElement('div', { style: { marginTop: 10, color: 'var(--ok-text)', fontSize: 12 } }, `Cierre: ${Number(currentJornada.lecturaCierre || 0).toFixed(2)} · ${fmtLitros(currentJornada.litrosCalculados)}`)
     ),
     tarifaForm && React.createElement(Modal, { title: 'Crear tarifa de agua', onClose: () => setTarifaForm(null) }, React.createElement(Lbl, null, 'Nombre de tarifa'), React.createElement(Inp, { value: tarifaForm.nombre, onChange: e => setTarifaForm({ ...tarifaForm, nombre: e.target.value }), placeholder: 'Público, negocio, promoción…' }), React.createElement(Lbl, null, 'Precio por garrafón de 19 L'), React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: tarifaForm.precioPorGarrafon, onChange: e => setTarifaForm({ ...tarifaForm, precioPorGarrafon: e.target.value }) }), React.createElement(BFill, { onClick: crearTarifa, style: { width: '100%', marginTop: 14 }, disabled: saving }, saving ? 'Guardando…' : 'Guardar tarifa')),
-    vehicleForm && React.createElement(Modal, { title: 'Registrar vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement(Lbl, null, 'Nombre'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Litros por unidad de lectura'), React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: vehicleForm.factorLitrosPorUnidad, onChange: e => setVehicleForm({ ...vehicleForm, factorLitrosPorUnidad: e.target.value }) }), React.createElement(BFill, { onClick: crearVehiculo, style: { width: '100%', marginTop: 14 }, disabled: saving }, saving ? 'Guardando…' : 'Guardar vehículo')),
+
     routeForm && React.createElement(Modal, { title: 'Crear ruta y clientes', onClose: () => setRouteForm(null) }, React.createElement(Lbl, null, 'Nombre de ruta'), React.createElement(Inp, { value: routeForm.nombre, onChange: e => setRouteForm({ ...routeForm, nombre: e.target.value }), placeholder: 'La Rivera' }), React.createElement(Lbl, null, 'Clientes de la ruta'), React.createElement('div', { style: { maxHeight: 220, overflowY: 'auto', marginTop: 8 } }, clientes.map(c => React.createElement('label', { key: c.id, style: { display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', fontSize: 12 } }, React.createElement('input', { type: 'checkbox', checked: routeClients.includes(c.id), onChange: e => setRouteClients(x => e.target.checked ? [...new Set([...x, c.id])] : x.filter(id => id !== c.id)) }), c.nombre))), React.createElement(BFill, { onClick: crearRuta, style: { width: '100%', marginTop: 14 }, disabled: saving }, saving ? 'Guardando…' : 'Guardar ruta')),
     startForm && React.createElement(Modal, { title: 'Iniciar jornada', onClose: () => setStartForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, `Vehículo: ${currentVehicle.nombre} · Medidor: ${currentVehicle.numeroSerieMedidor || '—'}`), React.createElement(Lbl, null, 'Lectura de cierre anterior'), React.createElement(Inp, { type: 'number', step: '0.01', value: startForm.lecturaCierreAnterior, onChange: e => setStartForm({ ...startForm, lecturaCierreAnterior: e.target.value }) }), React.createElement(Lbl, null, 'Lectura inicial actual'), React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: startForm.lecturaInicial, onChange: e => setStartForm({ ...startForm, lecturaInicial: e.target.value }) }), isAdmin && React.createElement(React.Fragment, null, React.createElement(Lbl, null, 'Repartidor'), React.createElement('select', { value: startForm.repartidorId, onChange: e => setStartForm({ ...startForm, repartidorId: e.target.value }), style: { width: '100%', padding: 8, marginTop: 3 } }, React.createElement('option', { value: '' }, 'Selecciona'), usuarios.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Ruta'), React.createElement('select', { value: startForm.rutaId, onChange: e => setStartForm({ ...startForm, rutaId: e.target.value }), style: { width: '100%', padding: 8, marginTop: 3 } }, React.createElement('option', { value: '' }, 'Sin ruta'), routeOptions.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre)))), Math.abs(number(startForm.lecturaInicial) - number(startForm.lecturaCierreAnterior)) > 5 && React.createElement(React.Fragment, null, React.createElement(Lbl, null, 'Motivo obligatorio del desfase'), React.createElement('textarea', { value: startForm.motivoDesfase, onChange: e => setStartForm({ ...startForm, motivoDesfase: e.target.value }), style: { width: '100%', minHeight: 70, marginTop: 3, padding: 8, border: '1px solid var(--line-strong)', color: 'var(--ink)' } })), React.createElement(BFill, { onClick: iniciarJornada, style: { width: '100%', marginTop: 14 }, disabled: saving }, saving ? 'Guardando…' : 'Iniciar y bloquear lectura')),
     ventaForm && React.createElement(Modal, { title: 'Registrar venta por medidor', onClose: () => setVentaForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, `Última lectura: ${Number(currentJornada?.ultimaLectura ?? currentJornada?.lecturaInicial ?? 0).toFixed(2)} · 1 unidad = ${factor(currentVehicle)} L`), React.createElement(Lbl, null, 'Lectura final de la venta'), React.createElement(Inp, { type: 'number', step: '0.01', value: ventaForm.lecturaFinal, onChange: e => setVentaForm({ ...ventaForm, lecturaFinal: e.target.value }) }), React.createElement(Lbl, null, 'Tarifa de agua · 19 L'), React.createElement('select', { value: ventaForm.tarifaId || '', onChange: e => { const t = tarifas.find(x => x.id === e.target.value); setVentaForm({ ...ventaForm, tarifaId: e.target.value, precioPorGarrafon: t?.precioPorGarrafon || '' }); }, style: { width: '100%', padding: 8, marginTop: 3 } }, React.createElement('option', { value: '' }, isAdmin ? 'Precio manual' : 'Selecciona tarifa'), tarifas.map(t => React.createElement('option', { key: t.id, value: t.id }, `${t.nombre} · ${fmt(t.precioPorGarrafon)}`))), isAdmin && React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: ventaForm.precioPorGarrafon, onChange: e => setVentaForm({ ...ventaForm, precioPorGarrafon: e.target.value }), placeholder: 'Precio manual opcional' }), React.createElement(Lbl, null, 'Cliente'), React.createElement('select', { value: ventaForm.clienteId, onChange: e => setVentaForm({ ...ventaForm, clienteId: e.target.value }), style: { width: '100%', padding: 8, marginTop: 8 } }, React.createElement('option', { value: '' }, 'Público general'), clientes.filter(c => c.activo !== false).map(c => React.createElement('option', { key: c.id, value: c.id }, c.nombre))), React.createElement(BFill, { onClick: registrarVenta, style: { width: '100%', marginTop: 14 }, disabled: saving }, saving ? 'Guardando…' : 'Guardar venta'  )),
