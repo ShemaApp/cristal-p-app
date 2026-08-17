@@ -778,7 +778,7 @@ function RepartidoresPanel({
     if (cantidadSolicitada > disponible) flash('⚠️ La cantidad se ajustó al saldo disponible en la transferencia');
     setVentaRapida(v => ({
       ...v,
-      items: cantidad < 1 ? v.items.filter(x => x.id !== id) : v.items.map(x => x.id === id ? { ...x, cant: cantidad } : x)
+      items: v.items.map(x => x.id === id ? { ...x, cant: cantidad } : x)
     }));
   };
   const guardarVentaRapida = async () => {
@@ -1762,6 +1762,7 @@ function RepartidoresPanel({
     type: "text",
     inputMode: "numeric",
     value: it.cant === undefined ? '' : it.cant,
+    placeholder: 'Ej. 1',
     onChange: e => updQtyVenta(it.id, e.target.value),
     style: {
       width: 36,

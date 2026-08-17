@@ -43,9 +43,11 @@ function VentaAlmacen({
     }];
   });
   const updQty = (id, v) => {
+    const raw = String(v ?? '');
+    if (!/^\d*$/.test(raw)) return;
     setCart(c => c.map(x => x.id === id ? {
       ...x,
-      cant: v
+      cant: raw
     } : x));
   };
   const cartValido = cart.filter(x => Number(x.cant) > 0).map(x => ({
@@ -389,9 +391,9 @@ function VentaAlmacen({
     min: "0",
     value: item.cant === '' || item.cant === undefined ? '' : item.cant,
     onChange: e => updQty(item.id, e.target.value),
-    placeholder: "0",
-    style: {
-      width: 64,
+      placeholder: "Ej. 1",
+      style: {
+        width: 64,
       textAlign: 'center',
       fontWeight: 700,
       fontSize: 14,
@@ -500,7 +502,11 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
     const existe = actual.find(x => x.id === p.id);
     return existe ? actual.map(x => x.id === p.id ? { ...x, cant: Number(x.cant || 0) + 1 } : x) : [...actual, { id: p.id, nombre: p.nombre, precio: Number(p.precio || 0), unidad: p.unidad || '', cant: 1 }];
   });
-  const updQty = (id, cant) => setCart(actual => Number(cant || 0) < 1 ? actual.filter(x => x.id !== id) : actual.map(x => x.id === id ? { ...x, cant: Number(cant) } : x));
+  const updQty = (id, cant) => {
+    const raw = String(cant ?? '');
+    if (!/^\d*$/.test(raw)) return;
+    setCart(actual => actual.map(x => x.id === id ? { ...x, cant: raw } : x));
+  };
   const items = cart.filter(x => Number(x.cant) > 0).map(x => ({ ...x, cant: Number(x.cant) }));
   const total = items.reduce((sum, x) => sum + Number(x.precio || 0) * x.cant, 0);
   const cliente = cliMode === 'nuevo' ? nuevoC : cliSel;
@@ -576,7 +582,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
       cliente?.nombre && React.createElement('div', { style: { color: 'var(--accent-text)', fontSize: 12, fontWeight: 700, marginBottom: 10 } }, 'Cliente: ' + cliente.nombre),
       React.createElement(Lbl, null, 'Productos solicitados'),
       React.createElement('div', { style: { maxHeight: 180, overflowY: 'auto', marginBottom: 8 } }, productos.map(p => React.createElement(Row, { key: p.id, style: { justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' } }, React.createElement('div', null, React.createElement('div', { style: { fontSize: 13, fontWeight: 600 } }, p.nombre), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)' } }, fmt(p.precio) + ' · Stock almacén: ' + Number(p.stock || 0))), React.createElement(BFill, { onClick: () => addCart(p), style: { padding: '5px 10px', fontSize: 11 } }, '+ Agregar')))),
-      items.length > 0 && React.createElement('div', { style: { margin: '10px 0', borderTop: '1px solid var(--line)', paddingTop: 8 } }, items.map(item => React.createElement(Row, { key: item.id, style: { gap: 6, justifyContent: 'space-between', marginBottom: 7 } }, React.createElement('span', { style: { flex: 1, fontSize: 12, fontWeight: 600 } }, item.nombre), React.createElement('input', { type: 'number', min: 1, value: item.cant, onChange: e => updQty(item.id, e.target.value), style: { width: 48, textAlign: 'center', padding: 4, border: '1px solid var(--line-strong)', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink)' } }), React.createElement('span', { style: { minWidth: 60, textAlign: 'right', fontSize: 12 } }, fmt(item.precio * item.cant))), React.createElement(Row, { style: { justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 8, marginTop: 4 } }, React.createElement('strong', null, 'Total previsto'), React.createElement('strong', { style: { color: 'var(--accent-text)' } }, fmt(total)))),
+      items.length > 0 && React.createElement('div', { style: { margin: '10px 0', borderTop: '1px solid var(--line)', paddingTop: 8 } }, items.map(item => React.createElement(Row, { key: item.id, style: { gap: 6, justifyContent: 'space-between', marginBottom: 7 } }, React.createElement('span', { style: { flex: 1, fontSize: 12, fontWeight: 600 } }, item.nombre), React.createElement('input', { type: 'number', min: 1, value: item.cant === '' || item.cant === undefined ? '' : item.cant, placeholder: 'Ej. 1', onChange: e => updQty(item.id, e.target.value), style: { width: 48, textAlign: 'center', padding: 4, border: '1px solid var(--line-strong)', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink)' } }), React.createElement('span', { style: { minWidth: 60, textAlign: 'right', fontSize: 12 } }, fmt(item.precio * item.cant))), React.createElement(Row, { style: { justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 8, marginTop: 4 } }, React.createElement('strong', null, 'Total previsto'), React.createElement('strong', { style: { color: 'var(--accent-text)' } }, fmt(total)))),
       React.createElement(Lbl, null, 'Pago previsto'),
       React.createElement('select', { value: pagoPrevisto, onChange: e => setPagoPrevisto(e.target.value), style: Object.assign({}, inputStyle, { marginBottom: 10 }) }, React.createElement('option', { value: 'efectivo' }, 'Efectivo'), React.createElement('option', { value: 'transferencia' }, 'Transferencia'), React.createElement('option', { value: 'credito' }, 'Crédito')),
       puedeAsignar && React.createElement(React.Fragment, null, React.createElement(Lbl, null, 'Repartidor responsable'), React.createElement('select', { value: repartidorId, onChange: e => setRepartidorId(e.target.value), style: Object.assign({}, inputStyle, { marginBottom: 10 }) }, React.createElement('option', { value: '' }, 'Asignar después…'), repartidores.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre)))),

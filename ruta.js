@@ -496,7 +496,7 @@ function RutaReparto({
       return;
     }
     const cantidad = Math.min(Number(raw), Number(entCart.find(x => x.id === id)?.max || 0));
-    setEntCart(c => cantidad < 1 ? c.filter(x => x.id !== id) : c.map(x => x.id === id ? {
+    setEntCart(c => c.map(x => x.id === id ? {
       ...x,
       cant: cantidad
     } : x));
@@ -833,6 +833,7 @@ function RutaReparto({
     type: "text",
     inputMode: "numeric",
     value: item.cant === undefined ? '' : item.cant,
+    placeholder: 'Ej. 1',
     onChange: e => updQty(item.id, e.target.value),
     style: {
       width: 44,
@@ -1047,6 +1048,7 @@ function RutaReparto({
     type: "text",
     inputMode: "numeric",
     value: item.cant === undefined ? '' : item.cant,
+    placeholder: 'Ej. 1',
     onChange: e => updEntQty(item.id, e.target.value),
     style: {
       width: 40,
