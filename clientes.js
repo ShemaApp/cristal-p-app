@@ -762,6 +762,9 @@ function Clientes({
   }, React.createElement(Row, {
     style: {
       justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      flexWrap: 'wrap',
+      gap: 8,
       marginBottom: 12
     }
   }, React.createElement("div", {
@@ -793,8 +796,8 @@ function Clientes({
     }
   }, "ESTADO"), React.createElement("div", {
     style: {
-      display: 'flex',
-      flexWrap: 'wrap',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
       gap: 6,
       marginBottom: 12
     }
@@ -804,7 +807,10 @@ function Clientes({
     onClick: () => setFiltroEstado(v),
     'aria-pressed': filtroEstado === v,
     style: {
-      padding: '7px 9px',
+      width: '100%',
+      minWidth: 0,
+      minHeight: 38,
+      padding: '6px 4px',
       borderRadius: 8,
       border: '1px solid ' + (filtroEstado === v ? 'var(--accent)' : 'var(--line)'),
       background: filtroEstado === v ? 'var(--accent)' : 'var(--surface)',
@@ -823,8 +829,8 @@ function Clientes({
     }
   }, "CRÉDITO"), React.createElement("div", {
     style: {
-      display: 'flex',
-      flexWrap: 'wrap',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
       gap: 6,
       marginBottom: 12
     }
@@ -834,7 +840,10 @@ function Clientes({
     onClick: () => setFiltroCredito(v),
     'aria-pressed': filtroCredito === v,
     style: {
-      padding: '7px 9px',
+      width: '100%',
+      minWidth: 0,
+      minHeight: 38,
+      padding: '6px 4px',
       borderRadius: 8,
       border: '1px solid ' + (filtroCredito === v ? 'var(--accent)' : 'var(--line)'),
       background: filtroCredito === v ? 'var(--accent)' : 'var(--surface)',
@@ -853,8 +862,8 @@ function Clientes({
     }
   }, "UBICACIÓN"), React.createElement("div", {
     style: {
-      display: 'flex',
-      flexWrap: 'wrap',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
       gap: 6,
       marginBottom: 10
     }
@@ -864,7 +873,10 @@ function Clientes({
     onClick: () => setFiltroGPS(v),
     'aria-pressed': filtroGPS === v,
     style: {
-      padding: '7px 9px',
+      width: '100%',
+      minWidth: 0,
+      minHeight: 38,
+      padding: '6px 4px',
       borderRadius: 8,
       border: '1px solid ' + (filtroGPS === v ? 'var(--accent)' : 'var(--line)'),
       background: filtroGPS === v ? 'var(--accent)' : 'var(--surface)',
