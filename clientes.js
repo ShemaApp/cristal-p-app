@@ -520,6 +520,14 @@ function Clientes({
   const [filtroGPS, setFiltroGPS] = useState('todos');
   const [filtroLocalidad, setFiltroLocalidad] = useState('todos');
   const [filtroRuta, setFiltroRuta] = useState('todos');
+  const [localidadesCatalogo, setLocalidadesCatalogo] = useState([]);
+  const [usuariosAsignables, setUsuariosAsignables] = useState([]);
+  const [carteraClienteIds, setCarteraClienteIds] = useState(new Set());
+  const [carteraAsignaciones, setCarteraAsignaciones] = useState({});
+  const [clientesDisponibles, setClientesDisponibles] = useState([]);
+  const [localidadForm, setLocalidadForm] = useState(null);
+  const [rutaAdminForm, setRutaAdminForm] = useState(null);
+  const [agregarClienteForm, setAgregarClienteForm] = useState(null);
   const [capturaRapidaFor, setCapturaRapidaFor] = useState(null);
   const [estadoCapturaGPS, setEstadoCapturaGPS] = useState('confirmar');
   const [lecturaGPS, setLecturaGPS] = useState(null);
@@ -531,13 +539,35 @@ function Clientes({
     return query.onSnapshot(snap => setRutasAsignadas(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.activa !== false)), () => setRutasAsignadas([]));
   }, [currentUser?.uid, esAdmin]);
   useEffect(() => {
+    if (!currentUser?.uid || esAdmin) return undefined;
+    const ref = db.collection('carteras_repartidores').doc(currentUser.uid).collection('clientes');
+    return ref.onSnapshot(snap => {
+      const mapa = {};
+      snap.docs.forEach(d => { mapa[d.id] = { id: d.id, ...d.data() }; });
+      setCarteraAsignaciones(mapa);
+      setCarteraClienteIds(new Set(Object.keys(mapa)));
+    }, () => { setCarteraAsignaciones({}); setCarteraClienteIds(new Set()); });
+  }, [currentUser?.uid, esAdmin]);
+  useEffect(() => {
+    if (!currentUser?.uid || esAdmin) return undefined;
+    const ref = db.collection('clientes').where('asignacionEstado', '==', 'disponible').limit(200);
+    return ref.onSnapshot(snap => setClientesDisponibles(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setClientesDisponibles([]));
+  }, [currentUser?.uid, esAdmin]);
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    const unsubs = [];
+    unsubs.push(db.collection('localidades_catalogo').where('activa', '==', true).onSnapshot(snap => setLocalidadesCatalogo(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setLocalidadesCatalogo([])));
+    if (esAdmin) unsubs.push(db.collection('usuarios').where('role', '==', 'repartidor').onSnapshot(snap => setUsuariosAsignables(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setUsuariosAsignables([])));
+    return () => unsubs.forEach(u => u());
+  }, [currentUser?.uid, esAdmin]);
+  useEffect(() => {
     if (!currentUser?.uid) return undefined;
     const ref = db.collection('solicitudes_desactivacion_clientes');
     const query = esAdmin ? ref.where('estado', '==', 'pendiente') : ref.where('repartidorId', '==', currentUser.uid);
     return query.onSnapshot(snap => setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setSolicitudes([]));
   }, [currentUser?.uid, esAdmin]);
   const rutasPermitidas = new Set(rutasAsignadas.flatMap(r => r.clienteIds || []));
-  const clientesVisibles = esAdmin ? clientes : clientes.filter(c => rutasPermitidas.has(c.id) || (c.creadoPorUid === currentUser.uid && c.repartidorId === currentUser.uid));
+  const clientesVisibles = esAdmin ? clientes : clientes.filter(c => carteraClienteIds.has(c.id) || rutasPermitidas.has(c.id) || (c.creadoPorUid === currentUser.uid && c.repartidorId === currentUser.uid));
   const cmap = creditos.reduce((m, c) => {
     const saldo = Number(c.saldo || 0);
     if (Number.isFinite(saldo) && saldo > 0) m[c.clienteId] = (m[c.clienteId] || 0) + saldo;
@@ -546,7 +576,7 @@ function Clientes({
   const clientesPorEstado = clientesVisibles.filter(c => filtroEstado === 'todos' ? true : filtroEstado === 'activos' ? c.activo : !c.activo);
   const localidades = (() => {
     const porClave = new Map();
-    [...LOCALIDADES_BASE_CABORCA, ...clientes.map(cliente => cliente.localidad || cliente.domicilio || '')].forEach(valor => {
+    [...LOCALIDADES_BASE_CABORCA, ...localidadesCatalogo.map(localidad => localidad.nombre), ...clientes.map(cliente => cliente.localidad || cliente.domicilio || '')].forEach(valor => {
       const nombre = normalizarLocalidad(valor);
       const clave = claveLocalidad(nombre);
       if (nombre && !porClave.has(clave)) porClave.set(clave, nombre);
@@ -588,6 +618,35 @@ function Clientes({
     }
     window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lat + ',' + lng), '_blank', 'noopener');
   };
+  const crearLocalidad = async () => {
+    if (!esAdmin || !localidadForm?.nombre?.trim()) { alert('Captura el nombre de la localidad.'); return; }
+    try {
+      await db.collection('localidades_catalogo').add({ nombre: localidadForm.nombre.trim(), activa: true, creadoPorUid: currentUser.uid, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+      setLocalidadForm(null);
+    } catch (e) { alert('No se pudo crear la localidad: ' + e.message); }
+  };
+  const crearRutaAdmin = async () => {
+    if (!esAdmin || !rutaAdminForm?.nombre?.trim() || !rutaAdminForm.localidadId || !rutaAdminForm.repartidorId) { alert('Captura ruta, localidad y repartidor.'); return; }
+    try {
+      const rep = usuariosAsignables.find(u => u.id === rutaAdminForm.repartidorId);
+      await db.collection('rutas_catalogo').add({ nombre: rutaAdminForm.nombre.trim(), localidadId: rutaAdminForm.localidadId, repartidorId: rutaAdminForm.repartidorId, repartidorNombre: rep?.nombre || '', clienteIds: [], activa: true, creadoPorUid: currentUser.uid, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+      setRutaAdminForm(null);
+    } catch (e) { alert('No se pudo crear la ruta: ' + e.message); }
+  };
+  const agregarClienteExistente = async () => {
+    if (esAdmin || !agregarClienteForm?.clienteId || !agregarClienteForm.rutaId) { alert('Selecciona cliente y ruta.'); return; }
+    const ruta = rutasAsignadas.find(r => r.id === agregarClienteForm.rutaId);
+    if (!ruta || ruta.repartidorId !== currentUser.uid) { alert('La ruta no está asignada a este repartidor.'); return; }
+    try {
+      const cliente = clientesDisponibles.find(c => c.id === agregarClienteForm.clienteId);
+      if (!cliente) { alert('Selecciona un cliente disponible.'); return; }
+      const batch = db.batch();
+      batch.set(db.collection('carteras_repartidores').doc(currentUser.uid).collection('clientes').doc(cliente.id), { clienteId: cliente.id, repartidorId: currentUser.uid, rutaId: ruta.id, rutaNombre: ruta.nombre, localidadId: cliente.localidadId || ruta.localidadId || '', estado: 'activo', agregadoPorUid: currentUser.uid, agregadoEn: firebase.firestore.FieldValue.serverTimestamp(), ultimaVisita: firebase.firestore.FieldValue.serverTimestamp() });
+      batch.update(db.collection('clientes').doc(cliente.id), { asignacionEstado: 'asignado', repartidorId: currentUser.uid, repartidorIds: [currentUser.uid], rutaId: ruta.id, rutaIds: [ruta.id] });
+      await batch.commit();
+      setAgregarClienteForm(null); alert('Cliente agregado a tu ruta.');
+    } catch (e) { alert('No se pudo agregar el cliente: ' + e.message); }
+  };
   const save = async () => {
     if (!form.nombre) return;
     const localidadEntrada = form.localidadNueva !== undefined ? form.localidadNueva : form.localidad || form.domicilio || '';
@@ -601,27 +660,30 @@ function Clientes({
       return;
     }
     const rutaId = form.rutaId || rutasAsignadas[0]?.id || '';
+    const rutaElegida = rutasAsignadas.find(r => r.id === rutaId);
+    const localidadRuta = localidadesCatalogo.find(l => l.id === rutaElegida?.localidadId);
     if (!form.id && currentUser.role === 'repartidor' && !rutaId) {
       alert('Administración debe asignarte una ruta antes de crear clientes.');
       return;
     }
+    const localidadFinal = currentUser.role === 'repartidor' && localidadRuta ? localidadRuta.nombre : localidad;
     const item = {
       nombre: form.nombre,
       telefono: form.telefono || '',
-      localidad,
-      domicilio: localidad,
+      localidad: localidadFinal,
+      localidadId: currentUser.role === 'repartidor' && localidadRuta ? localidadRuta.id : form.localidadId || localidadesCatalogo.find(x => claveLocalidad(x.nombre) === claveLocalidad(localidadFinal))?.id || '',
+      domicilio: form.domicilio || localidad,
       activo: form.activo !== undefined ? form.activo : true,
       ubicacion: form.ubicacion || null
     };
-    if (form.id) await db.collection('clientes').doc(form.id).update(item);else await db.collection('clientes').add({
-      ...item,
-      rutaId,
-      rutaIds: rutaId ? [rutaId] : [],
-      repartidorId: currentUser.uid,
-      repartidorIds: [currentUser.uid],
-      creadoPorUid: currentUser.uid,
-      fechaAlta: new Date().toISOString()
-    });
+    if (form.id) await db.collection('clientes').doc(form.id).update(item); else {
+      const clienteRef = db.collection('clientes').doc();
+      const batch = db.batch();
+      const esRepartidor = currentUser.role === 'repartidor';
+      batch.set(clienteRef, { ...item, rutaId: esRepartidor ? rutaId : '', rutaIds: esRepartidor && rutaId ? [rutaId] : [], repartidorId: esRepartidor ? currentUser.uid : '', repartidorIds: esRepartidor ? [currentUser.uid] : [], asignacionEstado: esRepartidor ? 'asignado' : 'disponible', creadoPorUid: currentUser.uid, fechaAlta: new Date().toISOString() });
+      if (esRepartidor) batch.set(db.collection('carteras_repartidores').doc(currentUser.uid).collection('clientes').doc(clienteRef.id), { clienteId: clienteRef.id, repartidorId: currentUser.uid, rutaId, estado: 'activo', agregadoPorUid: currentUser.uid, agregadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+      await batch.commit();
+    }
     setForm(null);
   };
   const escanearClienteQR = raw => {
@@ -779,7 +841,7 @@ function Clientes({
       domicilio: '',
       localidad: '', rutaId: rutasAsignadas[0]?.id || ''
     })
-  }, "+ Nuevo")), esAdmin && solicitudes.filter(s => s.estado === 'pendiente').length > 0 && React.createElement(Card, { style: { marginBottom: 12, border: '1px solid var(--warn-text)' } }, React.createElement('strong', null, '🔔 Solicitudes de desactivación'), solicitudes.filter(s => s.estado === 'pendiente').map(s => React.createElement(Row, { key: s.id, style: { justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } }, React.createElement('span', { style: { fontSize: 12 } }, s.clienteNombre, ' · ', s.repartidorNombre), React.createElement(Row, { style: { gap: 5 } }, React.createElement(BFill, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'Sí'), React.createElement(BOut, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'No'))))), React.createElement(Inp, {
+  }, "+ Nuevo")), esAdmin && solicitudes.filter(s => s.estado === 'pendiente').length > 0 && React.createElement(Card, { style: { marginBottom: 12, border: '1px solid var(--warn-text)' } }, React.createElement('strong', null, '🔔 Solicitudes de desactivación'), solicitudes.filter(s => s.estado === 'pendiente').map(s => React.createElement(Row, { key: s.id, style: { justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } }, React.createElement('span', { style: { fontSize: 12 } }, s.clienteNombre, ' · ', s.repartidorNombre), React.createElement(Row, { style: { gap: 5 } }, React.createElement(BFill, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'Sí'), React.createElement(BOut, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'No'))))),     esAdmin && React.createElement(Card, { style: { marginBottom: 12, background: 'var(--surface-2)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' } }, React.createElement('strong', null, 'Configuración comercial'), React.createElement(Row, { style: { gap: 6, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => setLocalidadForm({ nombre: '' }) }, '＋ Localidad'), React.createElement(BFill, { onClick: () => setRutaAdminForm({ nombre: '', localidadId: localidadesCatalogo[0]?.id || '', repartidorId: '' }) }, '＋ Ruta'))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 8 } }, 'Solo administración crea localidades y asigna carteras a repartidores.')), !esAdmin && rutasAsignadas.length > 0 && React.createElement(BOut, { onClick: () => setAgregarClienteForm({ clienteId: '', rutaId: rutasAsignadas[0]?.id || '', busqueda: '' }), style: { width: '100%', marginBottom: 10 } }, '＋ Agregar cliente existente a mi ruta'), React.createElement(Inp, {
     placeholder: "🔍 Buscar por nombre, teléfono o localidad…",
     value: q,
     onChange: e => setQ(e.target.value),
@@ -1155,7 +1217,7 @@ function Clientes({
     style: {
       marginBottom: 10
     }
-  }), React.createElement(Lbl, null, "Localidad (ejido o rancho)"), React.createElement(SelectorLocalidad, {
+  }), !form.id && currentUser.role === 'repartidor' && React.createElement(React.Fragment, null, React.createElement(Lbl, null, 'Ruta asignada'), React.createElement('select', { value: form.rutaId || '', onChange: e => setForm({ ...form, rutaId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, marginBottom: 10, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona ruta'), rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre)))), React.createElement(Lbl, null, "Localidad (ejido o rancho)"), React.createElement(SelectorLocalidad, {
     value: form.localidad || form.domicilio || '',
     localidades,
     nuevaValue: form.localidadNueva,
@@ -1164,7 +1226,7 @@ function Clientes({
       delete siguiente.localidadNueva;
       return siguiente;
     }),
-    onCrear: valor => setForm(f => ({ ...f, localidadNueva: valor })),
+    onCrear: valor => { if (esAdmin) setForm(f => ({ ...f, localidadNueva: valor })); else alert('Solo administración puede crear localidades. Selecciona una localidad autorizada.'); },
     onCambiar: () => setForm(f => {
       const siguiente = { ...f, localidad: '' };
       delete siguiente.localidadNueva;
@@ -1225,7 +1287,7 @@ function Clientes({
     style: {
       width: '100%'
     }
-  }, "💾 Guardar")), qrFor && React.createElement(Modal, {
+  }, "💾 Guardar")), localidadForm && React.createElement(Modal, { title: 'Nueva localidad', onClose: () => setLocalidadForm(null) }, React.createElement(Lbl, null, 'Nombre de localidad'), React.createElement(Inp, { value: localidadForm.nombre, onChange: e => setLocalidadForm({ ...localidadForm, nombre: e.target.value }), placeholder: 'Ejido o rancho' }), React.createElement(BFill, { onClick: crearLocalidad, style: { width: '100%', marginTop: 12 } }, 'Guardar localidad')), rutaAdminForm && React.createElement(Modal, { title: 'Nueva ruta / cartera', onClose: () => setRutaAdminForm(null) }, React.createElement(Lbl, null, 'Nombre de ruta'), React.createElement(Inp, { value: rutaAdminForm.nombre, onChange: e => setRutaAdminForm({ ...rutaAdminForm, nombre: e.target.value }), placeholder: 'Ruta La Rivera' }), React.createElement(Lbl, null, 'Localidad'), React.createElement('select', { value: rutaAdminForm.localidadId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, localidadId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona localidad'), localidadesCatalogo.map(l => React.createElement('option', { key: l.id, value: l.id }, l.nombre))), React.createElement(Lbl, null, 'Repartidor responsable'), React.createElement('select', { value: rutaAdminForm.repartidorId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, repartidorId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona repartidor'), usuariosAsignables.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre || u.email))), React.createElement(BFill, { onClick: crearRutaAdmin, style: { width: '100%', marginTop: 12 } }, 'Guardar ruta')), agregarClienteForm && React.createElement(Modal, { title: 'Agregar cliente existente', onClose: () => setAgregarClienteForm(null) }, React.createElement(Lbl, null, 'Ruta autorizada'), React.createElement('select', { value: agregarClienteForm.rutaId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, rutaId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement(Lbl, null, 'Buscar cliente general'), React.createElement(Inp, { value: agregarClienteForm.busqueda, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, busqueda: e.target.value }), placeholder: 'Nombre, teléfono o localidad' }), React.createElement('select', { value: agregarClienteForm.clienteId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, clienteId: e.target.value }), size: 5, style: { width: '100%', marginTop: 8, padding: 6, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, clientesDisponibles.filter(c => !carteraClienteIds.has(c.id) && [c.nombre, c.telefono, c.localidad, c.domicilio].join(' ').toLowerCase().includes(String(agregarClienteForm.busqueda || '').toLowerCase())).map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.nombre} · ${c.telefono || 'sin teléfono'} · ${c.localidad || 'sin localidad'}`))), React.createElement(BFill, { onClick: agregarClienteExistente, style: { width: '100%', marginTop: 12 } }, 'Agregar a mi ruta')), qrFor && React.createElement(Modal, {
     title: '🔳 QR de ' + qrFor.nombre,
     onClose: () => {
       setQrFor(null);

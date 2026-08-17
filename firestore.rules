@@ -37,7 +37,8 @@ service cloud.firestore {
     }
     function clienteVisible(data) {
       return isAdmin() || (signedIn() && role() == 'repartidor'
-        && data.repartidorIds is list && request.auth.uid in data.repartidorIds);
+        && ((data.repartidorIds is list && request.auth.uid in data.repartidorIds)
+          || data.asignacionEstado == 'disponible'));
     }
     function datosUsuario() {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
@@ -116,7 +117,13 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.repartidorIds
           && request.resource.data.rutaId is string
           && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid);
-      allow update: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn() && role() == 'repartidor'
+          && resource.data.asignacionEstado == 'disponible'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['asignacionEstado', 'repartidorId', 'repartidorIds', 'rutaId', 'rutaIds'])
+          && request.resource.data.asignacionEstado == 'asignado'
+          && request.resource.data.repartidorId == request.auth.uid
+          && request.resource.data.repartidorIds.hasOnly([request.auth.uid]));
       allow delete: if false;
     }
 
@@ -397,16 +404,34 @@ service cloud.firestore {
     }
 
     // ── catálogo de rutas y clientes configurables ──
+    match /localidades_catalogo/{localidadId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
     match /rutas_catalogo/{rutaId} {
       allow read: if isAdmin() || (signedIn() && resource.data.repartidorId == request.auth.uid);
       allow create: if isAdmin()
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() > 0
         && request.resource.data.clienteIds is list
+        && request.resource.data.localidadId is string
         && request.resource.data.repartidorId is string
         && request.resource.data.repartidorId.size() > 0;
       allow update: if isAdmin();
       allow delete: if false;
+    }
+
+    match /carteras_repartidores/{repartidorId}/clientes/{clienteId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == repartidorId);
+      allow create: if signedIn() && request.auth.uid == repartidorId && role() == 'repartidor'
+        && request.resource.data.clienteId == clienteId
+        && request.resource.data.repartidorId == repartidorId
+        && request.resource.data.rutaId is string
+        && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == repartidorId;
+      allow update, delete: if false;
     }
 
     match /solicitudes_desactivacion_clientes/{id} {
