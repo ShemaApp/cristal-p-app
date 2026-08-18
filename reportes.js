@@ -1,7 +1,8 @@
 function Reportes({
   productos,
   clientes,
-  currentUser
+  currentUser,
+  branding
 }) {
   const [msg, setMsg] = useState('');
   const flash = m => {
@@ -503,7 +504,8 @@ function Reportes({
     const clientesTxt = reporteData.topClientes.map(([n, t]) => `• ${n}: ${fmtx(t)}`).join('\n') || 'Sin datos';
     const productosTxt = reporteData.topProductos.map(([n, d]) => `• ${n}: ${d.cant} unidades — ${fmtx(d.total)}`).join('\n') || 'Sin datos';
     const cuerpo = `REPORTE DE VENTAS\n${fDateTime(reporteData.desde)} — ${fDateTime(reporteData.hasta)}\n\nVentas: ${reporteData.count}\nTotal vendido: ${fmtx(reporteData.total)}\nVentas de almacén: ${fmtx(reporteData.totalAlmacen)}\nVentas desde transferencia: ${fmtx(reporteData.totalTransferencias)}\nContado: ${fmtx(reporteData.totalContado)}\nCrédito: ${fmtx(reporteData.totalCredito)}\n\nTOP CLIENTES\n${clientesTxt}\n\nTOP PRODUCTOS\n${productosTxt}`;
-    const link = `mailto:${encodeURIComponent(reporteEmail || '')}?subject=${encodeURIComponent('Reporte de ventas — Flutt-Water')}&body=${encodeURIComponent(cuerpo)}`;
+    const marca = normalizarBranding(branding).nombreComercial;
+    const link = `mailto:${encodeURIComponent(reporteEmail || '')}?subject=${encodeURIComponent('Reporte de ventas — ' + marca)}&body=${encodeURIComponent(cuerpo)}`;
     window.location.href = link;
   };
   const [clientesQrGenerating, setClientesQrGenerating] = useState(false);

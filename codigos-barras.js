@@ -142,7 +142,8 @@ function crearSvgCodigoBarras(codigo, ancho = 2, alto = 58) {
   return svg.outerHTML;
 }
 
-function imprimirEtiquetasCodigoBarras(producto, codigo, cantidad) {
+function imprimirEtiquetasCodigoBarras(producto, codigo, cantidad, branding) {
+  const marca = escaparHtmlBarcode(normalizarBranding(branding).nombreComercial);
   const total = Math.max(1, Math.min(100, Math.floor(Number(cantidad) || 1)));
   const svg = crearSvgCodigoBarras(codigo, 1.65, 54);
   const nombre = escaparHtmlBarcode(producto.nombre || 'Producto');
@@ -150,16 +151,16 @@ function imprimirEtiquetasCodigoBarras(producto, codigo, cantidad) {
   const precio = Number(producto.precio);
   const precioTexto = Number.isFinite(precio) ? '$' + precio.toFixed(2) : '';
   const codigoHtml = escaparHtmlBarcode(codigo);
-  const etiquetas = Array.from({ length: total }, () => '<section class="label"><div class="name">' + nombre + '</div><div class="meta">' + escaparHtmlBarcode(precioTexto) + (precioTexto && unidad ? ' · ' : '') + unidad + '</div>' + svg + '<div class="code">' + codigoHtml + '</div></section>').join('');
+  const etiquetas = Array.from({ length: total }, () => '<section class="label"><div class="brand">' + marca + '</div><div class="name">' + nombre + '</div><div class="meta">' + escaparHtmlBarcode(precioTexto) + (precioTexto && unidad ? ' · ' : '') + unidad + '</div>' + svg + '<div class="code">' + codigoHtml + '</div></section>').join('');
   const ventana = window.open('', '_blank');
   if (!ventana) throw new Error('Habilita las ventanas emergentes para imprimir las etiquetas.');
   ventana.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas — ' + nombre + '</title><style>' +
-    '*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:12mm;background:#fff;color:#10263F}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}.label{border:1px solid #B9C9DA;min-height:34mm;padding:3mm;text-align:center;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;justify-content:center}.name{font-weight:700;font-size:10pt;line-height:1.12;max-width:100%;overflow-wrap:anywhere}.meta{font-size:8pt;color:#52627A;margin:1.5mm 0}.label svg{display:block;max-width:100%;height:auto}.code{font-family:monospace;font-size:7pt;color:#52627A;margin-top:1mm}@page{margin:8mm}@media print{body{padding:0}.label{border-color:#888}}' +
+    '*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:12mm;background:#fff;color:#10263F}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}.label{border:1px solid #B9C9DA;min-height:34mm;padding:3mm;text-align:center;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;justify-content:center}.brand{font-size:7pt;color:#1F5E8C;font-weight:700;text-transform:uppercase;letter-spacing:.4px;max-width:100%;overflow-wrap:anywhere;margin-bottom:1mm}.name{font-weight:700;font-size:10pt;line-height:1.12;max-width:100%;overflow-wrap:anywhere}.meta{font-size:8pt;color:#52627A;margin:1.5mm 0}.label svg{display:block;max-width:100%;height:auto}.code{font-family:monospace;font-size:7pt;color:#52627A;margin-top:1mm}@page{margin:8mm}@media print{body{padding:0}.label{border-color:#888}}' +
     '</style></head><body><main class="grid">' + etiquetas + '</main><script>window.onload=function(){window.print();}</script></body></html>');
   ventana.document.close();
 }
 
-function BarcodePreview({ producto, codigo }) {
+function BarcodePreview({ producto, codigo, branding }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current || !codigo || typeof JsBarcode === 'undefined') return;
@@ -201,7 +202,8 @@ function BarcodePreview({ producto, codigo }) {
   }));
 }
 
-function CodigosBarras({ productos, currentUser }) {
+function CodigosBarras({ productos, currentUser, branding }) {
+  const marca = normalizarBranding(branding);
   const puedeGestionar = currentUser?.role === 'admin' || !!permisoEdita(currentUser).productos;
   const [q, setQ] = useState('');
   const [soloSinCodigo, setSoloSinCodigo] = useState(false);
@@ -245,7 +247,7 @@ function CodigosBarras({ productos, currentUser }) {
     try {
       const codigo = codigoBarrasDeProducto(producto);
       if (!codigo) throw new Error('Primero genera o asigna un código al producto.');
-      imprimirEtiquetasCodigoBarras(producto, codigo, cantidad);
+      imprimirEtiquetasCodigoBarras(producto, codigo, cantidad, marca);
     } catch (e) {
       setError(e.message);
     }
@@ -289,7 +291,7 @@ function CodigosBarras({ productos, currentUser }) {
     }),
     list.length === 0 && React.createElement('div', { style: { textAlign: 'center', color: 'var(--ink-faint)', padding: '28px 12px', fontSize: 13 } }, 'No hay productos que coincidan con el filtro.'),
     productoActivo && React.createElement(Modal, { title: '🏷️ Código enlazado al producto', onClose: () => setProductoActivo(null) },
-      React.createElement(BarcodePreview, { producto: productoActivo, codigo: codigoBarrasDeProducto(productoActivo) }),
+      React.createElement(BarcodePreview, { producto: productoActivo, codigo: codigoBarrasDeProducto(productoActivo), branding: marca }),
       React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.45, marginBottom: 12 } }, 'Este código se guarda como cadena de texto y queda reservado en Firestore para este producto. No se regenera automáticamente para no invalidar etiquetas ya impresas.'),
       React.createElement(Row, { style: { gap: 8, justifyContent: 'flex-end' } },
         React.createElement(BOut, { onClick: () => setProductoActivo(null) }, 'Cerrar'),

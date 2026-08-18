@@ -121,7 +121,8 @@ function resumenRuta(r) {
     cargados: itemsCargadosDe(r)
   };
 }
-function guiaHTML(r) {
+function guiaHTML(r, branding) {
+  const marca = normalizarBranding(branding).nombreComercial;
   const {
     entregas,
     totalVendido,
@@ -129,7 +130,7 @@ function guiaHTML(r) {
   } = resumenRuta(r);
   const filasCargados = cargados.map(it => `<tr><td>${it.nombre}</td><td style="text-align:right">${it.cant}</td></tr>`).join('');
   const filasEntregas = entregas.map(e => `<tr><td>${e.clienteNombre}</td><td>${(e.items || []).length} prod.</td><td>${e.formaPago}</td><td style="text-align:right">${fmtx(e.total)}</td></tr>`).join('');
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Guía de ruta — ${fDateTime(r.fecha)}</title>
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>${marca} — Guía de jornada — ${fDateTime(r.fecha)}</title>
       <style>
         *{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
         body{padding:24px;color:#1B1D19;max-width:640px;margin:0 auto}
@@ -141,7 +142,7 @@ function guiaHTML(r) {
         .total{font-size:18px;font-weight:800;text-align:right;margin-top:10px}
         @media print{ button{display:none} }
       </style></head><body>
-      <h1>🚚 Guía de ruta</h1>
+      <h1>${marca}</h1><h2>🚚 Guía de jornada</h2>
       <div class="sub">${fDateTime(r.fecha)} · Estado: ${r.estado === 'activa' ? 'en curso' : r.estado || 'cerrada'}</div>
       <h2>Productos cargados</h2>
       <table>${filasCargados || '<tr><td>Sin productos</td></tr>'}</table>
@@ -151,16 +152,17 @@ function guiaHTML(r) {
       <button onclick="window.print()" style="margin-top:20px;background:#E8A400;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer">🖨️ Imprimir</button>
       </body></html>`;
 }
-function imprimirGuia(r) {
+function imprimirGuia(r, branding) {
   const w = window.open('', '_blank');
   if (!w) {
     alert('Habilita las ventanas emergentes para imprimir la guía.');
     return;
   }
-  w.document.write(guiaHTML(r));
+  w.document.write(guiaHTML(r, branding));
   w.document.close();
 }
-function waGuiaLink(r, telefono) {
+function waGuiaLink(r, telefono, branding) {
+  const marca = normalizarBranding(branding).nombreComercial;
   const {
     entregas,
     totalVendido,
@@ -168,7 +170,7 @@ function waGuiaLink(r, telefono) {
   } = resumenRuta(r);
   const lineasCarga = cargados.map(it => `• ${it.nombre} x${it.cant}`).join('\n');
   const lineasEnt = entregas.map(e => `• ${e.clienteNombre}: ${fmtx(e.total)} (${e.formaPago})`).join('\n');
-  const texto = `🚚 *FLUTT-WATER · GUÍA DE JORNADA*\n📅 ${fDateTime(r.fecha)}\n\n*Cargamento:*\n${lineasCarga || 'Sin productos'}\n\n*Entregas (${entregas.length}):*\n${lineasEnt || 'Sin entregas'}\n\n💰 *Total vendido: ${fmtx(totalVendido)}*`;
+  const texto = `🚚 *${marca} · GUÍA DE JORNADA*\n📅 ${fDateTime(r.fecha)}\n\n*Cargamento:*\n${lineasCarga || 'Sin productos'}\n\n*Entregas (${entregas.length}):*\n${lineasEnt || 'Sin entregas'}\n\n💰 *Total vendido: ${fmtx(totalVendido)}*`;
   let tel = (telefono || '').replace(/\D/g, '');
   if (tel && !tel.startsWith('52') && tel.length <= 10) tel = '52' + tel;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
@@ -199,9 +201,10 @@ function downloadCSV(filename, rows) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
-function waVentaLink(cliente, items, total, pago) {
+function waVentaLink(cliente, items, total, pago, branding) {
+  const marca = normalizarBranding(branding).nombreComercial;
   const lineas = items.map(it => `• ${it.nombre} x${it.cant} = ${fmtx((it.precio || 0) * it.cant)}`).join('\n');
-  const texto = `🧾 *FLUTT-WATER · COMPROBANTE DE VENTA*\n👤 ${cliente.nombre}\n\n${lineas}\n\n💰 *Total: ${fmtx(total)}*\nPago: ${pago}`;
+  const texto = `🧾 *${marca} · COMPROBANTE DE VENTA*\n👤 ${cliente.nombre}\n\n${lineas}\n\n💰 *Total: ${fmtx(total)}*\nPago: ${pago}`;
   let tel = (cliente.telefono || '').replace(/\D/g, '');
   if (tel && !tel.startsWith('52') && tel.length <= 10) tel = '52' + tel;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
@@ -458,6 +461,7 @@ function RepartidoresPanel({
   clientes,
   rutas: rutasReales,
   currentUser,
+  branding,
   onIrA
 }) {
   const [tab, setTab] = useState('activas');
@@ -1437,7 +1441,7 @@ function RepartidoresPanel({
         marginTop: 10
       }
     }, React.createElement("button", {
-      onClick: () => imprimirGuia(r),
+      onClick: () => imprimirGuia(r, branding),
       style: {
         flex: 1,
         background: 'var(--surface-2)',
@@ -1482,7 +1486,7 @@ function RepartidoresPanel({
       }
     }), React.createElement("button", {
       onClick: () => {
-        window.open(waGuiaLink(r, waPhone), '_blank');
+        window.open(waGuiaLink(r, waPhone, branding), '_blank');
         setWaFor(null);
       },
       style: {
@@ -1843,7 +1847,7 @@ function RepartidoresPanel({
       marginBottom: 20
     }
   }, ventaRapida.done.ubicacionVenta.ok === true ? '📍 Ubicación confirmada' : ventaRapida.done.ubicacionVenta.ok === false ? `⚠️ Ubicación fuera de rango (${ventaRapida.done.ubicacionVenta.distanciaM} m)` : '📍 No se pudo validar la ubicación'), ventaRapida.cliente.telefono && React.createElement("button", {
-    onClick: () => window.open(waVentaLink(ventaRapida.cliente, ventaRapida.done.items, ventaRapida.done.total, ventaRapida.done.pago), '_blank'),
+    onClick: () => window.open(waVentaLink(ventaRapida.cliente, ventaRapida.done.items, ventaRapida.done.total, ventaRapida.done.pago, branding), '_blank'),
     style: {
       width: '100%',
       background: '#25d366',

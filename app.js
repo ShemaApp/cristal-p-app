@@ -6,6 +6,15 @@ function App() {
     productos, clientes, notas, creditos, rutas, pedidos,
     pendCounts, totalPendientes, notificacionesTransferencias,
   } = useSesion();
+  const [branding, setBranding] = useState(() => normalizarBranding());
+  useEffect(() => {
+    const ref = db.collection('_meta').doc('branding');
+    const unsub = ref.onSnapshot(snap => setBranding(normalizarBranding(snap.exists ? snap.data() : {})), () => setBranding(normalizarBranding()));
+    return unsub;
+  }, []);
+  useEffect(() => {
+    document.title = branding.nombreComercial || 'Flutt-Water';
+  }, [branding.nombreComercial]);
   const [tab, setTab] = useState('home');
   const [navOpen, setNavOpen] = useState(false);
   const historialTabs = useRef([]);
@@ -48,6 +57,7 @@ function App() {
   };
   const ctx = {
     productos,
+    branding,
     clientes,
     notas,
     creditos,
@@ -106,7 +116,7 @@ function App() {
       fontWeight: 700
     }
   }, "Cerrar sesión")));
-  if (!currentUser) return React.createElement(Login, null);
+  if (!currentUser) return React.createElement(Login, { branding: branding });
   if (locked) return React.createElement(PinLock, {
     currentUser: currentUser,
     onUnlock: () => setLocked(false),
@@ -176,9 +186,23 @@ function App() {
       color: 'var(--accent)',
       fontFamily: 'var(--font-display)',
       textTransform: 'uppercase',
-      letterSpacing: '.02em'
+      letterSpacing: '.02em',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      minWidth: 0,
+      maxWidth: 190,
+      overflow: 'hidden'
     }
-  }, "🚚 Flutt-Water")), React.createElement(Row, {
+  }, React.createElement("img", {
+    src: branding.logoPath,
+    alt: '',
+    width: 24,
+    height: 24,
+    style: { width: 24, height: 24, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }
+  }), React.createElement("span", {
+    style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  }, branding.nombreComercial)), React.createElement(Row, {
     style: {
       gap: 6
     }
@@ -227,7 +251,7 @@ function App() {
       display: 'flex',
       alignItems: 'center'
     }
-  }, React.createElement(Gear, null)))), React.createElement("div", {
+  }, React.createElement(Gear, null))))), React.createElement("div", {
     style: {
       position: 'fixed',
       top: 50,
@@ -291,6 +315,7 @@ function App() {
     onAbrirEtiquetas: () => navegarA('barcodes')
   }), tab === 'barcodes' && React.createElement(CodigosBarras, {
     productos,
+    branding: branding,
     currentUser: currentUser
   }), tab === 'nota' && React.createElement(CrearNota, {
     ...ctx,
@@ -323,6 +348,7 @@ function App() {
     currentUser: currentUser
   }), tab === 'config' && React.createElement(Configuracion, {
     currentUser: currentUser,
+    branding: branding,
     onBack: volverAtras,
     onLogout: logout,
     abrirUsuarios: abrirUsuarios,

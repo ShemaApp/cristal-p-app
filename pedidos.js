@@ -2,6 +2,7 @@ function VentaAlmacen({
   productos,
   clientes,
   currentUser,
+  branding,
   ventaRapida,
   onVentaRapidaConsumida
 }) {
@@ -63,7 +64,8 @@ function VentaAlmacen({
   const canSave = cliente?.nombre && cartValido.length > 0;
   const makeWA = (cl, items, tot, fp) => {
     const lines = items.map(x => `• ${x.nombre} x${x.cant} = ${fmt(x.precio * x.cant)}`).join('\n');
-    const text = `🧾 *VENTA DIRECTA DEL ADMINISTRADOR*\n👤 ${cl.nombre}\n\n${lines}\n\n💰 *Total: ${fmt(tot)}*\nPago: ${fp}`;
+    const marca = normalizarBranding(branding).nombreComercial;
+    const text = `🧾 *${marca} · VENTA DIRECTA*\n👤 ${cl.nombre}\n\n${lines}\n\n💰 *Total: ${fmt(tot)}*\nPago: ${fp}`;
     let telefono = (cl.telefono || '').replace(/\D/g, '');
     if (!telefono.startsWith('52') && telefono.length <= 10) telefono = '52' + telefono;
     return `https://wa.me/${telefono}?text=${encodeURIComponent(text)}`;
@@ -88,6 +90,7 @@ function VentaAlmacen({
       const notaRef = db.collection('notas').doc();
       const creditoRef = pago === 'credito' ? db.collection('creditos').doc() : null;
       const nota = {
+        marcaComercial: normalizarBranding(branding).nombreComercial,
         fecha,
         clienteId: cl.id,
         clienteNombre: cl.nombre,
@@ -480,7 +483,7 @@ function VentaAlmacen({
 }
 
 
-function Pedidos({ productos, clientes, pedidos, currentUser }) {
+function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   const [cliMode, setCliMode] = useState('buscar');
   const [cliSearch, setCliSearch] = useState('');
   const [cliSel, setCliSel] = useState(null);
@@ -537,6 +540,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
       await db.runTransaction(async tx => {
         if (cliMode === 'nuevo') tx.set(clienteRef, { nombre: cl.nombre, telefono: cl.telefono, domicilio: '', activo: true, creadoPorUid: currentUser.uid, creadoEn: fecha });
         tx.set(pedidoRef, {
+          marcaComercial: normalizarBranding(branding).nombreComercial,
           fechaCreacion: fecha,
           fechaActualizacion: fecha,
           clienteId: cl.id,
@@ -607,7 +611,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
   ));
 }
 
-function CrearNota({ productos, clientes, pedidos, currentUser, ventaRapida, onVentaRapidaConsumida }) {
+function CrearNota({ productos, clientes, pedidos, currentUser, branding, ventaRapida, onVentaRapidaConsumida }) {
   useEffect(() => { if (ventaRapida && onVentaRapidaConsumida) onVentaRapidaConsumida(); }, [ventaRapida]);
-  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, ventaRapida: true }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser });
+  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, branding, ventaRapida: true }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser, branding });
 }

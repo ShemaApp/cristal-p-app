@@ -1,4 +1,4 @@
-function Login() {
+function Login({ branding = normalizarBranding() } = {}) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
@@ -41,8 +41,8 @@ function Login() {
       background: 'var(--bg)'
     }
   }, React.createElement("img", {
-    src: "icons/icon-192.png",
-    alt: "Emblema de Flutt-Water",
+    src: branding.logoPath,
+    alt: "Emblema de " + branding.nombreComercial,
     width: 82,
     height: 82,
     style: {
@@ -61,7 +61,7 @@ function Login() {
       textTransform: 'uppercase',
       letterSpacing: '.02em'
     }
-  }, "Flutt-Water"), React.createElement("div", {
+  }, branding.nombreComercial), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-faint)',
@@ -70,7 +70,15 @@ function Login() {
       textTransform: 'uppercase',
       letterSpacing: '.08em'
     }
-  }, "Panel de administración"), React.createElement("div", {
+  }, branding.subtitulo || "Panel de administración"), branding.lema && React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--accent-text)',
+      marginBottom: 12,
+      textAlign: 'center',
+      fontStyle: 'italic'
+    }
+  }, branding.lema), React.createElement("div", {
     style: {
       width: '100%',
       maxWidth: 340,

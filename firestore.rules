@@ -36,6 +36,18 @@ service cloud.firestore {
       // en la mayoría de las colecciones.
       return signedIn() && (role() == 'admin' || role() == 'usuario');
     }
+    function brandingValida(data) {
+      return data.nombreComercial is string
+        && data.nombreComercial.size() > 0
+        && data.nombreComercial.size() <= 80
+        && data.subtitulo is string
+        && data.subtitulo.size() <= 100
+        && data.lema is string
+        && data.lema.size() <= 120
+        && data.telefono is string
+        && data.telefono.size() <= 30
+        && data.logoPath == 'icons/icon-192.png';
+    }
     function clienteVisible(data) {
       return isAdmin() || (signedIn() && role() == 'repartidor'
         && ((data.repartidorIds is list && request.auth.uid in data.repartidorIds)
@@ -483,6 +495,13 @@ service cloud.firestore {
     // La PWA puede leer el estado interno de datos de ejemplo; la escritura
     // permanece restringida a administración. El cliente no crea perfiles.
     
+    match /_meta/branding {
+      // El documento solo contiene identidad comercial no sensible.
+      allow read: if true;
+      allow create, update: if isAdmin() && brandingValida(request.resource.data);
+      allow delete: if false;
+    }
+
     match /_meta/{id} {
       allow read: if signedIn();
       allow write: if isAdmin();

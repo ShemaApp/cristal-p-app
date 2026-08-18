@@ -2,11 +2,13 @@ function Configuracion({
   currentUser,
   onBack,
   onLogout,
+  branding,
   abrirUsuarios,
   onAbrirUsuariosConsumido
 }) {
   const [sub, setSub] = useState('perfil');
   const [users, setUsersList] = useState([]);
+  const [brandForm, setBrandForm] = useState(() => normalizarBranding(branding));
   const [form, setForm] = useState(null);
   const [vehicleForm, setVehicleForm] = useState(null);
   const [vehicles, setVehicles] = useState([]);
@@ -22,6 +24,9 @@ function Configuracion({
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  useEffect(() => {
+    setBrandForm(normalizarBranding(branding));
+  }, [branding?.nombreComercial, branding?.subtitulo, branding?.lema, branding?.telefono, branding?.logoPath]);
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
   const startPress = id => {
@@ -122,6 +127,25 @@ function Configuracion({
       await batch.commit();
       setVehicleForm(null); flash('✅ Vehículo y medidor autorizados fueron registrados');
     } catch (e) { flash('No se pudo registrar el vehículo: ' + e.message, true); }
+  };
+  const saveBranding = async () => {
+    if (!isAdmin) {
+      flash('Solo administración puede cambiar la marca comercial', true);
+      return;
+    }
+    const next = normalizarBranding(brandForm);
+    try {
+      await db.collection('_meta').doc('branding').set({
+        ...next,
+        actualizadoPorUid: currentUser.uid,
+        actualizadoPorNombre: currentUser.nombre || '',
+        actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      setBrandForm(next);
+      flash('✅ Marca comercial actualizada');
+    } catch (e) {
+      flash('No se pudo guardar la marca comercial: ' + e.message, true);
+    }
   };
   const saveUser = async () => {
     if (!form?.id) {
@@ -226,7 +250,7 @@ function Configuracion({
       gap: 6,
       marginBottom: 16
     }
-  }, [['perfil', '👤 Perfil'], ...(permisoAcciones(currentUser).password ? [['password', '🔑 Contraseña']] : []), ['pin', '🔒 PIN'], ...(isAdmin ? [['usuarios', '👥 Usuarios'], ['vehiculos', '🚚 Vehículos'], ['permisos', '🔐 Permisos']] : [])].map(([v, l]) => React.createElement("button", {
+  }, [['perfil', '👤 Perfil'], ...(isAdmin ? [['marca', '🎨 Marca']] : []), ...(permisoAcciones(currentUser).password ? [['password', '🔑 Contraseña']] : []), ['pin', '🔒 PIN'], ...(isAdmin ? [['usuarios', '👥 Usuarios'], ['vehiculos', '🚚 Vehículos'], ['permisos', '🔐 Permisos']] : [])].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => {
       setSub(v);
@@ -278,7 +302,20 @@ function Configuracion({
       width: '100%',
       marginTop: 8
     }
-  }, "🚪 Cerrar sesión")), sub === 'password' && React.createElement(Card, null, React.createElement(Lbl, null, "Contraseña actual"), React.createElement(PwInp, {
+  }, "🚪 Cerrar sesión")), sub === 'marca' && isAdmin && React.createElement(Card, null,
+    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 } },
+      React.createElement('img', { src: brandForm.logoPath, alt: 'Logo de ' + brandForm.nombreComercial, width: 64, height: 64, style: { width: 64, height: 64, borderRadius: 16, objectFit: 'cover', flexShrink: 0 } }),
+      React.createElement('div', null,
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 800 } }, 'Marca visible al cliente'),
+        React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4, marginTop: 3 } }, 'Aparece en el inicio de sesión, encabezado y comprobantes. Flutt-Water permanece como identidad técnica de la aplicación.')
+      )
+    ),
+    React.createElement(Lbl, null, 'Nombre comercial'), React.createElement(Inp, { value: brandForm.nombreComercial, maxLength: 80, placeholder: 'FluttWater Purificadora Hidequel', onChange: e => setBrandForm({ ...brandForm, nombreComercial: e.target.value }), style: { marginBottom: 10 } }),
+    React.createElement(Lbl, null, 'Subtítulo o giro'), React.createElement(Inp, { value: brandForm.subtitulo, maxLength: 100, placeholder: 'Purificadora y reparto de agua', onChange: e => setBrandForm({ ...brandForm, subtitulo: e.target.value }), style: { marginBottom: 10 } }),
+    React.createElement(Lbl, null, 'Lema opcional'), React.createElement(Inp, { value: brandForm.lema, maxLength: 120, placeholder: 'Agua limpia, siempre cerca', onChange: e => setBrandForm({ ...brandForm, lema: e.target.value }), style: { marginBottom: 10 } }),
+    React.createElement(Lbl, null, 'Teléfono comercial'), React.createElement(Inp, { type: 'tel', value: brandForm.telefono, maxLength: 30, placeholder: '637 137 5399', onChange: e => setBrandForm({ ...brandForm, telefono: e.target.value }), style: { marginBottom: 12 } }),
+    React.createElement(BFill, { onClick: saveBranding, style: { width: '100%' } }, '💾 Guardar personalización')
+  ), sub === 'password' && React.createElement(Card, null, React.createElement(Lbl, null, "Contraseña actual"), React.createElement(PwInp, {
     value: pw.old,
     onChange: e => setPw(f => ({
       ...f,
