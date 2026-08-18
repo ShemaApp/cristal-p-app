@@ -580,7 +580,7 @@ function Inventario({
       fontSize: 11,
       fontWeight: 700
     }
-  }, d.accion === 'reingreso' ? 'reingresó' : 'baja')), React.createElement("div", {
+    }, d.accion === 'reingreso' ? 'reingresó' : 'baja')), React.createElement(OpcionesMenu, { label: 'Acciones de devolución', items: [{ key: 'detalle', icon: 'file', label: 'Ver detalle', onClick: () => flash(`${d.productoNombre} · ${d.accion === 'reingreso' ? 'Reingreso a inventario' : 'Baja no vendible'} · ${d.motivo || 'Sin motivo'}`) }] }), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-soft)'
@@ -591,5 +591,5 @@ function Inventario({
       color: 'var(--ink-faint)',
       marginTop: 2
     }
-  }, fDateTime(d.fecha)))))));
+    }, fDateTime(d.fecha)))))));
 }

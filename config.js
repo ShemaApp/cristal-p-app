@@ -528,7 +528,7 @@ function Configuracion({
       color: 'var(--ink-faint)',
       marginBottom: 10
     }
-  }, "Mantén presionado un usuario para editarlo o eliminarlo."), users.map(u => {
+  }, "Usa el botón de opciones de cada usuario para editarlo o eliminarlo."), users.map(u => {
     const expanded = expandedId === u.id;
     return React.createElement(Card, {
       key: u.id,
@@ -574,9 +574,9 @@ function Configuracion({
         color: 'var(--ink-soft)',
         marginTop: 2
       }
-    }, "Correo · ", u.email)))), React.createElement("div", {
+    }, "Correo · ", u.email), React.createElement(OpcionesMenu, { label: 'Acciones de ' + u.nombre, items: [{ key: 'editar', icon: 'edit', label: 'Editar', onClick: () => setForm({ id: u.id, nombre: u.nombre, email: u.email, role: u.role }) }, u.id !== currentUser.uid && { divider: true }, u.id !== currentUser.uid && { key: 'eliminar', icon: 'trash', label: 'Eliminar', danger: true, onClick: () => { if (window.confirm(`¿Eliminar el perfil de "${u.nombre}"? Esta acción no se puede deshacer.`)) delUser(u); } }] })))), React.createElement("div", {
       style: {
-        maxHeight: expanded ? 80 : 0,
+        maxHeight: 0,
         overflow: 'hidden',
         transition: 'max-height .2s ease'
       }

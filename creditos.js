@@ -202,7 +202,7 @@ function Creditos({
       color: 'var(--ink-faint)',
       marginBottom: 6
     }
-  }, "Mantén presionado un abono para corregirlo o eliminarlo."), c.abonos.map((a, i) => {
+  }, "Usa el botón de opciones de cada abono para corregirlo o eliminarlo."), c.abonos.map((a, i) => {
     const key = c.id + '_' + i;
     const expanded = expandedAbono === key;
     const editing = editAbono && editAbono.creditoId === c.id && editAbono.index === i;
@@ -247,7 +247,7 @@ function Creditos({
         color: 'var(--ok-text)',
         fontWeight: 700
       }
-    }, "+", fmt(a.monto)))), puedeEditar && React.createElement("div", {
+    }, "+", fmt(a.monto)), puedeEditar && React.createElement(OpcionesMenu, { label: 'Acciones del abono', items: [{ key: 'corregir', icon: 'edit', label: 'Corregir', onClick: () => { setEditAbono({ creditoId: c.id, index: i, monto: String(a.monto) }); setExpandedAbono(key); } }, { divider: true }, { key: 'eliminar', icon: 'trash', label: 'Eliminar', danger: true, onClick: () => eliminarAbono(c, i) }] }))), puedeEditar && React.createElement("div", {
       style: {
         maxHeight: expanded ? editing ? 46 : 40 : 0,
         overflow: 'hidden',

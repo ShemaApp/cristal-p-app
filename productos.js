@@ -403,7 +403,7 @@ function Productos({
       color: 'var(--ink-faint)',
       marginBottom: 10
     }
-  }, "Usa el botón ⋮ de cada producto para ver sus acciones."), selMode && React.createElement(Row, {
+  }, "Usa el botón de opciones de cada producto para ver sus acciones."), selMode && React.createElement(Row, {
     style: {
       marginBottom: 10,
       background: 'var(--danger-bg)',
@@ -491,33 +491,17 @@ function Productos({
         color: 'var(--accent-text)',
         fontSize: 14
       }
-    }, fmt(precioProducto(p))), React.createElement("button", {
-      type: "button",
-      title: `Acciones de ${p.nombre}`,
-      'aria-label': `Abrir acciones de ${p.nombre}`,
-      'aria-expanded': expanded,
-      onClick: e => {
-        e.stopPropagation();
-        if (selMode) {
-          togSel(p.id);
-          return;
-        }
-        toggleMenu(p.id);
-      },
-      style: {
-        border: '1px solid var(--line-strong)',
-        background: expanded ? 'var(--info-bg)' : 'var(--surface-2)',
-        color: expanded ? 'var(--info-text)' : 'var(--ink-soft)',
-        borderRadius: 6,
-        minWidth: 34,
-        height: 32,
-        padding: '0 7px',
-        cursor: 'pointer',
-        fontSize: 20,
-        lineHeight: 1,
-        fontWeight: 800
-      }
-    }, '⋮')), React.createElement(Row, {
+    }, fmt(precioProducto(p))), React.createElement(OpcionesMenu, {
+      label: `Acciones de ${p.nombre}`,
+      items: [
+        puedeEditar && { key: 'editar', icon: 'edit', label: 'Editar', onClick: () => setForm({ ...p, precio: String(precioProducto(p)), precioNombre: precioActivoProducto(p).nombre || 'Precio actual', stock: String(p.stock), productoBaseId: p.productoBaseId || '', tipoProducto: p.tipoProducto || 'terminado', tipoVenta: p.tipoVenta || 'pieza', etiquetaPresentacion: p.etiquetaPresentacion || '', unidadInventario: p.unidadInventario || 'pieza', contenidoPorUnidad: p.contenidoPorUnidad === null || p.contenidoPorUnidad === undefined ? '' : String(p.contenidoPorUnidad), unidadContenido: p.unidadContenido || p.unidadMedida || p.unidad || 'pieza', productoContenidoId: p.productoContenidoId || '', requiereLlenado: !!p.requiereLlenado, productoVacioId: p.productoVacioId || '', unidadMedida: PRODUCTO_UNIDADES_UNIVERSALES.some(x => x.id === (p.unidadMedida || p.unidad)) ? (p.unidadMedida || p.unidad) : 'pieza', tamanoPresentacion: PRODUCTO_PRESENTACIONES.some(x => x.id === p.tamanoPresentacion) ? p.tamanoPresentacion : 'PZ', codigoBarras: p.codigoBarras || '', motivo: '' }) },
+        puedeEditar && { key: 'precios', icon: 'cash', label: 'Precios', onClick: () => setPriceProduct(p) },
+        { key: 'etiqueta', icon: 'tag', label: 'Etiqueta', onClick: () => onAbrirEtiquetas && onAbrirEtiquetas() },
+        isAdmin && { key: 'seleccionar', icon: 'file', label: 'Seleccionar', onClick: () => entrarSeleccion(p.id) },
+        { divider: true },
+        isAdmin && { key: 'eliminar', icon: 'trash', label: 'Eliminar', danger: true, onClick: () => { if (window.confirm(`¿Eliminar "${p.nombre}"? Esta acción no se puede deshacer.`)) db.collection('productos').doc(p.id).delete(); } }
+      ]
+    })), React.createElement(Row, {
       style: {
         marginTop: 4
       }
@@ -531,7 +515,7 @@ function Productos({
       }
     }, " ", p.codigoBarras))), React.createElement("div", {
       style: {
-        maxHeight: expanded ? 180 : 0,
+        maxHeight: 0,
         overflow: 'hidden',
         transition: 'max-height .2s ease'
       }

@@ -999,7 +999,7 @@ function Clientes({
       marginBottom: 12,
       lineHeight: 1.4
     }
-  }, list.length + ' cliente' + (list.length === 1 ? '' : 's') + ' encontrado' + (list.length === 1 ? '' : 's') + '. ' + (filtroGPS === 'sin-gps' ? 'Captura la ubicación estando en el domicilio; al guardarla desaparecerá de este filtro.' : 'La lista está agrupada por localidad. Toca el botón ⋮ para ver acciones, la miniatura QR para abrir el código o la tarjeta para abrir la ficha rápida.')), list.map((c, indice) => {
+  }, list.length + ' cliente' + (list.length === 1 ? '' : 's') + ' encontrado' + (list.length === 1 ? '' : 's') + '. ' + (filtroGPS === 'sin-gps' ? 'Captura la ubicación estando en el domicilio; al guardarla desaparecerá de este filtro.' : 'La lista está agrupada por localidad. Usa el botón de opciones para acciones, la miniatura QR para abrir el código o la tarjeta para abrir la ficha rápida.')), list.map((c, indice) => {
     const expanded = expandedId === c.id;
     const localidadActual = localidadDeCliente(c) || 'Sin clasificar';
     const localidadAnterior = indice > 0 ? localidadDeCliente(list[indice - 1]) || 'Sin clasificar' : null;
@@ -1076,30 +1076,17 @@ function Clientes({
     }, "Localidad · ", localidadDeCliente(c) || 'Sin clasificar')), React.createElement(MiniaturaQRCliente, {
       cliente: c,
       onClick: () => verQR(c)
-    }), React.createElement("button", {
-      type: 'button',
-      onMouseDown: e => e.stopPropagation(),
-      onTouchStart: e => e.stopPropagation(),
-      onClick: e => {
-        e.stopPropagation();
-        setExpandedId(eid => eid === c.id ? null : c.id);
-      },
-      title: 'Acciones de ' + c.nombre,
-      'aria-label': 'Acciones de ' + c.nombre,
-      'aria-expanded': expanded,
-      style: {
-        width: 34,
-        minWidth: 34,
-        height: 62,
-        border: '1px solid var(--line-strong)',
-        borderRadius: 8,
-        background: 'var(--surface)',
-        color: 'var(--ink-soft)',
-        fontSize: 20,
-        lineHeight: 1,
-        cursor: 'pointer'
-      }
-    }, '⋮'))), !c.ubicacion && puedeEditar && React.createElement("div", {
+    }), React.createElement(OpcionesMenu, {
+      label: 'Acciones de ' + c.nombre,
+      items: [
+        puedeEditar && { key: 'editar', icon: 'edit', label: 'Editar', onClick: () => setForm({ ...c, localidad: localidadCanonica(c.localidad || c.domicilio || '') }) },
+        !esAdmin && c.activo && { key: 'baja', icon: 'trash', label: 'Solicitar baja', danger: true, onClick: () => setSolicitudFor({ ...c, motivo: '', tipoEnvase: 'garrafon', cantidadEnvases: 1, jornadaId: '' }) },
+        { divider: true },
+        { key: 'historial', icon: 'file', label: 'Historial', onClick: () => setHistId(histId === c.id ? null : c.id) },
+        { key: 'qr', icon: 'qr', label: 'Ver QR', onClick: () => verQR(c) },
+        { key: 'detalles', icon: 'file', label: 'Detalles', onClick: () => setDetallesFor(c) }
+      ]
+    })), !c.ubicacion && puedeEditar && React.createElement("div", {
       style: { padding: '0 14px 12px' }
     }, React.createElement(BFill, {
       onMouseDown: e => e.stopPropagation(),
@@ -1109,63 +1096,7 @@ function Clientes({
         abrirCapturaRapida(c);
       },
       style: { width: '100%' }
-    }, 'Capturar ubicación')), React.createElement("div", {
-      style: {
-        maxHeight: expanded ? 250 : 0,
-        overflow: 'hidden',
-        transition: 'max-height .2s ease'
-      }
-    }, React.createElement("div", {
-      style: {
-        padding: '0 14px 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6
-      }
-    }, React.createElement(Row, {
-      style: {
-        gap: 6
-      }
-    }, puedeEditar && React.createElement(BOut, {
-      onClick: () => {
-        setForm({
-          ...c,
-          localidad: localidadCanonica(c.localidad || c.domicilio || '')
-        });
-        setExpandedId(null);
-      },
-      style: {
-        flex: 1
-      }
-    }, "Editar"), !esAdmin && c.activo && React.createElement(BOut, {
-      onClick: () => { setSolicitudFor({ ...c, motivo: '', tipoEnvase: 'garrafon', cantidadEnvases: 1, jornadaId: '' }); setExpandedId(null); },
-      color: 'var(--danger-text)', style: { flex: 1 }
-    }, 'Solicitar baja'), React.createElement(Row, {
-      style: {
-        gap: 6
-      }
-    }, React.createElement(BOut, {
-      onClick: () => {
-        setHistId(histId === c.id ? null : c.id);
-        setExpandedId(null);
-      },
-      style: {
-        flex: 1
-      }
-    }, "Historial"), React.createElement(BOut, {
-      onClick: () => verQR(c),
-      style: {
-        flex: 1
-      }
-    }, "Ver QR"), React.createElement(BOut, {
-      onClick: () => {
-        setDetallesFor(c);
-        setExpandedId(null);
-      },
-      style: {
-        flex: 1
-      }
-    }, "Detalles")))), histId === c.id && React.createElement("div", {
+    }, 'Capturar ubicación')), histId === c.id && React.createElement("div", {
       style: {
         padding: '0 14px 14px'
       }

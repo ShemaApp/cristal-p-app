@@ -86,6 +86,9 @@ const Gear = () => React.createElement(Ic, null, React.createElement("circle", {
 }));
 const LINE_ICON_SHAPES = {
   dot: [['circle', { cx: '12', cy: '12', r: '3' }]],
+  edit: [['path', { d: 'M4 20h4L19 9l-4-4L4 16v4Z' }], ['path', { d: 'm13.5 6.5 4 4' }]],
+  trash: [['path', { d: 'M4 7h16M10 11v6M14 11v6' }], ['path', { d: 'M6 7l1 14h10l1-14M9 7V4h6v3' }]],
+  file: [['path', { d: 'M6 3h9l3 3v15H6z' }], ['path', { d: 'M15 3v4h4M9 12h6M9 16h6' }]],
   home: [['path', { d: 'M3 11.5 12 4l9 7.5' }], ['path', { d: 'M5 10v10h14V10' }], ['path', { d: 'M9 20v-6h6v6' }]],
   box: [['path', { d: 'm4 7 8-4 8 4-8 4-8-4Z' }], ['path', { d: 'M4 7v10l8 4 8-4V7' }], ['path', { d: 'M12 11v10' }]],
   tag: [['path', { d: 'M20 13 13 20 4 11V4h7l9 9Z' }], ['circle', { cx: '8', cy: '8', r: '1' }]],
@@ -124,6 +127,137 @@ const Menu = () => React.createElement(Ic, null, React.createElement("line", {
   x2: "21",
   y2: "18"
 }));
+const DotsV = ({ size = 20 }) => React.createElement(Ic, { size, strokeWidth: '2.4' }, React.createElement('circle', { cx: '12', cy: '5', r: '1' }), React.createElement('circle', { cx: '12', cy: '12', r: '1' }), React.createElement('circle', { cx: '12', cy: '19', r: '1' }));
+
+function OpcionesMenu({ label = 'Opciones', items = [] }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState(null);
+  const opciones = items.filter(Boolean);
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const posicionar = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = 224;
+    const menuHeight = Math.min(360, Math.max(170, opciones.filter(item => !item.divider).length * 46 + 16));
+    const abajo = rect.bottom + 6;
+    const top = abajo + menuHeight <= window.innerHeight - 12 ? abajo : Math.max(12, rect.top - menuHeight - 6);
+    const left = Math.min(Math.max(12, rect.right - menuWidth), Math.max(12, window.innerWidth - menuWidth - 12));
+    setPosition({ top, left });
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    const cerrarFuera = e => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const cerrarEscape = e => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    const reubicar = () => posicionar();
+    document.addEventListener('mousedown', cerrarFuera);
+    document.addEventListener('touchstart', cerrarFuera, { passive: true });
+    document.addEventListener('keydown', cerrarEscape);
+    window.addEventListener('resize', reubicar);
+    window.addEventListener('scroll', reubicar, true);
+    return () => {
+      document.removeEventListener('mousedown', cerrarFuera);
+      document.removeEventListener('touchstart', cerrarFuera);
+      document.removeEventListener('keydown', cerrarEscape);
+      window.removeEventListener('resize', reubicar);
+      window.removeEventListener('scroll', reubicar, true);
+    };
+  }, [open, opciones.length]);
+  const alternar = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    posicionar();
+    setOpen(true);
+  };
+  const ejecutar = item => {
+    if (item.disabled) return;
+    setOpen(false);
+    if (typeof item.onClick === 'function') item.onClick();
+  };
+  return React.createElement('div', {
+    ref: rootRef,
+    onClick: e => e.stopPropagation(),
+    onMouseDown: e => e.stopPropagation(),
+    onTouchStart: e => e.stopPropagation(),
+    style: { position: 'relative', flexShrink: 0, display: 'flex' }
+  }, React.createElement('button', {
+    ref: triggerRef,
+    type: 'button',
+    onClick: alternar,
+    title: label,
+    'aria-label': label,
+    'aria-haspopup': 'menu',
+    'aria-expanded': open,
+    style: {
+      width: 38,
+      minWidth: 38,
+      height: 38,
+      border: '1px solid ' + (open ? 'var(--accent)' : 'var(--line-strong)'),
+      borderRadius: 8,
+      background: open ? 'var(--info-bg)' : 'var(--surface-2)',
+      color: open ? 'var(--info-text)' : 'var(--ink-soft)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0,
+      cursor: 'pointer'
+    }
+  }, React.createElement(DotsV, null)), open && position && React.createElement('div', {
+    role: 'menu',
+    'aria-label': label,
+    style: {
+      position: 'fixed',
+      top: position.top,
+      left: position.left,
+      width: 224,
+      maxWidth: 'calc(100vw - 24px)',
+      maxHeight: 'min(360px, calc(100vh - 24px))',
+      overflowY: 'auto',
+      boxSizing: 'border-box',
+      padding: 6,
+      background: 'var(--fw-surface)',
+      color: 'var(--fw-text)',
+      border: '1px solid var(--fw-border)',
+      borderRadius: 10,
+      boxShadow: '0 14px 32px rgba(16,42,67,.2)',
+      zIndex: 1000
+    }
+  }, opciones.map((item, index) => item.divider ? React.createElement('div', { key: 'divider-' + index, role: 'separator', style: { height: 1, background: 'var(--fw-border)', margin: '5px 4px' } }) : React.createElement('button', {
+    key: item.key || item.label || index,
+    type: 'button',
+    role: 'menuitem',
+    disabled: !!item.disabled,
+    onClick: () => ejecutar(item),
+    style: {
+      width: '100%',
+      minHeight: 42,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '9px 10px',
+      border: 'none',
+      borderRadius: 7,
+      background: item.danger ? 'var(--danger-bg)' : 'transparent',
+      color: item.danger ? 'var(--danger-text)' : 'var(--fw-text)',
+      textAlign: 'left',
+      fontSize: 13,
+      fontWeight: item.danger ? 700 : 600,
+      cursor: item.disabled ? 'not-allowed' : 'pointer',
+      opacity: item.disabled ? 0.5 : 1
+    }
+  }, React.createElement(LineIcon, { name: item.icon || 'dot', size: 18 }), React.createElement('span', { style: { flex: 1, minWidth: 0 } }, item.label)))));
+}
+
 const Card = ({
   children,
   style = {}
@@ -392,6 +526,8 @@ function PwInp({
     }
   }, show ? React.createElement(EyeX, null) : React.createElement(EyeI, null)));
 }
+window.OpcionesMenu = OpcionesMenu;
+
 function BarcodeScanner({
   onDetected,
   onClose

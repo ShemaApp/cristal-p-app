@@ -256,7 +256,7 @@ function Gerencia({ currentUser, notas, creditos }) {
             React.createElement("div", { style: { fontSize: 11, color: 'var(--ink-faint)', fontWeight: 700, marginBottom: 10 } }, isAdmin ? 'TODOS LOS GASTOS' : 'TUS GASTOS REGISTRADOS'),
             gastos === null && React.createElement("div", { style: { fontSize: 13, color: 'var(--ink-faint)', textAlign: 'center', padding: '16px 0' } }, "Cargando\u2026"),
             gastos && (isAdmin ? gastos : misGastos).length === 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--ink-faint)', textAlign: 'center', padding: '16px 0' } }, "Sin gastos registrados a\u00FAn"),
-            isAdmin && gastos && (isAdmin ? gastos : misGastos).length > 0 && React.createElement("div", { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10 } }, "Mant\u00E9n presionado un gasto para eliminarlo."),
+            isAdmin && gastos && (isAdmin ? gastos : misGastos).length > 0 && React.createElement("div", { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10 } }, "Usa el botón de opciones de cada gasto para eliminarlo."),
             gastos && (isAdmin ? gastos : misGastos).map(g => {
                 const expanded = expandedId === g.id;
                 const fila = React.createElement(React.Fragment, null,
@@ -264,7 +264,8 @@ function Gerencia({ currentUser, notas, creditos }) {
                         React.createElement("span", { style: { fontWeight: 700, fontSize: 13 } }, g.pagadoA),
                         React.createElement(Row, { style: { gap: 6 } },
                             React.createElement(Tag, { color: g.formaPago === 'tarjeta' ? 'var(--info-text)' : 'var(--ok-text)' }, g.formaPago === 'tarjeta' ? ' Tarjeta' : ' Efectivo'),
-                            React.createElement("span", { style: { fontWeight: 700, color: 'var(--danger-text)' } }, fmt(g.monto)))),
+                            React.createElement("span", { style: { fontWeight: 700, color: 'var(--danger-text)' } }, fmt(g.monto)),
+                            isAdmin && React.createElement(OpcionesMenu, { label: 'Acciones de gasto', items: [{ key: 'eliminar', icon: 'trash', label: 'Eliminar', danger: true, onClick: () => eliminar(g) }] }))),
                     g.motivo && React.createElement("div", { style: { fontSize: 12, color: 'var(--ink-soft)' } }, g.motivo),
                     React.createElement("div", { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 4 } },
                         g.capturadoPorNombre,
@@ -275,7 +276,7 @@ function Gerencia({ currentUser, notas, creditos }) {
                 }
                 return React.createElement("div", { key: g.id, style: { borderBottom: '1px solid var(--line)', marginBottom: 8 } },
                     React.createElement("div", { onMouseDown: () => startPress(g.id), onMouseUp: cancelPress, onMouseLeave: cancelPress, onTouchStart: () => startPress(g.id), onTouchEnd: cancelPress, onTouchMove: cancelPress, onClick: () => onGastoTap(g.id), style: { paddingBottom: 8, cursor: 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent' } }, fila),
-                    React.createElement("div", { style: { maxHeight: expanded ? 50 : 0, overflow: 'hidden', transition: 'max-height .2s ease' } },
+                    React.createElement("div", { style: { maxHeight: 0, overflow: 'hidden', transition: 'max-height .2s ease' } },
                         React.createElement(Row, { style: { paddingBottom: 8 } },
                             React.createElement(BOut, { onClick: () => { eliminar(g); setExpandedId(null); }, color: "var(--danger-text)", style: { flex: 1 } }, "\uD83D\uDDD1 Eliminar"))));
             })),
