@@ -10,9 +10,9 @@
 
 /* ── Modelo de permisos: constantes de rol + helpers de acceso ──
    (movido de app-core.js, sin cambios de lógica) */
-const TABS_INFO = [['productos', '📦', 'Productos'], ['barcodes', '🏷️', 'Etiquetas'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
-const EDICION_INFO = [['productos', '📦', 'Editar / dar de alta productos'], ['clientes', '👥', 'Editar / dar de alta clientes'], ['creditos', '💳', 'Registrar abonos a créditos']];
-const ACCIONES_INFO = [['camara', '📷', 'Usar cámara (escanear QR de cliente)'], ['csv', '📄', 'Descargar reportes en CSV'], ['gps', '📍', 'Compartir ubicación en vivo (GPS)'], ['password', '🔑', 'Cambiar su propia contraseña']];
+const TABS_INFO = [['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
+const EDICION_INFO = [['productos', 'box', 'Editar / dar de alta productos'], ['clientes', 'users', 'Editar / dar de alta clientes'], ['creditos', 'credit', 'Registrar abonos a créditos']];
+const ACCIONES_INFO = [['camara', 'qr', 'Usar cámara (escanear QR de cliente)'], ['csv', 'note', 'Descargar reportes en CSV'], ['gps', 'route', 'Compartir ubicación en vivo (GPS)'], ['password', 'lock', 'Cambiar su propia contraseña']];
 const ACCIONES_DEFAULT_ROL = {
   admin: {
     camara: true,
@@ -303,7 +303,7 @@ function useSesion() {
     if (!currentUser) return;
   const errorHandler = err => {
       console.error('Firestore error:', err);
-      setFirestoreError('⚠️ Error de conexión con la base de datos. Revisa tus permisos.');
+      setFirestoreError('Error de conexión con la base de datos. Revisa tus permisos.');
   };
   const pend = (col, snap) => setPendCounts(p => ({
       ...p,

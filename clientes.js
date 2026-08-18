@@ -275,11 +275,11 @@ function HojaCapturaGPSRapida({ cliente, estado, lectura, error, onConfirmar, on
   let contenido;
   if (estado === 'confirmar') contenido = React.createElement(React.Fragment, null,
     React.createElement('div', { style: asa }),
-    React.createElement('div', { style: { fontSize: 18, fontWeight: 800, marginBottom: 6 } }, '📍 ¿Estás en este domicilio?'),
+    React.createElement('div', { style: { fontSize: 18, fontWeight: 800, marginBottom: 6 } }, ' ¿Estás en este domicilio?'),
     React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-faint)', lineHeight: 1.45, marginBottom: 14 } }, 'La ubicación se guardará para preparar rutas futuras.'),
     React.createElement('div', { style: { background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '11px 12px', marginBottom: 16 } },
       React.createElement('div', { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, cliente.nombre),
-      React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.35 } }, '📍 ', cliente.localidad || cliente.domicilio || 'Localidad sin detalle')),
+      React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.35 } }, ' ', cliente.localidad || cliente.domicilio || 'Localidad sin detalle')),
     React.createElement(BFill, { onClick: onConfirmar, style: { width: '100%' } }, 'SÍ, CAPTURAR UBICACIÓN'),
     React.createElement('button', { type: 'button', onClick: onCerrar, style: { width: '100%', marginTop: 8, padding: 9, border: 'none', background: 'transparent', color: 'var(--ink-soft)', cursor: 'pointer', fontWeight: 700, fontSize: 12 } }, 'Cancelar')
   );else if (estado === 'buscando' || estado === 'guardando') contenido = React.createElement(React.Fragment, null,
@@ -299,7 +299,7 @@ function HojaCapturaGPSRapida({ cliente, estado, lectura, error, onConfirmar, on
     React.createElement(Row, { style: { gap: 8, marginTop: 8 } }, React.createElement(BOut, { onClick: onReintentar, style: { flex: 1 } }, 'Reintentar'), React.createElement(BOut, { onClick: onCerrar, style: { flex: 1 } }, 'Cancelar'))
   );else if (estado === 'guardado') contenido = React.createElement(React.Fragment, null,
     React.createElement('div', { style: asa }),
-    React.createElement('div', { style: { textAlign: 'center', fontSize: 32, marginBottom: 5 } }, '✓'),
+    React.createElement('div', { style: { textAlign: 'center', fontSize: 32, marginBottom: 5 } }, ''),
     React.createElement('div', { style: { textAlign: 'center', fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--ok-text)' } }, 'GPS guardado'),
     React.createElement('div', { style: { textAlign: 'center', fontSize: 12, color: 'var(--ink-faint)', lineHeight: 1.45, marginBottom: 16 } }, 'La ubicación de ' + cliente.nombre + ' ya puede utilizarse para preparar rutas.'),
     React.createElement(BFill, { onClick: onCerrar, style: { width: '100%' } }, 'CONTINUAR')
@@ -345,9 +345,9 @@ function FichaRapidaCliente({
     color: 'var(--ink-soft)'
   }, 'Sin crédito'), ubicacionValida ? React.createElement(Tag, {
     color: 'var(--ok-text)'
-  }, '✓ GPS guardado') : React.createElement(Tag, {
+  }, ' GPS guardado') : React.createElement(Tag, {
     color: 'var(--warn-text)'
-  }, '📍 Sin GPS')), React.createElement("div", {
+  }, 'Sin GPS')), React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -396,13 +396,13 @@ function FichaRapidaCliente({
       fontSize: 13,
       lineHeight: 1.45
     }
-  }, '📱 ', cliente.telefono || 'Sin teléfono registrado')), React.createElement("div", null, React.createElement(Lbl, null, 'Localidad'), React.createElement("div", {
+  }, ' ', cliente.telefono || 'Sin teléfono registrado')), React.createElement("div", null, React.createElement(Lbl, null, 'Localidad'), React.createElement("div", {
     style: {
       fontSize: 13,
       lineHeight: 1.45,
       color: (cliente.localidad || cliente.domicilio) ? 'var(--ink)' : 'var(--ink-faint)'
     }
-  }, '📍 ', cliente.localidad || cliente.domicilio || 'Localidad no registrada')), React.createElement("div", null, React.createElement(Lbl, null, 'Cliente agregado'), React.createElement("div", {
+  }, ' ', cliente.localidad || cliente.domicilio || 'Localidad no registrada')), React.createElement("div", null, React.createElement(Lbl, null, 'Cliente agregado'), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)'
@@ -418,17 +418,17 @@ function FichaRapidaCliente({
     style: {
       flex: 1
     }
-  }, ubicacionValida ? '📍 Ver ubicación' : '📍 Sin ubicación'), React.createElement(BOut, {
+  }, ubicacionValida ? ' Ver ubicación' : ' Sin ubicación'), React.createElement(BOut, {
     onClick: onAbrirQR,
     style: {
       flex: 1
     }
-  }, '🔳 QR'), puedeEditar && React.createElement(BFill, {
+  }, ' QR'), puedeEditar && React.createElement(BFill, {
     onClick: onEditar,
     style: {
       flex: 1
     }
-  }, '✏️ Editar')), React.createElement("div", {
+  }, ' Editar')), React.createElement("div", {
     style: {
       borderTop: '1px solid var(--line)',
       paddingTop: 10
@@ -491,7 +491,7 @@ function FichaRapidaCliente({
       width: '100%',
       marginTop: 9
     }
-  }, '📋 Ver historial completo')));
+  }, ' Ver historial completo')));
 }
 
 function Clientes({
@@ -520,6 +520,7 @@ function Clientes({
   const [filtroGPS, setFiltroGPS] = useState('todos');
   const [filtroLocalidad, setFiltroLocalidad] = useState('todos');
   const [filtroRuta, setFiltroRuta] = useState('todos');
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [localidadesCatalogo, setLocalidadesCatalogo] = useState([]);
   const [usuariosAsignables, setUsuariosAsignables] = useState([]);
   const [carteraClienteIds, setCarteraClienteIds] = useState(new Set());
@@ -834,21 +835,29 @@ function Clientes({
       fontSize: 20,
       fontWeight: 800
     }
-  }, "👥 Clientes"), React.createElement(Row, { style: { gap: 6 } }, React.createElement(BOut, { onClick: () => setScannerOpen(true), title: 'Escanear QR y abrir ticket', 'aria-label': 'Escanear QR y abrir ticket' }, '📷 QR'), puedeCrear && React.createElement(BFill, {
+  }, "Clientes"), React.createElement(Row, { style: { gap: 6 } }, React.createElement(BOut, { onClick: () => setScannerOpen(true), title: 'Escanear QR y abrir ticket', 'aria-label': 'Escanear QR y abrir ticket' }, 'Escanear QR'), puedeCrear && React.createElement(BFill, {
     onClick: () => setForm({
       nombre: '',
       telefono: '',
       domicilio: '',
       localidad: '', rutaId: rutasAsignadas[0]?.id || ''
     })
-  }, "+ Nuevo")), esAdmin && solicitudes.filter(s => s.estado === 'pendiente').length > 0 && React.createElement(Card, { style: { marginBottom: 12, border: '1px solid var(--warn-text)' } }, React.createElement('strong', null, '🔔 Solicitudes de desactivación'), solicitudes.filter(s => s.estado === 'pendiente').map(s => React.createElement(Row, { key: s.id, style: { justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } }, React.createElement('span', { style: { fontSize: 12 } }, s.clienteNombre, ' · ', s.repartidorNombre), React.createElement(Row, { style: { gap: 5 } }, React.createElement(BFill, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'Sí'), React.createElement(BOut, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'No'))))),     esAdmin && React.createElement(Card, { style: { marginBottom: 12, background: 'var(--surface-2)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' } }, React.createElement('strong', null, 'Configuración comercial'), React.createElement(Row, { style: { gap: 6, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => setLocalidadForm({ nombre: '' }) }, '＋ Localidad'), React.createElement(BFill, { onClick: () => setRutaAdminForm({ nombre: '', localidadId: localidadesCatalogo[0]?.id || '', repartidorId: '' }) }, '＋ Ruta'))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 8 } }, 'Solo administración crea localidades y asigna carteras a repartidores.')), !esAdmin && rutasAsignadas.length > 0 && React.createElement(BOut, { onClick: () => setAgregarClienteForm({ clienteId: '', rutaId: rutasAsignadas[0]?.id || '', busqueda: '' }), style: { width: '100%', marginBottom: 10 } }, '＋ Agregar cliente existente a mi ruta'), React.createElement(Inp, {
-    placeholder: "🔍 Buscar por nombre, teléfono o localidad…",
+  }, "+ Nuevo")), esAdmin && solicitudes.filter(s => s.estado === 'pendiente').length > 0 && React.createElement(Card, { style: { marginBottom: 12, border: '1px solid var(--warn-text)' } }, React.createElement('strong', null, 'Solicitudes de desactivación'), solicitudes.filter(s => s.estado === 'pendiente').map(s => React.createElement(Row, { key: s.id, style: { justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } }, React.createElement('span', { style: { fontSize: 12 } }, s.clienteNombre, ' · ', s.repartidorNombre), React.createElement(Row, { style: { gap: 5 } }, React.createElement(BFill, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'Sí'), React.createElement(BOut, { onClick: () => setDecisionSolicitud({ ...s, motivoRechazo: '' }) }, 'No'))))),     esAdmin && React.createElement(Card, { style: { marginBottom: 12, background: 'var(--surface-2)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' } }, React.createElement('strong', null, 'Configuración comercial'), React.createElement(Row, { style: { gap: 6, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => setLocalidadForm({ nombre: '' }) }, 'Nueva localidad'), React.createElement(BFill, { onClick: () => setRutaAdminForm({ nombre: '', localidadId: localidadesCatalogo[0]?.id || '', repartidorId: '' }) }, 'Nueva ruta'))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 8 } }, 'Solo administración crea localidades y asigna carteras a repartidores.')), !esAdmin && rutasAsignadas.length > 0 && React.createElement(BOut, { onClick: () => setAgregarClienteForm({ clienteId: '', rutaId: rutasAsignadas[0]?.id || '', busqueda: '' }), style: { width: '100%', marginBottom: 10 } }, 'Agregar cliente existente a mi ruta'), React.createElement(Inp, {
+    placeholder: "Buscar por nombre, teléfono o localidad…",
     value: q,
     onChange: e => setQ(e.target.value),
     style: {
       marginBottom: 12
     }
-  }), React.createElement('select', { value: filtroRuta, onChange: e => setFiltroRuta(e.target.value), style: { width: '100%', padding: 8, marginBottom: 10, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 6 } }, React.createElement('option', { value: 'todos' }, esAdmin ? 'Todas las rutas' : 'Todas mis rutas'), rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement("div", {
+  }), React.createElement("button", {
+    type: 'button',
+    onClick: () => setFiltrosAbiertos(v => !v),
+    'aria-expanded': filtrosAbiertos,
+    style: { width: '100%', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', marginBottom: filtrosAbiertos ? 0 : 12, background: 'var(--fw-surface)', color: 'var(--fw-navy)', border: '1px solid var(--fw-border)', borderRadius: filtrosAbiertos ? '10px 10px 0 0' : 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }
+  }, React.createElement("span", null, 'Filtros avanzados'), React.createElement(LineIcon, { name: filtrosAbiertos ? 'chevronRight' : 'chevronRight', size: 18 })), React.createElement("div", {
+    style: { display: filtrosAbiertos ? 'block' : 'none', padding: '14px', marginBottom: 12, background: 'var(--fw-surface)', border: '1px solid var(--fw-border)', borderTop: 'none', borderRadius: '0 0 10px 10px' },
+    'aria-hidden': !filtrosAbiertos
+  }, React.createElement('select', { value: filtroRuta, onChange: e => setFiltroRuta(e.target.value), style: { width: '100%', padding: 8, marginBottom: 10, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 6 } }, React.createElement('option', { value: 'todos' }, esAdmin ? 'Todas las rutas' : 'Todas mis rutas'), rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -929,7 +938,7 @@ function Clientes({
       gap: 6,
       marginBottom: 10
     }
-  }, [['todos', 'Todos', contarClientes(() => true)], ['con-gps', '✓ Con GPS', contarClientes(c => !!c.ubicacion)], ['sin-gps', '📍 Sin GPS', contarClientes(c => !c.ubicacion)]].map(([v, l, total]) => React.createElement("button", {
+  }, [['todos', 'Todos', contarClientes(() => true)], ['con-gps', ' Con GPS', contarClientes(c => !!c.ubicacion)], ['sin-gps', 'Sin GPS', contarClientes(c => !c.ubicacion)]].map(([v, l, total]) => React.createElement("button", {
     key: v,
     type: 'button',
     onClick: () => setFiltroGPS(v),
@@ -971,7 +980,7 @@ function Clientes({
   }, React.createElement("option", { value: 'todos' }, 'Todas las localidades (' + contarClientes(() => true) + ')'), sinLocalidad > 0 && React.createElement("option", { value: LOCALIDAD_SIN_CLASIFICAR }, 'Sin clasificar (' + sinLocalidad + ')'), localidades.map(localidad => React.createElement("option", {
     key: localidad,
     value: localidad
-  }, localidad + ' (' + contarLocalidad(localidad) + ')'))), React.createElement("div", {
+  }, localidad + ' (' + contarLocalidad(localidad) + ')')))), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -1037,22 +1046,22 @@ function Clientes({
       color: "var(--ink-soft)"
     }, "Sin crédito"), c.ubicacion ? React.createElement(Tag, {
       color: "var(--ok-text)"
-    }, "✓ GPS guardado") : React.createElement(Tag, {
+    }, " GPS guardado") : React.createElement(Tag, {
       color: "var(--warn-text)"
-    }, "📍 Sin GPS")), React.createElement("div", {
+    }, " Sin GPS")), React.createElement("div", {
       style: {
         fontSize: 12,
         color: 'var(--ink-soft)',
         marginTop: 3
       }
-    }, "📱 ", c.telefono || '—'), React.createElement("div", {
+    }, "Teléfono · ", c.telefono || '—'), React.createElement("div", {
       style: {
         fontSize: 12,
         color: 'var(--ink-soft)',
         marginTop: 2,
         lineHeight: 1.3
       }
-    }, "📍 ", localidadDeCliente(c) || 'Sin clasificar')), React.createElement(MiniaturaQRCliente, {
+    }, "Localidad · ", localidadDeCliente(c) || 'Sin clasificar')), React.createElement(MiniaturaQRCliente, {
       cliente: c,
       onClick: () => verQR(c)
     }), React.createElement("button", {
@@ -1088,7 +1097,7 @@ function Clientes({
         abrirCapturaRapida(c);
       },
       style: { width: '100%' }
-    }, '📍 CAPTURAR AQUÍ')), React.createElement("div", {
+    }, 'Capturar ubicación')), React.createElement("div", {
       style: {
         maxHeight: expanded ? 250 : 0,
         overflow: 'hidden',
@@ -1116,10 +1125,10 @@ function Clientes({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"), !esAdmin && c.activo && React.createElement(BOut, {
+    }, "Editar"), !esAdmin && c.activo && React.createElement(BOut, {
       onClick: () => { setSolicitudFor({ ...c, motivo: '', tipoEnvase: 'garrafon', cantidadEnvases: 1, jornadaId: '' }); setExpandedId(null); },
       color: 'var(--danger-text)', style: { flex: 1 }
-    }, '🚫 Solicitar baja'), React.createElement(Row, {
+    }, 'Solicitar baja'), React.createElement(Row, {
       style: {
         gap: 6
       }
@@ -1131,12 +1140,12 @@ function Clientes({
       style: {
         flex: 1
       }
-    }, "📋 Historial"), React.createElement(BOut, {
+    }, "Historial"), React.createElement(BOut, {
       onClick: () => verQR(c),
       style: {
         flex: 1
       }
-    }, "🔳 Ver QR"), React.createElement(BOut, {
+    }, "Ver QR"), React.createElement(BOut, {
       onClick: () => {
         setDetallesFor(c);
         setExpandedId(null);
@@ -1144,7 +1153,7 @@ function Clientes({
       style: {
         flex: 1
       }
-    }, "ℹ️ Detalles")))), histId === c.id && React.createElement("div", {
+    }, "Detalles")))), histId === c.id && React.createElement("div", {
       style: {
         padding: '0 14px 14px'
       }
@@ -1255,7 +1264,7 @@ function Clientes({
       fontSize: 12,
       color: 'var(--ok-text)'
     }
-  }, "✅ Ubicación guardada (", form.ubicacion.lat.toFixed(5), ", ", form.ubicacion.lng.toFixed(5), ")"), React.createElement("button", {
+  }, " Ubicación guardada (", form.ubicacion.lat.toFixed(5), ", ", form.ubicacion.lng.toFixed(5), ")"), React.createElement("button", {
     onClick: () => {
       if (window.confirm('¿Deseas reemplazar o retirar el GPS actual? La ubicación existente no cambiará hasta que guardes esta ficha.')) setForm(f => ({
         ...f,
@@ -1275,7 +1284,7 @@ function Clientes({
       width: '100%'
     },
     disabled: capturando
-  }, capturando ? 'Obteniendo ubicación…' : '📍 Usar mi ubicación actual'), React.createElement("div", {
+  }, capturando ? 'Obteniendo ubicación…' : ' Usar mi ubicación actual'), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -1287,8 +1296,8 @@ function Clientes({
     style: {
       width: '100%'
     }
-  }, "💾 Guardar")), localidadForm && React.createElement(Modal, { title: 'Nueva localidad', onClose: () => setLocalidadForm(null) }, React.createElement(Lbl, null, 'Nombre de localidad'), React.createElement(Inp, { value: localidadForm.nombre, onChange: e => setLocalidadForm({ ...localidadForm, nombre: e.target.value }), placeholder: 'Ejido o rancho' }), React.createElement(BFill, { onClick: crearLocalidad, style: { width: '100%', marginTop: 12 } }, 'Guardar localidad')), rutaAdminForm && React.createElement(Modal, { title: 'Nueva ruta / cartera', onClose: () => setRutaAdminForm(null) }, React.createElement(Lbl, null, 'Nombre de ruta'), React.createElement(Inp, { value: rutaAdminForm.nombre, onChange: e => setRutaAdminForm({ ...rutaAdminForm, nombre: e.target.value }), placeholder: 'Ruta La Rivera' }), React.createElement(Lbl, null, 'Localidad'), React.createElement('select', { value: rutaAdminForm.localidadId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, localidadId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona localidad'), localidadesCatalogo.map(l => React.createElement('option', { key: l.id, value: l.id }, l.nombre))), React.createElement(Lbl, null, 'Repartidor responsable'), React.createElement('select', { value: rutaAdminForm.repartidorId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, repartidorId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona repartidor'), usuariosAsignables.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre || u.email))), React.createElement(BFill, { onClick: crearRutaAdmin, style: { width: '100%', marginTop: 12 } }, 'Guardar ruta')), agregarClienteForm && React.createElement(Modal, { title: 'Agregar cliente existente', onClose: () => setAgregarClienteForm(null) }, React.createElement(Lbl, null, 'Ruta autorizada'), React.createElement('select', { value: agregarClienteForm.rutaId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, rutaId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement(Lbl, null, 'Buscar cliente general'), React.createElement(Inp, { value: agregarClienteForm.busqueda, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, busqueda: e.target.value }), placeholder: 'Nombre, teléfono o localidad' }), React.createElement('select', { value: agregarClienteForm.clienteId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, clienteId: e.target.value }), size: 5, style: { width: '100%', marginTop: 8, padding: 6, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, clientesDisponibles.filter(c => !carteraClienteIds.has(c.id) && [c.nombre, c.telefono, c.localidad, c.domicilio].join(' ').toLowerCase().includes(String(agregarClienteForm.busqueda || '').toLowerCase())).map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.nombre} · ${c.telefono || 'sin teléfono'} · ${c.localidad || 'sin localidad'}`))), React.createElement(BFill, { onClick: agregarClienteExistente, style: { width: '100%', marginTop: 12 } }, 'Agregar a mi ruta')), qrFor && React.createElement(Modal, {
-    title: '🔳 QR de ' + qrFor.nombre,
+  }, " Guardar")), localidadForm && React.createElement(Modal, { title: 'Nueva localidad', onClose: () => setLocalidadForm(null) }, React.createElement(Lbl, null, 'Nombre de localidad'), React.createElement(Inp, { value: localidadForm.nombre, onChange: e => setLocalidadForm({ ...localidadForm, nombre: e.target.value }), placeholder: 'Ejido o rancho' }), React.createElement(BFill, { onClick: crearLocalidad, style: { width: '100%', marginTop: 12 } }, 'Guardar localidad')), rutaAdminForm && React.createElement(Modal, { title: 'Nueva ruta / cartera', onClose: () => setRutaAdminForm(null) }, React.createElement(Lbl, null, 'Nombre de ruta'), React.createElement(Inp, { value: rutaAdminForm.nombre, onChange: e => setRutaAdminForm({ ...rutaAdminForm, nombre: e.target.value }), placeholder: 'Ruta La Rivera' }), React.createElement(Lbl, null, 'Localidad'), React.createElement('select', { value: rutaAdminForm.localidadId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, localidadId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona localidad'), localidadesCatalogo.map(l => React.createElement('option', { key: l.id, value: l.id }, l.nombre))), React.createElement(Lbl, null, 'Repartidor responsable'), React.createElement('select', { value: rutaAdminForm.repartidorId, onChange: e => setRutaAdminForm({ ...rutaAdminForm, repartidorId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, React.createElement('option', { value: '' }, 'Selecciona repartidor'), usuariosAsignables.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre || u.email))), React.createElement(BFill, { onClick: crearRutaAdmin, style: { width: '100%', marginTop: 12 } }, 'Guardar ruta')), agregarClienteForm && React.createElement(Modal, { title: 'Agregar cliente existente', onClose: () => setAgregarClienteForm(null) }, React.createElement(Lbl, null, 'Ruta autorizada'), React.createElement('select', { value: agregarClienteForm.rutaId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, rutaId: e.target.value }), style: { width: '100%', padding: 9, marginTop: 4, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, rutasAsignadas.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement(Lbl, null, 'Buscar cliente general'), React.createElement(Inp, { value: agregarClienteForm.busqueda, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, busqueda: e.target.value }), placeholder: 'Nombre, teléfono o localidad' }), React.createElement('select', { value: agregarClienteForm.clienteId, onChange: e => setAgregarClienteForm({ ...agregarClienteForm, clienteId: e.target.value }), size: 5, style: { width: '100%', marginTop: 8, padding: 6, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)' } }, clientesDisponibles.filter(c => !carteraClienteIds.has(c.id) && [c.nombre, c.telefono, c.localidad, c.domicilio].join(' ').toLowerCase().includes(String(agregarClienteForm.busqueda || '').toLowerCase())).map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.nombre} · ${c.telefono || 'sin teléfono'} · ${c.localidad || 'sin localidad'}`))), React.createElement(BFill, { onClick: agregarClienteExistente, style: { width: '100%', marginTop: 12 } }, 'Agregar a mi ruta')), qrFor && React.createElement(Modal, {
+    title: ' QR de ' + qrFor.nombre,
     onClose: () => {
       setQrFor(null);
       setQrUrl(null);
@@ -1331,13 +1340,13 @@ function Clientes({
       flex: 1
     },
     disabled: !qrUrl
-  }, '📋 Copiar código'), React.createElement(BFill, {
+  }, ' Copiar código'), React.createElement(BFill, {
     onClick: descargarQR,
     style: {
       flex: 1
     },
     disabled: !qrUrl
-  }, '⬇️ Descargar QR')))), detallesFor && React.createElement(Modal, {
+  }, '⬇ Descargar QR')))), detallesFor && React.createElement(Modal, {
     title: 'Cliente · ' + detallesFor.nombre,
     onClose: () => setDetallesFor(null)
   }, React.createElement(FichaRapidaCliente, {

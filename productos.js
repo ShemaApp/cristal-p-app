@@ -76,7 +76,7 @@ function InventarioHistorial({
     return unsub;
   }, []);
   return React.createElement(Modal, {
-    title: "📋 Historial de inventario",
+    title: " Historial de inventario",
     onClose: onClose
   }, React.createElement("div", {
     style: {
@@ -175,7 +175,7 @@ function PrecioProductoModal({ producto, currentUser, onClose }) {
     const elegido = lista.find(p => p.activo);
     await guardar(lista, elegido?.id || '', elegido?.precio || 0);
   };
-  return React.createElement(Modal, { title: '💵 Precios · ' + producto.nombre, onClose },
+  return React.createElement(Modal, { title: ' Precios · ' + producto.nombre, onClose },
     React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 10 } }, etiquetaProducto(producto), ' · El precio no cambia el stock y cada venta guarda una instantánea.'),
     precios.map(p => React.createElement(Row, { key: p.id, style: { justifyContent: 'space-between', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--line)' } }, React.createElement('div', { style: { minWidth: 0 } }, React.createElement('div', { style: { fontWeight: 700, fontSize: 13 } }, p.nombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--accent-text)' } }, fmt(Number(p.precio || 0)), p.activo ? ' · ACTIVO' : ' · inactivo')), React.createElement(BOut, { onClick: () => alternar(p.id), disabled: saving }, p.activo ? 'Desactivar' : 'Activar'))),
     React.createElement('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line)' } }, React.createElement(Lbl, null, 'Nuevo precio'), React.createElement(Row, { style: { gap: 8 } }, React.createElement(Inp, { value: nombre, onChange: e => setNombre(e.target.value), placeholder: 'Ej. Mayoreo', style: { flex: 1 } }), React.createElement(Inp, { type: 'number', min: 0, step: '0.01', value: precio, onChange: e => setPrecio(e.target.value), placeholder: '$', style: { width: 90 } })), React.createElement(BFill, { onClick: agregar, disabled: saving, style: { width: '100%', marginTop: 8 } }, '＋ Agregar y activar'))
@@ -319,7 +319,7 @@ function Productos({
         }
       });
       if (existente) {
-        alert(`❌ El código de barras "${codigo}" ya está asignado a "${existente.nombre}"`);
+        alert(` El código de barras "${codigo}" ya está asignado a "${existente.nombre}"`);
         setSaving(false);
         return;
       }
@@ -351,13 +351,13 @@ function Productos({
       fontSize: 20,
       fontWeight: 800
     }
-  }, "📦 Productos"), React.createElement(Row, {
+  }, " Productos"), React.createElement(Row, {
     style: {
       gap: 6
     }
   }, isAdmin && React.createElement(BOut, {
     onClick: () => setHistOpen(true)
-  }, "📋 Historial"), puedeEditar && React.createElement(BFill, {
+  }, " Historial"), puedeEditar && React.createElement(BFill, {
     onClick: () => setForm({
           nombre: '',
           productoBaseId: '',
@@ -379,7 +379,7 @@ function Productos({
       motivo: ''
     })
   }, "+ Nuevo"))), React.createElement(Inp, {
-    placeholder: "🔍 Buscar...",
+    placeholder: " Buscar...",
     value: q,
     onChange: e => setQ(e.target.value),
     style: {
@@ -407,7 +407,7 @@ function Productos({
   }, sel.length, " seleccionado(s)"), React.createElement(BOut, {
     onClick: delSel,
     color: "var(--danger-text)"
-  }, "🗑 Eliminar"), React.createElement(BOut, {
+  }, " Eliminar"), React.createElement(BOut, {
     onClick: salirSeleccion
   }, "Cancelar")), selMode && React.createElement(Row, {
     style: {
@@ -517,7 +517,7 @@ function Productos({
         color: 'var(--ink-faint)',
         marginTop: 3
       }
-    }, "🏷️ ", p.codigoBarras))), React.createElement("div", {
+    }, " ", p.codigoBarras))), React.createElement("div", {
       style: {
         maxHeight: expanded ? 180 : 0,
         overflow: 'hidden',
@@ -555,7 +555,7 @@ function Productos({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"), puedeEditar && React.createElement(BOut, { onClick: () => { setPriceProduct(p); setExpandedId(null); }, style: { flex: 1 } }, '💵 Precios'),         React.createElement(BOut, {
+    }, " Editar"), puedeEditar && React.createElement(BOut, { onClick: () => { setPriceProduct(p); setExpandedId(null); }, style: { flex: 1 } }, ' Precios'),         React.createElement(BOut, {
           onClick: () => {
             onAbrirEtiquetas && onAbrirEtiquetas();
             setExpandedId(null);
@@ -563,12 +563,12 @@ function Productos({
           style: {
             flex: 1
           }
-        }, "🏷️ Etiqueta"), isAdmin && React.createElement(BOut, {
+        }, " Etiqueta"), isAdmin && React.createElement(BOut, {
           onClick: () => entrarSeleccion(p.id),
           style: {
             flex: 1
           }
-        }, "☑️ Seleccionar"), isAdmin && React.createElement(BOut, {
+        }, " Seleccionar"), isAdmin && React.createElement(BOut, {
       onClick: () => {
         if (window.confirm(`¿Eliminar "${p.nombre}"? Esta acción no se puede deshacer.`)) db.collection('productos').doc(p.id).delete();
         setExpandedId(null);
@@ -577,7 +577,7 @@ function Productos({
       style: {
         flex: 1
       }
-    }, "🗑️ Eliminar"))));
+    }, " Eliminar"))));
   }), form && React.createElement(Modal, {
     title: form.id ? 'Editar Producto' : 'Nuevo Producto',
     onClose: () => setForm(null)
@@ -640,7 +640,7 @@ function Productos({
       flexShrink: 0,
       padding: '8px 12px'
     }
-  }, "📷")), React.createElement(Lbl, null, "Motivo del cambio de inventario (opcional)"), React.createElement(Inp, {
+  }, "")), React.createElement(Lbl, null, "Motivo del cambio de inventario (opcional)"), React.createElement(Inp, {
     value: form.motivo || '',
     onChange: e => setForm(f => ({
       ...f,
@@ -662,7 +662,7 @@ function Productos({
       width: '100%'
     },
     disabled: saving
-  }, saving ? 'Guardando…' : '💾 Guardar')), priceProduct && React.createElement(PrecioProductoModal, { producto: priceProduct, currentUser, onClose: () => setPriceProduct(null) }), scanOpen && React.createElement(BarcodeScanner, {
+  }, saving ? 'Guardando…' : ' Guardar')), priceProduct && React.createElement(PrecioProductoModal, { producto: priceProduct, currentUser, onClose: () => setPriceProduct(null) }), scanOpen && React.createElement(BarcodeScanner, {
     onDetected: code => {
       setForm(f => ({
         ...f,

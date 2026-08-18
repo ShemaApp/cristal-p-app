@@ -49,7 +49,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
       setVehiculos(list);
       if (!selectedVehicleId && list[0]) setSelectedVehicleId(list[0].id);
-    }, () => flash('⚠️ No se pudieron cargar los vehículos'));
+    }, () => flash(' No se pudieron cargar los vehículos'));
     return unsub;
   }, [currentUser?.uid]);
 
@@ -88,7 +88,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
   useEffect(() => {
     const abrirTicketQR = event => {
       const cliente = event.detail;
-      if (!currentJornada || currentJornada.estado !== 'activa') { flash('⚠️ Inicia una jornada activa antes de escanear clientes'); return; }
+      if (!currentJornada || currentJornada.estado !== 'activa') { flash(' Inicia una jornada activa antes de escanear clientes'); return; }
       setVentaForm({ lecturaFinal: currentJornada.ultimaLectura ?? currentJornada.lecturaInicial, precioPorUnidad: tarifas[0]?.precioPorUnidad || '', tarifaId: tarifas[0]?.id || '', tarifaNombre: tarifas[0]?.nombre || '', clienteId: cliente?.id || '', clienteNombre: cliente?.nombre || '', formaPago: 'efectivo' });
     };
     window.addEventListener('flutt-water:abrir-ticket-medidor', abrirTicketQR);
@@ -110,13 +110,13 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         setJornadas(list);
         const abierta = list.find(j => j.estado === 'activa');
         setSelectedJornadaId(previous => previous || abierta?.id || list[0]?.id || '');
-      }, () => flash('⚠️ No se pudieron cargar las jornadas del vehículo'));
+      }, () => flash(' No se pudieron cargar las jornadas del vehículo'));
     return unsub;
   }, [selectedVehicleId]);
 
 
   const crearRuta = async () => {
-    if (!isAdmin || !routeForm?.nombre?.trim() || !routeForm?.repartidorId) { flash('⚠️ Captura el nombre y asigna un repartidor a la ruta'); return; }
+    if (!isAdmin || !routeForm?.nombre?.trim() || !routeForm?.repartidorId) { flash(' Captura el nombre y asigna un repartidor a la ruta'); return; }
     setSaving(true);
     try {
       const rutaRef = db.collection('rutas_catalogo').doc();
@@ -132,23 +132,23 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         repartidorId: routeForm.repartidorId || '', repartidorIds: routeForm.repartidorId ? firebase.firestore.FieldValue.arrayUnion(routeForm.repartidorId) : []
       }));
       await batch.commit();
-      setRouteForm(null); setRouteClients([]); flash('✅ Ruta y clientes configurables guardados');
-    } catch (e) { flash('❌ No se pudo guardar la ruta: ' + e.message); }
+      setRouteForm(null); setRouteClients([]); flash(' Ruta y clientes configurables guardados');
+    } catch (e) { flash(' No se pudo guardar la ruta: ' + e.message); }
     setSaving(false);
   };
 
   const iniciarJornada = async () => {
     if (!isOperator || !currentVehicle || !startForm || !validDecimal(startForm.lecturaInicial)) {
-      flash('⚠️ Selecciona vehículo y captura una lectura inicial válida'); return;
+      flash(' Selecciona vehículo y captura una lectura inicial válida'); return;
     }
     const lecturaInicial = number(startForm.lecturaInicial);
     const anterior = validDecimal(startForm.lecturaCierreAnterior) ? number(startForm.lecturaCierreAnterior) : 0;
     const desfase = lecturaInicial - anterior;
     const requiereMotivo = Math.abs(desfase) > 5;
     if (requiereMotivo && !startForm.motivoDesfase?.trim()) {
-      flash('⚠️ El desfase supera 5 unidades; captura el motivo para continuar'); return;
+      flash(' El desfase supera 5 unidades; captura el motivo para continuar'); return;
     }
-    if (currentVehicle.jornadaActivaId || jornadas.some(j => j.estado === 'activa')) { flash('⚠️ Este vehículo ya tiene una jornada activa'); return; }
+    if (currentVehicle.jornadaActivaId || jornadas.some(j => j.estado === 'activa')) { flash(' Este vehículo ya tiene una jornada activa'); return; }
     setSaving(true);
     try {
       const jornadaRef = db.collection('vehiculos').doc(currentVehicle.id).collection('jornadas').doc();
@@ -182,14 +182,14 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         });
       }
       await batch.commit();
-      setStartForm(null); setSelectedJornadaId(jornadaRef.id); flash('✅ Jornada iniciada; lectura bloqueada');
-    } catch (e) { flash('❌ No se pudo iniciar la jornada: ' + e.message); }
+      setStartForm(null); setSelectedJornadaId(jornadaRef.id); flash(' Jornada iniciada; lectura bloqueada');
+    } catch (e) { flash(' No se pudo iniciar la jornada: ' + e.message); }
     setSaving(false);
   };
 
   const registrarRecarga = async () => {
     if (!currentJornada || currentJornada.estado !== 'activa' || !validDecimal(recargaForm?.lectura) || !validDecimal(recargaForm?.cantidadMedida)) {
-      flash('⚠️ Captura lectura y cantidad medida válida para la recarga'); return;
+      flash(' Captura lectura y cantidad medida válida para la recarga'); return;
     }
     setSaving(true);
     try {
@@ -203,14 +203,14 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         capturadoPorUid: currentUser.uid, capturadoPorNombre: currentUser.nombre || '', creadoEn: fecha
       };
       await db.collection('vehiculos').doc(currentVehicle.id).collection('jornadas').doc(currentJornada.id).collection('recargas').add(payload);
-      setRecargaForm(null); flash('✅ Recarga registrada; el documento no puede editarse');
-    } catch (e) { flash('❌ No se pudo registrar la recarga: ' + e.message); }
+      setRecargaForm(null); flash(' Recarga registrada; el documento no puede editarse');
+    } catch (e) { flash(' No se pudo registrar la recarga: ' + e.message); }
     setSaving(false);
   };
 
   const registrarVenta = async () => {
     if (!currentJornada || currentJornada.estado !== 'activa' || !validDecimal(ventaForm?.lecturaFinal)) {
-      flash('⚠️ Captura una lectura final válida'); return;
+      flash(' Captura una lectura final válida'); return;
     }
     const lecturaFinal = number(ventaForm.lecturaFinal);
     const tarifaSeleccionada = tarifas.find(t => t.id === ventaForm.tarifaId);
@@ -218,7 +218,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       ? number(ventaForm.precioPorUnidad)
       : Number(tarifaSeleccionada?.precioPorUnidad || 0);
     if (precioPorUnidad <= 0 || (!isAdmin && !tarifaSeleccionada)) {
-      flash('⚠️ Selecciona un precio válido para la unidad del medidor'); return;
+      flash(' Selecciona un precio válido para la unidad del medidor'); return;
     }
     setSaving(true);
     try {
@@ -258,19 +258,19 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
           ventasCount: firebase.firestore.FieldValue.increment(1)
         });
       });
-      setVentaForm(null); flash(`✅ Venta registrada: ${fmtCantidad(calculo.cantidadMedida, currentVehicle)} · ${fmt(calculo.total)}`);
-    } catch (e) { flash('❌ No se pudo registrar la venta: ' + e.message); }
+      setVentaForm(null); flash(` Venta registrada: ${fmtCantidad(calculo.cantidadMedida, currentVehicle)} · ${fmt(calculo.total)}`);
+    } catch (e) { flash(' No se pudo registrar la venta: ' + e.message); }
     setSaving(false);
   };
 
   const cerrarJornada = async () => {
-    if (!currentJornada || currentJornada.estado !== 'activa' || !validDecimal(closeForm?.lecturaCierre)) { flash('⚠️ Captura una lectura final válida'); return; }
+    if (!currentJornada || currentJornada.estado !== 'activa' || !validDecimal(closeForm?.lecturaCierre)) { flash(' Captura una lectura final válida'); return; }
     const lecturaCierre = number(closeForm.lecturaCierre);
     const diferenciaLectura = lecturaCierre - number(currentJornada.lecturaInicial);
-    if (diferenciaLectura < 0) { flash('⚠️ La lectura final no puede ser menor que la inicial'); return; }
+    if (diferenciaLectura < 0) { flash(' La lectura final no puede ser menor que la inicial'); return; }
       const cantidadMedida = cantidadDesdeLectura(diferenciaLectura, currentVehicle);
       const requiereMotivo = Math.abs(diferenciaLectura) > 5;
-    if (requiereMotivo && !closeForm.motivoDesfase?.trim()) { flash('⚠️ El desfase supera 5 unidades; captura el motivo'); return; }
+    if (requiereMotivo && !closeForm.motivoDesfase?.trim()) { flash(' El desfase supera 5 unidades; captura el motivo'); return; }
     setSaving(true);
     try {
       const jornadaRef = db.collection('vehiculos').doc(currentVehicle.id).collection('jornadas').doc(currentJornada.id);
@@ -298,14 +298,14 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         capturadoPorNombre: currentUser.nombre || '', creadoEn: fecha
       });
       await batch.commit();
-      setCloseForm(null); flash(`✅ Jornada cerrada; ${fmtCantidad(cantidadMedida, currentVehicle)} registrados; lectura y cierre bloqueados`);
-    } catch (e) { flash('❌ No se pudo cerrar la jornada: ' + e.message); }
+      setCloseForm(null); flash(` Jornada cerrada; ${fmtCantidad(cantidadMedida, currentVehicle)} registrados; lectura y cierre bloqueados`);
+    } catch (e) { flash(' No se pudo cerrar la jornada: ' + e.message); }
     setSaving(false);
   };
 
   const exportarLibro = async () => {
-    if (!isAdmin) { flash('⚠️ Solo administración puede exportar libros operativos'); return; }
-    if (!currentVehicle || typeof XLSX === 'undefined') { flash('⚠️ Selecciona un vehículo y verifica la librería Excel'); return; }
+    if (!isAdmin) { flash(' Solo administración puede exportar libros operativos'); return; }
+    if (!currentVehicle || typeof XLSX === 'undefined') { flash(' Selecciona un vehículo y verifica la librería Excel'); return; }
     setSaving(true);
     try {
       const base = db.collection('vehiculos').doc(currentVehicle.id);
@@ -325,14 +325,14 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       sheet('Resumen', [{ vehiculo: currentVehicle.nombre, placa: currentVehicle.placa, medidor: currentVehicle.numeroSerieMedidor, factorLitrosPorUnidad: factor(currentVehicle), generadoEn: now() }]);
       sheet('Jornadas', rows); sheet('Lecturas', lecturas); sheet('Recargas', recargas); sheet('Ventas', ventas); sheet('Cierres', cierres); sheet('Incidencias', incidencias);
       XLSX.writeFile(wb, `libro-${String(currentVehicle.nombre || 'vehiculo').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`);
-      flash('✅ Libro Excel generado');
-    } catch (e) { flash('❌ No se pudo exportar el libro: ' + e.message); }
+      flash(' Libro Excel generado');
+    } catch (e) { flash(' No se pudo exportar el libro: ' + e.message); }
     setSaving(false);
   };
 
   const routeOptions = rutasCatalogo.filter(r => !r.vehiculoBaseId || r.vehiculoBaseId === selectedVehicleId);
   return React.createElement('div', { style: { padding: '16px 12px' } },
-    React.createElement('div', { style: { fontSize: 20, fontWeight: 800, marginBottom: 4 } }, '🚚 Libros operativos'),
+    React.createElement('div', { style: { fontSize: 20, fontWeight: 800, marginBottom: 4 } }, ' Libros operativos'),
     React.createElement('div', { style: { color: 'var(--ink-faint)', fontSize: 12, marginBottom: 12 } }, 'Vehículos, medidores, jornadas y lecturas inmutables'),
     msg && React.createElement('div', { style: { background: 'var(--ok-bg)', color: 'var(--ok-text)', padding: '8px 12px', borderRadius: 4, marginBottom: 10, fontSize: 12 } }, msg),
     React.createElement(Card, null,
@@ -347,7 +347,7 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
       React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 8 } }, React.createElement('strong', null, 'Jornadas del vehículo'), React.createElement(Tag, { color: activeJornada ? 'var(--ok-text)' : 'var(--ink-faint)' }, activeJornada ? 'ACTIVA' : 'SIN JORNADA')),
       jornadas.length === 0 && React.createElement('div', { style: { color: 'var(--ink-faint)', fontSize: 12 } }, 'Aún no hay jornadas registradas.'),
       jornadas.map(j => React.createElement('button', { key: j.id, onClick: () => setSelectedJornadaId(j.id), style: { display: 'block', width: '100%', textAlign: 'left', border: '1px solid var(--line)', background: selectedJornadaId === j.id ? 'var(--info-bg)' : 'var(--surface-2)', color: 'var(--ink)', padding: 9, marginTop: 6, borderRadius: 3, cursor: 'pointer' } },
-        React.createElement(Row, { style: { justifyContent: 'space-between' } }, React.createElement('span', { style: { fontWeight: 700, fontSize: 12 } }, j.repartidorNombre || 'Sin repartidor'), React.createElement(Tag, { color: j.estado === 'activa' ? 'var(--ok-text)' : 'var(--ink-faint)' }, j.estado === 'activa' ? 'ACTIVA' : 'CERRADA')), React.createElement('div', { style: { color: 'var(--ink-soft)', fontSize: 11, marginTop: 4 } }, `Inicio ${Number(j.lecturaInicial || 0).toFixed(2)} · ${j.rutaNombre || 'Sin ruta'}`), j.requiereMotivo && React.createElement('div', { style: { color: 'var(--warn-text)', fontSize: 11, marginTop: 3 } }, '⚠️ Con incidencia de desfase')))),
+        React.createElement(Row, { style: { justifyContent: 'space-between' } }, React.createElement('span', { style: { fontWeight: 700, fontSize: 12 } }, j.repartidorNombre || 'Sin repartidor'), React.createElement(Tag, { color: j.estado === 'activa' ? 'var(--ok-text)' : 'var(--ink-faint)' }, j.estado === 'activa' ? 'ACTIVA' : 'CERRADA')), React.createElement('div', { style: { color: 'var(--ink-soft)', fontSize: 11, marginTop: 4 } }, `Inicio ${Number(j.lecturaInicial || 0).toFixed(2)} · ${j.rutaNombre || 'Sin ruta'}`), j.requiereMotivo && React.createElement('div', { style: { color: 'var(--warn-text)', fontSize: 11, marginTop: 3 } }, ' Con incidencia de desfase')))),
     currentJornada && React.createElement(Card, null,
       React.createElement('strong', null, 'Jornada seleccionada'), React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.6, marginTop: 8 } }, `Lectura inicial: ${Number(currentJornada.lecturaInicial || 0).toFixed(2)} · ${factor(currentVehicle)} ${simbolo(currentVehicle)} por dígito`, React.createElement('br'), `Repartidor: ${currentJornada.repartidorNombre || '—'} · Ruta: ${currentJornada.rutaNombre || '—'}`),
       currentJornada.estado === 'activa' && magnitud(currentVehicle) === 'volumen_acumulado' && isOperator && React.createElement(Row, { style: { gap: 8, marginTop: 12, flexWrap: 'wrap' } }, React.createElement(BOut, { onClick: () => setVentaForm({ lecturaFinal: currentJornada.ultimaLectura ?? currentJornada.lecturaInicial, precioPorUnidad: isAdmin ? (tarifas[0]?.precioPorUnidad || '') : '', tarifaId: tarifas[0]?.id || '', tarifaNombre: '', clienteId: '', formaPago: 'efectivo' }) }, '＋ Venta'), React.createElement(BOut, { onClick: () => setRecargaForm({ lectura: currentJornada.ultimaLectura ?? currentJornada.lecturaInicial, cantidadMedida: '', observaciones: '' }) }, '＋ Recarga'), React.createElement(BFill, { bg: 'var(--warn)', onClick: () => setCloseForm({ lecturaCierre: '', motivoDesfase: '' }) }, 'Cerrar jornada')),

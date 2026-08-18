@@ -5,17 +5,21 @@ function StatTile({
   color,
   onClick
 }) {
+  const primary = bg === 'var(--rail)';
+  const warning = bg === 'var(--warn)';
   return React.createElement("div", {
     onClick: onClick,
     style: {
-      background: bg,
-      color,
-      borderRadius: 6,
-      padding: '16px 14px',
+      background: primary ? 'var(--fw-navy)' : 'var(--fw-surface)',
+      color: primary ? '#FFFFFF' : warning ? 'var(--fw-warning)' : 'var(--fw-navy)',
+      border: '1px solid ' + (primary ? 'var(--fw-navy)' : 'var(--fw-border)'),
+      borderRadius: 12,
+      padding: '18px 16px',
+      boxShadow: '0 2px 8px rgba(16,42,67,.06)',
       cursor: onClick ? 'pointer' : 'default',
       display: 'flex',
       flexDirection: 'column',
-      minHeight: 118,
+      minHeight: 132,
       justifyContent: 'space-between'
     }
   }, React.createElement("div", null, React.createElement("div", {
@@ -83,54 +87,54 @@ function Dashboard({
     if (tabsPermitidos[id]) onIrA(id);
   };
   const acciones = (isRepartidor ? [{
-    icon: '🧾',
+    icon: 'note',
     label: 'Venta rápida',
     detalle: rutaActiva ? 'Vender durante mi jornada' : 'Revisar jornada',
     onClick: irA('ruta')
   }, {
-    icon: '🧭',
+    icon: 'route',
     label: 'Mi distribución',
     detalle: 'Revisar jornada, vehículo y clientes QR',
     onClick: irA('repartidores')
   }, {
-    icon: '💰',
+    icon: 'cash',
     label: 'Corte del día',
     detalle: 'Consultar ventas y efectivo',
     onClick: irA('gerencia')
   }] : [{
-    icon: '🧾',
+    icon: 'note',
     label: 'Nuevo pedido',
     detalle: 'Solicitud sin descontar inventario',
     onClick: irA('nota'),
     tab: 'nota'
   }, {
-    icon: '⚡',
+    icon: 'plus',
     label: 'Venta rápida',
     detalle: 'Venta directa desde almacén, sin jornada',
     onClick: onVentaRapida,
     tab: 'nota',
     soloAdmin: true
   }, {
-    icon: '👥',
+    icon: 'users',
     label: 'Clientes y QR',
     detalle: 'Buscar, crear o mostrar QR',
     onClick: irA('clientes'),
     tab: 'clientes'
   }, {
-    icon: '💳',
+    icon: 'credit',
     label: 'Cobrar crédito',
     detalle: 'Consultar saldo y registrar abono',
     onClick: irA('creditos'),
     tab: 'creditos'
   }, {
-    icon: '📦',
+    icon: 'box',
     label: 'Jornadas',
     detalle: 'Iniciar, recargar y cerrar jornadas',
     onClick: irA('ruta'),
     tab: 'ruta',
     soloAdmin: true
   }, {
-    icon: '📋',
+    icon: 'inventory',
     label: 'Revisar inventario',
     detalle: 'Consultar existencias y alertas',
     onClick: irA('inventario'),
@@ -144,11 +148,16 @@ function Dashboard({
     }
   }, React.createElement("div", {
     style: {
-      fontSize: 20,
+      fontSize: 28,
       fontWeight: 800,
-      marginBottom: 14
+      marginBottom: 6,
+      color: 'var(--fw-navy)'
     }
-  }, "📊 Inicio"), avisosTransferencia.length > 0 && React.createElement(Card, {
+  }, "Inicio"), React.createElement("div", {
+    style: { fontSize: 15, color: 'var(--fw-text-muted)', marginBottom: 18 }
+  }, "Resumen operativo del día"), React.createElement("div", {
+    style: { fontSize: 13, color: 'var(--fw-text-muted)', marginBottom: 16 }
+  }, new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })), avisosTransferencia.length > 0 && React.createElement(Card, {
     style: {
       marginBottom: 14,
       border: '1px solid var(--warn)66'
@@ -165,7 +174,7 @@ function Dashboard({
       fontWeight: 800,
       color: 'var(--warn-text)'
     }
-  }, '🔔 Operaciones pendientes'), React.createElement("button", {
+  }, 'Operaciones pendientes'), React.createElement("button", {
     onClick: () => onIrA('ruta'),
     style: {
       border: 'none',
@@ -282,22 +291,27 @@ function Dashboard({
     key: a.label,
     onClick: a.onClick,
     style: {
-      background: 'var(--surface-2)',
-      border: '1px solid var(--line)',
-      borderRadius: 6,
-      padding: '12px 9px',
+      background: 'var(--fw-surface)',
+      border: '1px solid var(--fw-border)',
+      borderRadius: 10,
+      padding: '16px 14px',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      gap: 4,
+      alignItems: 'flex-start',
+      gap: 6,
       cursor: 'pointer',
-      minHeight: 104
+      minHeight: 116,
+      boxShadow: '0 2px 8px rgba(16,42,67,.05)'
     }
   }, React.createElement("span", {
     style: {
-      fontSize: 22
+      width: 40,
+      height: 40,
+      display: 'grid',
+      placeItems: 'center',
+      color: 'var(--fw-aqua-action)'
     }
-  }, a.icon), React.createElement("span", {
+  }, React.createElement(LineIcon, { name: a.icon, size: 26 })), React.createElement("span", {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -318,7 +332,7 @@ function Dashboard({
       fontWeight: 700,
       marginBottom: 10
     }
-  }, "🏆 CLIENTES QUE MÁS COMPRAN"), top.map((b, i) => React.createElement("div", {
+  }, "CLIENTES CON MÁS COMPRAS"), top.map((b, i) => React.createElement("div", {
     key: i,
     style: {
       marginBottom: 10
@@ -369,7 +383,7 @@ function Dashboard({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "⚠️ Stock bajo"), bajo.map(p => React.createElement(Row, {
+  }, "Stock bajo"), bajo.map(p => React.createElement(Row, {
     key: p.id,
     style: {
       justifyContent: 'space-between',

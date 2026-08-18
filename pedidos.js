@@ -75,7 +75,7 @@ function VentaAlmacen({
   const makeWA = (cl, items, tot, fp) => {
     const lines = items.map(x => `• ${x.nombre} x${x.cant} = ${fmt(x.precio * x.cant)}`).join('\n');
     const marca = normalizarBranding(branding).nombreComercial;
-    const text = `🧾 *${marca} · VENTA DIRECTA*\n👤 ${cl.nombre}\n\n${lines}\n\n💰 *Total: ${fmt(tot)}*\nPago: ${fp}`;
+    const text = ` *${marca} · VENTA DIRECTA*\n ${cl.nombre}\n\n${lines}\n\n *Total: ${fmt(tot)}*\nPago: ${fp}`;
     let telefono = (cl.telefono || '').replace(/\D/g, '');
     if (!telefono.startsWith('52') && telefono.length <= 10) telefono = '52' + telefono;
     return `https://wa.me/${telefono}?text=${encodeURIComponent(text)}`;
@@ -174,7 +174,7 @@ function VentaAlmacen({
       fontSize: 52,
       marginBottom: 8
     }
-  }, "✅"), React.createElement("div", {
+  }, ""), React.createElement("div", {
     style: {
       fontSize: 18,
       fontWeight: 700,
@@ -193,7 +193,7 @@ function VentaAlmacen({
       marginBottom: 12,
       fontSize: 15
     }
-  }, "📲 Enviar ticket por WhatsApp"), React.createElement(BOut, {
+  }, " Enviar ticket por WhatsApp"), React.createElement(BOut, {
     onClick: () => setDone(null),
     color: "var(--accent-text)",
     style: {
@@ -210,7 +210,7 @@ function VentaAlmacen({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, "⚡ Venta directa del administrador"), React.createElement("div", {
+  }, " Venta directa del administrador"), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -236,7 +236,7 @@ function VentaAlmacen({
     style: {
       fontWeight: 700
     }
-  }, "👤 Cliente ", cliMode === 'nuevo' && nuevoC.nombre || cliSel ? '✅' : ''), cliOpen ? React.createElement(CUp, null) : React.createElement(CDown, null)), !cliOpen && cliSel && React.createElement("div", {
+  }, " Cliente ", cliMode === 'nuevo' && nuevoC.nombre || cliSel ? '' : ''), cliOpen ? React.createElement(CUp, null) : React.createElement(CDown, null)), !cliOpen && cliSel && React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--accent-text)',
@@ -306,7 +306,7 @@ function VentaAlmacen({
       fontSize: 11,
       color: 'var(--ink-soft)'
     }
-  }, "📱 ", c.telefono))))) : React.createElement(React.Fragment, null, React.createElement(Inp, {
+  }, " ", c.telefono))))) : React.createElement(React.Fragment, null, React.createElement(Inp, {
     placeholder: "Nombre *",
     value: nuevoC.nombre,
     onChange: e => setNuevoC(x => ({
@@ -343,7 +343,7 @@ function VentaAlmacen({
     style: {
       fontWeight: 700
     }
-  }, "📦 Productos ", cartValido.length ? `(${cartValido.reduce((s, x) => s + x.cant, 0)} artículos)` : ''), prodOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), prodOpen && React.createElement("div", {
+  }, " Productos ", cartValido.length ? `(${cartValido.reduce((s, x) => s + x.cant, 0)} artículos)` : ''), prodOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), prodOpen && React.createElement("div", {
     style: {
       marginTop: 12,
       maxHeight: 220,
@@ -456,7 +456,7 @@ function VentaAlmacen({
       gap: 8,
       marginBottom: 12
     }
-  }, [['efectivo', '💵 Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', '🏦 Transferencia', 'var(--info-bg)', 'var(--info-text)'], ['credito', '📋 Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
+  }, [['efectivo', ' Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', ' Transferencia', 'var(--info-bg)', 'var(--info-text)'], ['credito', ' Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
     key: v,
     onClick: () => setPago(v),
     style: {
@@ -482,14 +482,14 @@ function VentaAlmacen({
       flex: 1
     },
     disabled: !canSave || saving
-  }, saving ? 'Guardando…' : '💾 Guardar pedido'), cliente?.telefono && React.createElement(BFill, {
+  }, saving ? 'Guardando…' : ' Guardar pedido'), cliente?.telefono && React.createElement(BFill, {
     onClick: () => window.open(makeWA(cliente, cart, total, pago), '_blank'),
     bg: "#25d366",
     style: {
       padding: '8px 16px',
       fontSize: 18
     }
-  }, "📲"))));
+  }, ""))));
 }
 
 
@@ -536,8 +536,8 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   const total = itemsValidos.reduce((sum, x) => sum + Number(x.precio || 0) * x.cant, 0);
   const cliente = cliMode === 'nuevo' ? nuevoC : cliSel;
   const crearPedido = async estado => {
-    if (!cliente?.nombre?.trim() || !itemsValidos.length) { flash('⚠️ Selecciona un cliente y al menos un producto con cantidad válida'); return; }
-    if (estado === 'asignado_pendiente_transferencia' && !repartidorId && !puedeCrearTransferenciaPropia) { flash('⚠️ Elige al repartidor responsable antes de asignar'); return; }
+    if (!cliente?.nombre?.trim() || !itemsValidos.length) { flash(' Selecciona un cliente y al menos un producto con cantidad válida'); return; }
+    if (estado === 'asignado_pendiente_transferencia' && !repartidorId && !puedeCrearTransferenciaPropia) { flash(' Elige al repartidor responsable antes de asignar'); return; }
     setSaving(true);
     try {
       const fecha = new Date().toISOString();
@@ -568,9 +568,9 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
           creadoPorNombre: currentUser.nombre || ''
         });
       });
-      flash(estado === 'borrador' ? '✅ Borrador guardado sin mover inventario' : '✅ Pedido asignado; queda pendiente de confirmar transferencia');
+      flash(estado === 'borrador' ? ' Borrador guardado sin mover inventario' : ' Pedido asignado; queda pendiente de confirmar transferencia');
       setCart([]); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCliMode('buscar'); setRepartidorId('');
-    } catch (e) { flash('❌ No se pudo guardar el pedido: ' + e.message); }
+    } catch (e) { flash(' No se pudo guardar el pedido: ' + e.message); }
     setSaving(false);
   };
   const confirmarAsignacion = async () => {
@@ -583,19 +583,19 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
         estado: 'asignado_pendiente_transferencia', repartidorId: repartidor.id, repartidorNombre: repartidor.nombre || '',
         fechaAsignacion: new Date().toISOString(), fechaActualizacion: new Date().toISOString(), asignadoPorUid: currentUser.uid
       });
-      setAsignando(null); flash('✅ Pedido asignado; no hay salida de producto hasta confirmar la transferencia');
-    } catch (e) { flash('❌ No se pudo asignar el pedido: ' + e.message); }
+      setAsignando(null); flash(' Pedido asignado; no hay salida de producto hasta confirmar la transferencia');
+    } catch (e) { flash(' No se pudo asignar el pedido: ' + e.message); }
     setSaving(false);
   };
   const etiquetaEstado = estado => ({ borrador: 'Borrador', asignado_pendiente_transferencia: 'Pendiente de transferencia', transferencia_confirmada: 'En transferencia', entregado: 'Entregado', cancelado: 'Cancelado' }[estado] || estado);
   const abiertos = pedidos.filter(p => filtro === 'todos' ? true : filtro === 'abiertos' ? !['entregado', 'cancelado'].includes(p.estado) : p.estado === filtro);
   const inputStyle = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', borderRadius: 6, padding: '8px 10px', color: 'var(--ink)', fontSize: 13 };
   return React.createElement('div', { style: { padding: '16px 12px' } },
-    React.createElement('div', { style: { fontSize: 20, fontWeight: 800, marginBottom: 4 } }, '📋 Pedidos'),
+    React.createElement('div', { style: { fontSize: 20, fontWeight: 800, marginBottom: 4 } }, ' Pedidos'),
     React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.4 } }, 'Un pedido no descuenta inventario ni genera crédito. Se carga al repartidor únicamente al confirmar la transferencia.'),
     msg && React.createElement('div', { style: { background: 'var(--ok-bg)', color: 'var(--ok-text)', padding: '8px 10px', borderRadius: 6, fontSize: 12, marginBottom: 12 } }, msg),
     React.createElement(Card, null,
-      React.createElement('div', { style: { fontWeight: 700, marginBottom: 10 } }, '➕ Nuevo pedido'),
+      React.createElement('div', { style: { fontWeight: 700, marginBottom: 10 } }, ' Nuevo pedido'),
       React.createElement(Lbl, null, 'Cliente'),
       React.createElement(Row, { style: { gap: 6, marginBottom: 8 } }, [['buscar', 'Existente'], ['nuevo', 'Nuevo']].map(([valor, etiqueta]) => React.createElement('button', { key: valor, onClick: () => setCliMode(valor), style: { flex: 1, padding: 7, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 12, background: cliMode === valor ? 'var(--accent)' : 'var(--surface-2)', color: cliMode === valor ? 'var(--ink)' : 'var(--ink-soft)' } }, etiqueta))),
       cliMode === 'buscar' ? React.createElement(React.Fragment, null,

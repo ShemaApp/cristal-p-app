@@ -142,14 +142,14 @@ function guiaHTML(r, branding) {
         .total{font-size:18px;font-weight:800;text-align:right;margin-top:10px}
         @media print{ button{display:none} }
       </style></head><body>
-      <h1>${marca}</h1><h2>🚚 Guía de jornada</h2>
+      <h1>${marca}</h1><h2> Guía de jornada</h2>
       <div class="sub">${fDateTime(r.fecha)} · Estado: ${r.estado === 'activa' ? 'en curso' : r.estado || 'cerrada'}</div>
       <h2>Productos cargados</h2>
       <table>${filasCargados || '<tr><td>Sin productos</td></tr>'}</table>
       <h2>Entregas (${entregas.length})</h2>
       <table>${filasEntregas || '<tr><td>Sin entregas registradas</td></tr>'}</table>
       <div class="total">Total vendido: ${fmtx(totalVendido)}</div>
-      <button onclick="window.print()" style="margin-top:20px;background:#E8A400;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer">🖨️ Imprimir</button>
+      <button onclick="window.print()" style="margin-top:20px;background:#E8A400;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer"> Imprimir</button>
       </body></html>`;
 }
 function imprimirGuia(r, branding) {
@@ -170,7 +170,7 @@ function waGuiaLink(r, telefono, branding) {
   } = resumenRuta(r);
   const lineasCarga = cargados.map(it => `• ${it.nombre} x${it.cant}`).join('\n');
   const lineasEnt = entregas.map(e => `• ${e.clienteNombre}: ${fmtx(e.total)} (${e.formaPago})`).join('\n');
-  const texto = `🚚 *${marca} · GUÍA DE JORNADA*\n📅 ${fDateTime(r.fecha)}\n\n*Cargamento:*\n${lineasCarga || 'Sin productos'}\n\n*Entregas (${entregas.length}):*\n${lineasEnt || 'Sin entregas'}\n\n💰 *Total vendido: ${fmtx(totalVendido)}*`;
+  const texto = ` *${marca} · GUÍA DE JORNADA*\n ${fDateTime(r.fecha)}\n\n*Cargamento:*\n${lineasCarga || 'Sin productos'}\n\n*Entregas (${entregas.length}):*\n${lineasEnt || 'Sin entregas'}\n\n *Total vendido: ${fmtx(totalVendido)}*`;
   let tel = (telefono || '').replace(/\D/g, '');
   if (tel && !tel.startsWith('52') && tel.length <= 10) tel = '52' + tel;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
@@ -204,7 +204,7 @@ function downloadCSV(filename, rows) {
 function waVentaLink(cliente, items, total, pago, branding) {
   const marca = normalizarBranding(branding).nombreComercial;
   const lineas = items.map(it => `• ${it.nombre} x${it.cant} = ${fmtx((it.precio || 0) * it.cant)}`).join('\n');
-  const texto = `🧾 *${marca} · COMPROBANTE DE VENTA*\n👤 ${cliente.nombre}\n\n${lineas}\n\n💰 *Total: ${fmtx(total)}*\nPago: ${pago}`;
+  const texto = ` *${marca} · COMPROBANTE DE VENTA*\n ${cliente.nombre}\n\n${lineas}\n\n *Total: ${fmtx(total)}*\nPago: ${pago}`;
   let tel = (cliente.telefono || '').replace(/\D/g, '');
   if (tel && !tel.startsWith('52') && tel.length <= 10) tel = '52' + tel;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
@@ -354,7 +354,7 @@ function ClienteScanner({
       fontSize: 16,
       fontWeight: 700
     }
-  }, "📷 Escanear QR de cliente"), React.createElement("button", {
+  }, " Escanear QR de cliente"), React.createElement("button", {
     onClick: onClose,
     style: {
       background: 'none',
@@ -363,7 +363,7 @@ function ClienteScanner({
       fontSize: 20,
       cursor: 'pointer'
     }
-  }, "✕")), err ? React.createElement("div", {
+  }, "")), err ? React.createElement("div", {
     style: {
       fontSize: 13,
       color: 'var(--danger-text)',
@@ -409,7 +409,7 @@ function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onC
       cursor: 'pointer',
       fontSize: 11
     }
-  }, tracking ? '📍 GPS activo' : '📍 Compartir GPS'), React.createElement("button", {
+  }, tracking ? ' GPS activo' : ' Compartir GPS'), React.createElement("button", {
     key: 'cerrar',
     onClick: onCerrar,
     style: {
@@ -423,7 +423,7 @@ function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onC
       cursor: 'pointer',
       fontSize: 11
     }
-  }, '🏁 Cerrar ruta')]) : null;
+  }, ' Cerrar ruta')]) : null;
   return React.createElement("div", {
     style: {
       background: 'var(--surface)',
@@ -436,7 +436,7 @@ function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onC
     style: { display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 7 }
   }, React.createElement("div", null, React.createElement("strong", null, ruta.repartidorNombre || 'Sin repartidor'), React.createElement("div", {
     style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }
-  }, "🚐 ", ruta.vehiculo || 'Sin vehículo', " · 📍 ", ruta.zona || 'Sin zona')), React.createElement("span", {
+  }, " ", ruta.vehiculo || 'Sin vehículo', " ·  ", ruta.zona || 'Sin zona')), React.createElement("span", {
     style: {
       background: ESTADOS.activa.color + '22',
       color: ESTADOS.activa.color,
@@ -516,7 +516,7 @@ function RepartidoresPanel({
       zMax = Math.min(zActual + 3, 17);
     const tiles = tilesParaZona(bounds, zMin, zMax);
     if (tiles.length > 3500) {
-      flash('⚠️ La zona visible es muy grande (' + tiles.length + ' tiles). Acércate más con el zoom antes de descargar.');
+      flash(' La zona visible es muy grande (' + tiles.length + ' tiles). Acércate más con el zoom antes de descargar.');
       return;
     }
     if (!confirm('Se van a descargar ' + tiles.length + ' imágenes de mapa (~' + Math.max(1, Math.round(tiles.length * 15 / 1024)) + ' MB aprox., zoom ' + zMin + '–' + zMax + '). ¿Continuar?')) return;
@@ -557,7 +557,7 @@ function RepartidoresPanel({
     localStorage.setItem(MAPA_OFFLINE_KEY, JSON.stringify(meta));
     setMapaOffline(meta);
     setDescargandoMapa(null);
-    flash('✅ Zona de mapa lista para uso sin conexión');
+    flash(' Zona de mapa lista para uso sin conexión');
   };
   const borrarMapaOffline = async () => {
     if (!confirm('¿Borrar el mapa descargado de este dispositivo?')) return;
@@ -566,7 +566,7 @@ function RepartidoresPanel({
     } catch (e) {}
     localStorage.removeItem(MAPA_OFFLINE_KEY);
     setMapaOffline(null);
-    flash('🗑️ Mapa offline borrado');
+    flash(' Mapa offline borrado');
   };
   useEffect(() => {
     if (tab !== 'mapa') return;
@@ -615,7 +615,7 @@ function RepartidoresPanel({
   const cerrarRuta = async r => {
     const pendientesOffline = typeof fluttWaterVentasPendientesRuta === 'function' ? await fluttWaterVentasPendientesRuta(r.id) : { total: 0 };
     if (pendientesOffline.total > 0) {
-      flash('⚠️ Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');
+      flash(' Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');
       return;
     }
     try {
@@ -627,9 +627,9 @@ function RepartidoresPanel({
         solicitadoPorNombre: currentUser.nombre || ''
       });
       if (tracking === r.id) detenerSeguimiento();
-      flash('📦 Transferencia enviada a recepción de almacén para su conciliación');
+      flash(' Transferencia enviada a recepción de almacén para su conciliación');
     } catch (e) {
-      flash('❌ No se pudo solicitar la recepción de la transferencia: ' + e.message);
+      flash(' No se pudo solicitar la recepción de la transferencia: ' + e.message);
     }
   };
   const verQR = cliente => {
@@ -673,7 +673,7 @@ function RepartidoresPanel({
             .no-print{margin-bottom:14px;background:#E8A400;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}
             @media print{ .no-print{display:none} }
           </style></head><body>
-          <button class="no-print" onclick="window.print()">🖨️ Imprimir (${items.length})</button>
+          <button class="no-print" onclick="window.print()"> Imprimir (${items.length})</button>
           <div class="grid">${tarjetas}</div>
           </body></html>`);
       w.document.close();
@@ -683,7 +683,7 @@ function RepartidoresPanel({
   };
   const crearClienteRapido = async () => {
     if (!nuevoCliForm.nombre) {
-      flash('⚠️ Falta el nombre');
+      flash(' Falta el nombre');
       return;
     }
     try {
@@ -697,7 +697,7 @@ function RepartidoresPanel({
         ubicacion: loc || null
       });
       setNuevoCliForm(null);
-      flash(loc ? '✅ Cliente creado con ubicación' : '✅ Cliente creado (sin ubicación GPS)');
+      flash(loc ? ' Cliente creado con ubicación' : ' Cliente creado (sin ubicación GPS)');
       verQR({
         id: ref.id,
         nombre: nuevoCliForm.nombre,
@@ -705,17 +705,17 @@ function RepartidoresPanel({
         domicilio: nuevoCliForm.domicilio || ''
       });
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
   };
   const rutasActivasVenta = rutas.filter(r => r.estado === 'activa' && currentUser.role === 'repartidor' && r.repartidorId === currentUser.uid);
   const abrirVentaParaCliente = cliente => {
     if (currentUser.role !== 'repartidor') {
-      flash('⚠️ Las ventas desde transferencia solo las registra el repartidor asignado.');
+      flash(' Las ventas desde transferencia solo las registra el repartidor asignado.');
       return;
     }
     if (rutasActivasVenta.length === 0) {
-      flash('⚠️ No hay una transferencia activa asignada para registrar esta venta');
+      flash(' No hay una transferencia activa asignada para registrar esta venta');
       return;
     }
     setClienteScanOpen(false);
@@ -734,7 +734,7 @@ function RepartidoresPanel({
     const cli = clientes.find(c => c.id === id);
     if (!cli) {
       setClienteScanOpen(false);
-      flash('⚠️ QR no reconocido como cliente');
+      flash(' QR no reconocido como cliente');
       return;
     }
     abrirVentaParaCliente(cli);
@@ -748,13 +748,13 @@ function RepartidoresPanel({
   };
   const addProdVenta = p => {
     if (!ventaRapida?.rutaId) {
-      flash('⚠️ Selecciona una transferencia activa');
+      flash(' Selecciona una transferencia activa');
       return;
     }
     const disponible = saldoDisponibleTransferencia(ventaRapida.rutaId, p.id);
     const existente = ventaRapida.items.find(x => x.id === p.id);
     if (!disponible || (existente && existente.cant >= disponible)) {
-      flash('⚠️ No hay más saldo disponible en la transferencia para ' + p.nombre);
+      flash(' No hay más saldo disponible en la transferencia para ' + p.nombre);
       return;
     }
     setVentaRapida(v => ({
@@ -792,7 +792,7 @@ function RepartidoresPanel({
     const disponible = saldoDisponibleTransferencia(ventaRapida?.rutaId, id);
     const cantidadSolicitada = Number(raw);
     const cantidad = Math.min(cantidadSolicitada, disponible);
-    if (cantidadSolicitada > disponible) flash('⚠️ La cantidad se ajustó al saldo disponible en la transferencia');
+    if (cantidadSolicitada > disponible) flash(' La cantidad se ajustó al saldo disponible en la transferencia');
     setVentaRapida(v => ({
       ...v,
       items: v.items.map(x => x.id === id ? { ...x, cant: raw === '-' ? raw : cantidad } : x)
@@ -800,15 +800,15 @@ function RepartidoresPanel({
   };
   const guardarVentaRapida = async () => {
     if (!ventaRapida?.rutaId) {
-      flash('⚠️ Selecciona la transferencia activa que realizará la venta');
+      flash(' Selecciona la transferencia activa que realizará la venta');
       return;
     }
     if (ventaRapida.items.length === 0) {
-      flash('⚠️ Agrega al menos un producto');
+      flash(' Agrega al menos un producto');
       return;
     }
     if (ventaRapida.items.some(item => Number(item.cant) < 1 || (!productos.find(p => p.id === item.id)?.permiteDecimales && !Number.isInteger(Number(item.cant))))) {
-      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
+      flash(' Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
     setVentaRapida(v => ({ ...v, saving: true }));
@@ -852,14 +852,14 @@ function RepartidoresPanel({
       });
       setVentaRapida(v => ({ ...v, saving: false, done: resultado }));
       if (resultado.estado === 'pendiente_local') {
-        flash('📴 Venta guardada en pendientes; se sincronizará al volver la conexión');
+        flash(' Venta guardada en pendientes; se sincronizará al volver la conexión');
       } else if (resultado.estado === 'incidencia_inventario') {
-        flash('⚠️ Venta guardada con incidencia; revisa el cierre de caja');
+        flash(' Venta guardada con incidencia; revisa el cierre de caja');
       } else {
-        flash('✅ Venta guardada — ' + fmtx(resultado.total));
+        flash(' Venta guardada — ' + fmtx(resultado.total));
       }
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
       setVentaRapida(v => ({ ...v, saving: false }));
     }
   };
@@ -895,7 +895,7 @@ function RepartidoresPanel({
   const diasDesdeUltimoRespaldo = backupMeta && backupMeta.ultimoRespaldo ? Math.floor((Date.now() - new Date(backupMeta.ultimoRespaldo).getTime()) / 86400000) : null;
   const iniciarSeguimiento = r => {
     if (!navigator.geolocation) {
-      flash('⚠️ Este dispositivo no soporta GPS');
+      flash(' Este dispositivo no soporta GPS');
       return;
     }
     if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -911,11 +911,11 @@ function RepartidoresPanel({
           fecha: new Date().toISOString()
         }
       }).catch(() => {});
-    }, () => flash('⚠️ No se pudo obtener ubicación'), {
+    }, () => flash(' No se pudo obtener ubicación'), {
       enableHighAccuracy: true
     });
     setTracking(r.id);
-    flash('📍 Compartiendo ubicación en vivo');
+    flash(' Compartiendo ubicación en vivo');
   };
   const detenerSeguimiento = () => {
     if (watchIdRef.current) {
@@ -946,7 +946,7 @@ function RepartidoresPanel({
       fontWeight: 800,
       marginBottom: 14
     }
-  }, "🗺️ Repartidores y rutas"), msg && React.createElement("div", {
+  }, " Repartidores y rutas"), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
       borderRadius: 8,
@@ -969,7 +969,7 @@ function RepartidoresPanel({
       marginBottom: 12,
       cursor: 'pointer'
     }
-  }, diasDesdeUltimoRespaldo >= 30 ? '🔴' : '🟡', " Sin respaldo hace ", diasDesdeUltimoRespaldo, " días — toca uno"), currentUser.role === 'admin' && diasDesdeUltimoRespaldo === null && React.createElement("button", {
+  }, diasDesdeUltimoRespaldo >= 30 ? '' : '', " Sin respaldo hace ", diasDesdeUltimoRespaldo, " días — toca uno"), currentUser.role === 'admin' && diasDesdeUltimoRespaldo === null && React.createElement("button", {
     onClick: () => onIrA && onIrA('reportes'),
     style: {
       width: '100%',
@@ -983,7 +983,7 @@ function RepartidoresPanel({
       marginBottom: 12,
       cursor: 'pointer'
     }
-  }, "🟡 Nunca se ha generado un respaldo — toca uno"), React.createElement("div", {
+  }, " Nunca se ha generado un respaldo — toca uno"), React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,
@@ -1052,7 +1052,7 @@ function RepartidoresPanel({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "🗺️ Mapa sin conexión"), React.createElement("div", {
+  }, " Mapa sin conexión"), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -1065,7 +1065,7 @@ function RepartidoresPanel({
       color: 'var(--ok-text)',
       marginBottom: 8
     }
-  }, "✅ Zona descargada el ", fDateTime(mapaOffline.fecha), " · ", mapaOffline.tileCount, " imágenes · zoom ", mapaOffline.zMin, "–", mapaOffline.zMax) : React.createElement("div", {
+  }, " Zona descargada el ", fDateTime(mapaOffline.fecha), " · ", mapaOffline.tileCount, " imágenes · zoom ", mapaOffline.zMin, "–", mapaOffline.zMax) : React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -1093,7 +1093,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       fontSize: 12
     }
-  }, "📥 Descargar esta zona"), mapaOffline && React.createElement("button", {
+  }, " Descargar esta zona"), mapaOffline && React.createElement("button", {
     onClick: borrarMapaOffline,
     style: {
       background: 'var(--danger-bg)',
@@ -1104,7 +1104,7 @@ function RepartidoresPanel({
       fontWeight: 700,
       cursor: 'pointer'
     }
-  }, "🗑️")))), tab === 'clientesqr' && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, "")))), tab === 'clientesqr' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       display: 'flex',
       gap: 8,
@@ -1123,7 +1123,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       fontSize: 12
     }
-  }, "📷 Escanear para vender"), currentUser.role === 'repartidor' && React.createElement("button", {
+  }, " Escanear para vender"), currentUser.role === 'repartidor' && React.createElement("button", {
     onClick: () => setClienteBuscarOpen(o => !o),
     style: {
       flex: 1,
@@ -1136,7 +1136,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       fontSize: 12
     }
-  }, "🔍 Buscar manualmente")), clienteBuscarOpen && currentUser.role === 'repartidor' && React.createElement("div", {
+  }, " Buscar manualmente")), clienteBuscarOpen && currentUser.role === 'repartidor' && React.createElement("div", {
     style: {
       marginBottom: 14
     }
@@ -1228,10 +1228,10 @@ function RepartidoresPanel({
       fontWeight: 700,
       cursor: 'pointer'
     }
-  }, "💾 Guardar y generar QR")), React.createElement("input", {
+  }, " Guardar y generar QR")), React.createElement("input", {
     value: cliQSearch,
     onChange: e => setCliQSearch(e.target.value),
-    placeholder: "🔍 Buscar en la lista…",
+    placeholder: " Buscar en la lista…",
     style: inputStyle
   }), (() => {
     const lista = clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(cliQSearch.toLowerCase()));
@@ -1268,7 +1268,7 @@ function RepartidoresPanel({
         cursor: 'pointer',
         opacity: qrMasivoLoading ? 0.6 : 1
       }
-    }, qrMasivoLoading ? 'Generando…' : `🖨️ Imprimir seleccionados (${qrSel.length})`));
+    }, qrMasivoLoading ? 'Generando…' : ` Imprimir seleccionados (${qrSel.length})`));
   })(), clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(cliQSearch.toLowerCase())).map(c => React.createElement("div", {
     key: c.id,
     style: {
@@ -1320,7 +1320,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       flexShrink: 0
     }
-  }, "🔲 QR")))), tab === 'comprobantes' && React.createElement(React.Fragment, null, _permisoCSV && rutasReales.length > 0 && React.createElement("div", {
+  }, " QR")))), tab === 'comprobantes' && React.createElement(React.Fragment, null, _permisoCSV && rutasReales.length > 0 && React.createElement("div", {
     style: {
       display: 'flex',
       gap: 8,
@@ -1339,7 +1339,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       fontSize: 11
     }
-  }, "📤 CSV por ruta"), React.createElement("button", {
+  }, " CSV por ruta"), React.createElement("button", {
     onClick: exportarVentasDetalladoCSV,
     style: {
       flex: 1,
@@ -1352,7 +1352,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       fontSize: 11
     }
-  }, "📤 CSV detallado")), rutasReales.length === 0 && React.createElement("div", {
+  }, " CSV detallado")), rutasReales.length === 0 && React.createElement("div", {
     style: {
       textAlign: 'center',
       color: 'var(--ink-faint)',
@@ -1470,7 +1470,7 @@ function RepartidoresPanel({
         cursor: 'pointer',
         fontSize: 12
       }
-    }, "🖨️ Imprimir"), React.createElement("button", {
+    }, " Imprimir"), React.createElement("button", {
       onClick: () => {
         setWaFor(waFor === r.id ? null : r.id);
         setWaPhone('');
@@ -1486,7 +1486,7 @@ function RepartidoresPanel({
         cursor: 'pointer',
         fontSize: 12
       }
-    }, "📲 WhatsApp")), waFor === r.id && React.createElement("div", {
+    }, " WhatsApp")), waFor === r.id && React.createElement("div", {
       style: {
         display: 'flex',
         gap: 8,
@@ -1515,7 +1515,7 @@ function RepartidoresPanel({
         fontWeight: 700,
         cursor: 'pointer'
       }
-    }, "➤")));
+    }, "")));
   })), tab === 'historial' && React.createElement(React.Fragment, null, hist.length > 0 && React.createElement("button", {
     onClick: exportarHistorialCSV,
     style: {
@@ -1530,7 +1530,7 @@ function RepartidoresPanel({
       fontSize: 12,
       marginBottom: 14
     }
-  }, "📤 Exportar CSV"), hist.length === 0 && React.createElement("div", {
+  }, " Exportar CSV"), hist.length === 0 && React.createElement("div", {
     style: {
       textAlign: 'center',
       color: 'var(--ink-faint)',
@@ -1571,7 +1571,7 @@ function RepartidoresPanel({
         fontSize: 12,
         color: 'var(--ink-soft)'
       }
-    }, "🚐 ", r.vehiculo || '—', " · 📍 ", r.zona || '—', " · ⏱ ", dur));
+    }, " ", r.vehiculo || '—', " ·  ", r.zona || '—', " · ⏱ ", dur));
   })), qrModalFor && React.createElement("div", {
     style: {
       position: 'fixed',
@@ -1645,7 +1645,7 @@ function RepartidoresPanel({
       fontSize: 13
     },
     disabled: !qrDataURL
-  }, "🖨️ Imprimir"), React.createElement("button", {
+  }, " Imprimir"), React.createElement("button", {
     onClick: () => setQrModalFor(null),
     style: {
       flex: 1,
@@ -1692,7 +1692,7 @@ function RepartidoresPanel({
       fontSize: 16,
       fontWeight: 700
     }
-  }, "🧾 Venta — ", ventaRapida.cliente.nombre), React.createElement("button", {
+  }, " Venta — ", ventaRapida.cliente.nombre), React.createElement("button", {
     onClick: () => setVentaRapida(null),
     style: {
       background: 'none',
@@ -1701,13 +1701,13 @@ function RepartidoresPanel({
       fontSize: 20,
       cursor: 'pointer'
     }
-  }, "✕")), React.createElement("div", {
+  }, "")), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
       marginBottom: 14
     }
-  }, "📍 Se guarda con tu ubicación actual, para verificar la visita en campo."), rutasActivasVenta.length > 1 && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, " Se guarda con tu ubicación actual, para verificar la visita en campo."), rutasActivasVenta.length > 1 && React.createElement(React.Fragment, null, React.createElement("div", {
     style: lblStyle
   }, "Transferencia activa"), React.createElement("select", {
     value: ventaRapida.rutaId,
@@ -1805,7 +1805,7 @@ function RepartidoresPanel({
       gap: 8,
       marginBottom: 14
     }
-  }, [['contado', '💵 Contado', 'var(--ok-bg)', 'var(--ok-text)'], ['credito', '📋 Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
+  }, [['contado', ' Contado', 'var(--ok-bg)', 'var(--ok-text)'], ['credito', ' Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
     key: v,
     onClick: () => setVentaRapida(vv => ({
       ...vv,
@@ -1836,7 +1836,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       opacity: ventaRapida.saving ? 0.6 : 1
     }
-  }, ventaRapida.saving ? 'Guardando…' : '💾 Guardar venta')) : React.createElement("div", {
+  }, ventaRapida.saving ? 'Guardando…' : ' Guardar venta')) : React.createElement("div", {
     style: {
       textAlign: 'center',
       padding: '10px 0'
@@ -1846,7 +1846,7 @@ function RepartidoresPanel({
       fontSize: 44,
       marginBottom: 8
     }
-  }, "✅"), React.createElement("div", {
+  }, ""), React.createElement("div", {
     style: {
       fontSize: 16,
       fontWeight: 700,
@@ -1863,7 +1863,7 @@ function RepartidoresPanel({
       color: ventaRapida.done.ubicacionVenta.ok === false ? 'var(--danger-text)' : ventaRapida.done.ubicacionVenta.ok === true ? 'var(--ok)' : 'var(--warn-text)',
       marginBottom: 20
     }
-  }, ventaRapida.done.ubicacionVenta.ok === true ? '📍 Ubicación confirmada' : ventaRapida.done.ubicacionVenta.ok === false ? `⚠️ Ubicación fuera de rango (${ventaRapida.done.ubicacionVenta.distanciaM} m)` : '📍 No se pudo validar la ubicación'), ventaRapida.cliente.telefono && React.createElement("button", {
+  }, ventaRapida.done.ubicacionVenta.ok === true ? ' Ubicación confirmada' : ventaRapida.done.ubicacionVenta.ok === false ? ` Ubicación fuera de rango (${ventaRapida.done.ubicacionVenta.distanciaM} m)` : ' No se pudo validar la ubicación'), ventaRapida.cliente.telefono && React.createElement("button", {
     onClick: () => window.open(waVentaLink(ventaRapida.cliente, ventaRapida.done.items, ventaRapida.done.total, ventaRapida.done.pago, branding), '_blank'),
     style: {
       width: '100%',
@@ -1876,7 +1876,7 @@ function RepartidoresPanel({
       cursor: 'pointer',
       marginBottom: 10
     }
-  }, "📲 Enviar ticket por WhatsApp"), React.createElement("button", {
+  }, " Enviar ticket por WhatsApp"), React.createElement("button", {
     onClick: () => setVentaRapida(null),
     style: {
       width: '100%',

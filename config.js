@@ -12,6 +12,7 @@ function Configuracion({
   const [projectSetup, setProjectSetup] = useState(() => normalizarSetupProyecto());
   const [setupLoading, setSetupLoading] = useState(true);
   const [setupWizard, setSetupWizard] = useState(false);
+  const [setupStep, setSetupStep] = useState(0);
   const [setupForm, setSetupForm] = useState(() => normalizarSetupProyecto());
   const [form, setForm] = useState(null);
   const [vehicleForm, setVehicleForm] = useState(null);
@@ -117,7 +118,7 @@ function Configuracion({
         new_: '',
         conf: ''
       });
-      flash('✅ Contraseña actualizada');
+      flash('Contraseña actualizada');
     } catch (e) {
       flash('Contraseña actual incorrecta', true);
     }
@@ -152,7 +153,7 @@ function Configuracion({
         unidadLectura: 'digito', permiteDecimales: true, preciosMedidor: precios, activo: true, creadoEn: fecha
       });
       await batch.commit();
-      setVehicleForm(null); flash('✅ Vehículo y medidor autorizados fueron registrados');
+      setVehicleForm(null); flash('Vehículo y medidor autorizados fueron registrados');
     } catch (e) { flash('No se pudo registrar el vehículo: ' + e.message, true); }
   };
   const saveProjectSetup = async () => {
@@ -171,7 +172,7 @@ function Configuracion({
       batch.set(setupRef, { ...next, creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: firebase.firestore.FieldValue.serverTimestamp(), actualizadoEn: firebase.firestore.FieldValue.serverTimestamp() }, { merge: false });
       batch.set(brandingRef, { nombreComercial: next.nombreEmpresa, subtitulo: 'Operación y distribución', lema: '', telefono: next.telefonoEmpresa, logoPath: 'icons/icon-192.png', actualizadoPorUid: currentUser.uid, actualizadoPorNombre: currentUser.nombre || '', actualizadoEn: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
       await batch.commit();
-      setProjectSetup(next); setSetupForm(next); setSetupWizard(false); flash('✅ Configuración inicial del proyecto completada');
+      setProjectSetup(next); setSetupForm(next); setSetupWizard(false); flash('Configuración inicial del proyecto completada');
     } catch (e) { flash('No se pudo completar la configuración inicial: ' + e.message, true); }
   };
   const saveBranding = async () => {
@@ -188,7 +189,7 @@ function Configuracion({
         actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
       setBrandForm(next);
-      flash('✅ Marca comercial actualizada');
+      flash('Marca comercial actualizada');
     } catch (e) {
       flash('No se pudo guardar la marca comercial: ' + e.message, true);
     }
@@ -208,7 +209,7 @@ function Configuracion({
         role: form.role,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      flash('✅ Perfil actualizado');
+      flash('Perfil actualizado');
       setForm(null);
     } catch (e) {
       flash('No se pudo actualizar el perfil', true);
@@ -240,7 +241,7 @@ function Configuracion({
         return;
       }
       await savePin(currentUser.uid, val);
-      flash('✅ PIN configurado');
+      flash('PIN configurado');
       setPinStep('idle');
       setPinDigits('');
     }
@@ -249,13 +250,58 @@ function Configuracion({
     clearPin(currentUser.uid);
     flash('PIN eliminado de este dispositivo');
   };
+  const setupSteps = [
+    { title: 'Empresa', description: 'Define la identidad operativa del proyecto.' },
+    { title: 'Medición', description: 'Configura la magnitud y unidad base del medidor.' },
+    { title: 'Acceso', description: 'Confirma el administrador inicial y las reglas de acceso.' },
+    { title: 'Resumen', description: 'Revisa la configuración antes de bloquearla para este proyecto.' }
+  ];
+  const renderSetupWizard = () => {
+    const step = setupSteps[setupStep] || setupSteps[0];
+    const commonSelect = { width: '100%', padding: '12px 14px', background: 'var(--fw-surface)', border: '1px solid var(--fw-border)', color: 'var(--fw-text)', borderRadius: 8, fontSize: 16, minHeight: 48, marginBottom: 12 };
+    const field = setupStep === 0 ? React.createElement(React.Fragment, null,
+      React.createElement(Lbl, null, 'Nombre de la empresa'),
+      React.createElement(Inp, { value: setupForm.nombreEmpresa || '', maxLength: 100, placeholder: 'FluttWater Purificadora Hidequel', onChange: e => setSetupForm({ ...setupForm, nombreEmpresa: e.target.value }), style: { marginBottom: 14 } }),
+      React.createElement(Lbl, null, 'Teléfono de la empresa'),
+      React.createElement(Inp, { type: 'tel', maxLength: 30, value: setupForm.telefonoEmpresa || '', placeholder: '637 137 5399', onChange: e => setSetupForm({ ...setupForm, telefonoEmpresa: e.target.value }) })
+    ) : setupStep === 1 ? React.createElement(React.Fragment, null,
+      React.createElement(Lbl, null, 'Tipo de flujo del medidor'),
+      React.createElement('select', { value: setupForm.tipoFlujoMedidor, onChange: e => { const tipo = e.target.value; const unidad = unidadesMedidorPara(tipo)[0]?.id || 'L'; setSetupForm({ ...setupForm, tipoFlujoMedidor: tipo, unidadMedidorPredeterminada: unidad }); }, style: commonSelect }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))),
+      React.createElement('div', { style: { fontSize: 13, color: 'var(--fw-text-muted)', lineHeight: 1.5, marginBottom: 14 } }, MEDIDOR_MAGNITUDES.find(m => m.id === setupForm.tipoFlujoMedidor)?.descripcion),
+      React.createElement(Lbl, null, 'Unidad de lectura'),
+      React.createElement('select', { value: setupForm.unidadMedidorPredeterminada, onChange: e => setSetupForm({ ...setupForm, unidadMedidorPredeterminada: e.target.value }), style: commonSelect }, unidadesMedidorPara(setupForm.tipoFlujoMedidor).map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))),
+      React.createElement(Lbl, null, 'Cantidad por dígito'),
+      React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', value: setupForm.cantidadPorDigitoPredeterminada, onChange: e => setSetupForm({ ...setupForm, cantidadPorDigitoPredeterminada: e.target.value }), placeholder: 'Ej. 10' })
+    ) : setupStep === 2 ? React.createElement(React.Fragment, null,
+      React.createElement('div', { style: { padding: 16, background: 'var(--fw-bg)', border: '1px solid var(--fw-border)', borderRadius: 10, marginBottom: 14 } },
+        React.createElement(Lbl, null, 'Administrador inicial'),
+        React.createElement('div', { style: { fontSize: 18, fontWeight: 800, color: 'var(--fw-navy)' } }, currentUser.nombre || 'Administrador'),
+        React.createElement('div', { style: { fontSize: 14, color: 'var(--fw-text-muted)', marginTop: 4, overflowWrap: 'anywhere' } }, currentUser.email || ''),
+        React.createElement(Tag, { color: 'var(--fw-success)', style: { display: 'inline-block', marginTop: 10 } }, 'Admin')
+      ),
+      React.createElement('div', { style: { fontSize: 14, color: 'var(--fw-text-muted)', lineHeight: 1.5 } }, 'Las cuentas nuevas se crean desde Firebase Console. Los roles y permisos se administran después desde Configuración.')
+    ) : React.createElement(React.Fragment, null,
+      React.createElement('div', { style: { display: 'grid', gap: 10, marginBottom: 14 } },
+        [['Empresa', setupForm.nombreEmpresa || 'Pendiente'], ['Teléfono', setupForm.telefonoEmpresa || 'Pendiente'], ['Medidor', MEDIDOR_MAGNITUDES.find(m => m.id === setupForm.tipoFlujoMedidor)?.nombre || 'Pendiente'], ['Unidad', setupForm.unidadMedidorPredeterminada || 'Pendiente'], ['Por dígito', setupForm.cantidadPorDigitoPredeterminada || 'Pendiente']].map(([label, value]) => React.createElement(Row, { key: label, style: { justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--fw-border)' } }, React.createElement('span', { style: { color: 'var(--fw-text-muted)', fontSize: 14 } }, label), React.createElement('strong', { style: { color: 'var(--fw-navy)', fontSize: 14, textAlign: 'right' } }, value)))
+      ),
+      React.createElement('div', { style: { padding: 14, background: 'var(--fw-bg)', borderRadius: 10, fontSize: 13, color: 'var(--fw-text-muted)', lineHeight: 1.5 } }, 'Al guardar, esta configuración se marcará como completada para el proyecto Firebase detectado y no se volverá a solicitar en otros dispositivos.')
+    );
+    return React.createElement(Modal, { title: 'Configuración inicial', onClose: () => {} },
+      React.createElement('div', { style: { fontSize: 14, color: 'var(--fw-text-muted)', lineHeight: 1.5, marginBottom: 16 } }, step.description),
+      React.createElement(Row, { style: { gap: 6, marginBottom: 18 } }, setupSteps.map((item, index) => React.createElement('div', { key: item.title, style: { flex: 1, height: 6, borderRadius: 4, background: index <= setupStep ? 'var(--fw-aqua)' : 'var(--fw-border)' }, title: item.title }))),
+      React.createElement('div', { style: { fontSize: 12, color: 'var(--fw-text-muted)', marginBottom: 18 } }, 'Paso ', setupStep + 1, ' de ', setupSteps.length, ' · ', step.title),
+      field,
+      React.createElement(Row, { style: { justifyContent: 'space-between', gap: 10, marginTop: 22 } }, setupStep > 0 ? React.createElement(BOut, { onClick: () => setSetupStep(value => value - 1), style: { flex: 1 } }, 'Atrás') : React.createElement('span', { style: { flex: 1 } }), setupStep < setupSteps.length - 1 ? React.createElement(BFill, { onClick: () => setSetupStep(value => value + 1), style: { flex: 1 } }, 'Continuar') : React.createElement(BFill, { onClick: saveProjectSetup, style: { flex: 1 }, disabled: setupLoading }, setupLoading ? 'Cargando proyecto…' : 'Guardar configuración'))
+    );
+  };
   return React.createElement("div", {
     style: {
-      padding: '16px 12px'
+      padding: '24px 16px'
     }
   }, React.createElement(Row, {
     style: {
-      marginBottom: 16
+      marginBottom: 20,
+      alignItems: 'center'
     }
   }, React.createElement("button", {
     onClick: onBack,
@@ -270,14 +316,16 @@ function Configuracion({
     }
   }, "←"), React.createElement("div", {
     style: {
-      fontSize: 20,
-      fontWeight: 800
+      fontSize: 28,
+      fontWeight: 800,
+      color: 'var(--fw-navy)'
     }
-  }, "⚙️ Configuración")), msg && React.createElement("div", {
+  }, "Configuración"), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
-      borderRadius: 8,
-      padding: '8px 12px',
+      border: '1px solid var(--fw-success)',
+      borderRadius: 10,
+      padding: '12px 14px',
       fontSize: 13,
       color: 'var(--ok-text)',
       marginBottom: 12
@@ -285,18 +333,20 @@ function Configuracion({
   }, msg), err && React.createElement("div", {
     style: {
       background: 'var(--danger-bg)',
-      borderRadius: 8,
-      padding: '8px 12px',
+      border: '1px solid var(--fw-danger)',
+      borderRadius: 10,
+      padding: '12px 14px',
       fontSize: 13,
       color: 'var(--danger-text)',
       marginBottom: 12
     }
   }, err), React.createElement(Row, {
     style: {
-      gap: 6,
-      marginBottom: 16
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 20
     }
-  }, [['perfil', '👤 Perfil'], ...(isAdmin ? [['marca', '🎨 Marca']] : []), ...(permisoAcciones(currentUser).password ? [['password', '🔑 Contraseña']] : []), ['pin', '🔒 PIN'], ...(isAdmin ? [['usuarios', '👥 Usuarios'], ['vehiculos', '🚚 Vehículos'], ['permisos', '🔐 Permisos']] : [])].map(([v, l]) => React.createElement("button", {
+  }, [['perfil', 'Perfil'], ...(isAdmin ? [['marca', 'Marca']] : []), ...(permisoAcciones(currentUser).password ? [['password', 'Contraseña']] : []), ['pin', 'PIN'], ...(isAdmin ? [['usuarios', 'Usuarios'], ['vehiculos', 'Vehículos'], ['permisos', 'Permisos']] : [])].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => {
       setSub(v);
@@ -304,13 +354,15 @@ function Configuracion({
       setMsg('');
     },
     style: {
-      flex: 1,
-      padding: '8px 2px',
+      flex: '1 1 calc(33.333% - 8px)',
+      minWidth: 92,
+      minHeight: 48,
+      padding: '10px 12px',
       borderRadius: 8,
-      border: 'none',
-      background: sub === v ? 'var(--accent)' : 'var(--surface-2)',
-      color: sub === v ? 'var(--ink)' : 'var(--ink-soft)',
-      fontSize: 10,
+      border: '1px solid ' + (sub === v ? 'var(--fw-navy)' : 'var(--fw-border)'),
+      background: sub === v ? 'var(--fw-navy)' : 'var(--fw-surface)',
+      color: sub === v ? '#FFFFFF' : 'var(--fw-text-muted)',
+      fontSize: 14,
       fontWeight: 700,
       cursor: 'pointer'
     }
@@ -324,7 +376,7 @@ function Configuracion({
       fontSize: 52,
       marginBottom: 8
     }
-  }, "👤"), React.createElement("div", {
+  }, React.createElement(LineIcon, { name: 'users', size: 40 })), React.createElement("div", {
     style: {
       fontSize: 18,
       fontWeight: 700
@@ -335,7 +387,7 @@ function Configuracion({
       color: 'var(--ink-soft)',
       marginTop: 2
     }
-  }, "✉️ ", currentUser.email), React.createElement(Tag, {
+  }, "Correo · ", currentUser.email), React.createElement(Tag, {
     color: roleColor(currentUser.role),
     style: {
       marginTop: 8,
@@ -348,9 +400,9 @@ function Configuracion({
       width: '100%',
       marginTop: 8
     }
-  }, "🚪 Cerrar sesión")), sub === 'marca' && isAdmin && React.createElement(Card, null,
+  }, "Cerrar sesión")), sub === 'marca' && isAdmin && React.createElement(Card, null,
     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 } },
-      React.createElement('img', { src: brandForm.logoPath, alt: 'Logo de ' + brandForm.nombreComercial, width: 64, height: 64, style: { width: 64, height: 64, borderRadius: 16, objectFit: 'cover', flexShrink: 0 } }),
+      React.createElement('img', { src: brandForm.logoPath, alt: 'Logo de ' + brandForm.nombreComercial, width: 64, height: 64, style: { width: 64, height: 64, borderRadius: 10, objectFit: 'contain', flexShrink: 0 } }),
       React.createElement('div', null,
         React.createElement('div', { style: { fontSize: 15, fontWeight: 800 } }, 'Marca visible al cliente'),
         React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4, marginTop: 3 } }, 'Aparece en el inicio de sesión, encabezado y comprobantes. Flutt-Water permanece como identidad técnica de la aplicación.')
@@ -360,7 +412,7 @@ function Configuracion({
     React.createElement(Lbl, null, 'Subtítulo o giro'), React.createElement(Inp, { value: brandForm.subtitulo, maxLength: 100, placeholder: 'Purificadora y reparto de agua', onChange: e => setBrandForm({ ...brandForm, subtitulo: e.target.value }), style: { marginBottom: 10 } }),
     React.createElement(Lbl, null, 'Lema opcional'), React.createElement(Inp, { value: brandForm.lema, maxLength: 120, placeholder: 'Agua limpia, siempre cerca', onChange: e => setBrandForm({ ...brandForm, lema: e.target.value }), style: { marginBottom: 10 } }),
     React.createElement(Lbl, null, 'Teléfono comercial'), React.createElement(Inp, { type: 'tel', value: brandForm.telefono, maxLength: 30, placeholder: '637 137 5399', onChange: e => setBrandForm({ ...brandForm, telefono: e.target.value }), style: { marginBottom: 12 } }),
-    React.createElement(BFill, { onClick: saveBranding, style: { width: '100%' } }, '💾 Guardar personalización')
+    React.createElement(BFill, { onClick: saveBranding, style: { width: '100%' } }, 'Guardar personalización')
   ), sub === 'password' && React.createElement(Card, null, React.createElement(Lbl, null, "Contraseña actual"), React.createElement(PwInp, {
     value: pw.old,
     onChange: e => setPw(f => ({
@@ -385,7 +437,7 @@ function Configuracion({
       width: '100%',
       marginTop: 6
     }
-  }, "🔑 Actualizar contraseña")), sub === 'pin' && React.createElement(Card, null, React.createElement("div", {
+  }, "Actualizar contraseña")), sub === 'pin' && React.createElement(Card, null, React.createElement("div", {
     style: {
       fontSize: 13,
       color: 'var(--ink-soft)',
@@ -398,7 +450,7 @@ function Configuracion({
       fontWeight: 700,
       marginBottom: 12
     }
-  }, hasPin ? '🔒 PIN activado en este dispositivo' : 'Sin PIN configurado en este dispositivo'), React.createElement(BFill, {
+  }, hasPin ? 'PIN activado en este dispositivo' : 'Sin PIN configurado en este dispositivo'), React.createElement(BFill, {
     onClick: startPin,
     style: {
       width: '100%'
@@ -502,7 +554,7 @@ function Configuracion({
         color: 'var(--ink-soft)',
         marginTop: 2
       }
-    }, "✉️ ", u.email)))), React.createElement("div", {
+    }, "Correo · ", u.email)))), React.createElement("div", {
       style: {
         maxHeight: expanded ? 80 : 0,
         overflow: 'hidden',
@@ -526,7 +578,7 @@ function Configuracion({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"), u.id !== currentUser.uid && React.createElement(BOut, {
+    }, "Editar"), u.id !== currentUser.uid && React.createElement(BOut, {
       onClick: () => {
         if (window.confirm(`¿Eliminar el perfil de "${u.nombre}"? Esta acción no se puede deshacer.`)) {
           delUser(u);
@@ -537,10 +589,10 @@ function Configuracion({
       style: {
         flex: 1
       }
-    }, "🗑 Eliminar"))));
+    }, "Eliminar"))));
   })), sub === 'permisos' && isAdmin && React.createElement(Permisos, {
     currentUser: currentUser
-  }), setupWizard && isAdmin && React.createElement(Modal, { title: '🚀 Configuración inicial del proyecto', onClose: () => {} }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: 14 } }, 'Este proyecto Firebase todavía no tiene configuración global. Se ejecuta una sola vez por proyecto, no una vez por teléfono. Los repartidores y usuarios no verán este asistente si el proyecto ya está configurado.'), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', marginBottom: 12, overflowWrap: 'anywhere' } }, 'Proyecto detectado: ', setupProyectoId() || 'no disponible'), React.createElement(Lbl, null, 'Nombre de la empresa'), React.createElement(Inp, { value: setupForm.nombreEmpresa || '', maxLength: 100, placeholder: 'FluttWater Purificadora Hidequel', onChange: e => setSetupForm({ ...setupForm, nombreEmpresa: e.target.value }), style: { marginBottom: 10 } }), React.createElement(Lbl, null, 'Tipo de flujo del medidor'), React.createElement('select', { value: setupForm.tipoFlujoMedidor, onChange: e => { const tipo = e.target.value; const unidad = unidadesMedidorPara(tipo)[0]?.id || 'L'; setSetupForm({ ...setupForm, tipoFlujoMedidor: tipo, unidadMedidorPredeterminada: unidad }); }, style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6, marginBottom: 10 } }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: -5, marginBottom: 10 } }, MEDIDOR_MAGNITUDES.find(m => m.id === setupForm.tipoFlujoMedidor)?.descripcion), React.createElement(Lbl, null, 'Unidad de lectura'), React.createElement('select', { value: setupForm.unidadMedidorPredeterminada, onChange: e => setSetupForm({ ...setupForm, unidadMedidorPredeterminada: e.target.value }), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6, marginBottom: 10 } }, unidadesMedidorPara(setupForm.tipoFlujoMedidor).map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Cantidad por dígito'), React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', value: setupForm.cantidadPorDigitoPredeterminada, onChange: e => setSetupForm({ ...setupForm, cantidadPorDigitoPredeterminada: e.target.value }), placeholder: 'Ej. 10', style: { marginBottom: 10 } }), React.createElement(Lbl, null, 'Teléfono de la empresa'), React.createElement(Inp, { type: 'tel', maxLength: 30, value: setupForm.telefonoEmpresa || '', placeholder: '637 137 5399', onChange: e => setSetupForm({ ...setupForm, telefonoEmpresa: e.target.value }), style: { marginBottom: 8 } }), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', lineHeight: 1.4, marginBottom: 14 } }, 'WhatsApp Business queda pendiente. Los mensajes continuarán usando enlaces wa.me desde el teléfono operativo.'), React.createElement(BFill, { onClick: saveProjectSetup, style: { width: '100%' }, disabled: setupLoading }, setupLoading ? 'Cargando proyecto…' : 'Guardar y bloquear configuración')), vehicleForm && React.createElement(Modal, { title: 'Alta de vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Solo administración puede registrar unidades. El repartidor únicamente selecciona vehículos existentes.'), React.createElement(Lbl, null, 'Nombre de vehículo'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Número de serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Tipo de magnitud del medidor'), React.createElement('select', { value: vehicleForm.tipoFlujoMedidor || 'volumen_acumulado', onChange: e => { const tipo = e.target.value; setVehicleForm({ ...vehicleForm, tipoFlujoMedidor: tipo, unidadMedida: unidadesMedidorPara(tipo)[0]?.id || 'L', precios: tipo === 'volumen_acumulado' ? (vehicleForm.precios?.length ? vehicleForm.precios : [precioVacio()]) : [] }); }, style: { width: '100%', padding: 9, marginTop: 3, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))), React.createElement(Lbl, null, 'Unidad de lectura'), React.createElement('select', { value: vehicleForm.unidadMedida || 'L', onChange: e => setVehicleForm({ ...vehicleForm, unidadMedida: e.target.value }), style: { width: '100%', padding: 9, marginTop: 8, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, unidadesMedidorPara(vehicleForm.tipoFlujoMedidor || 'volumen_acumulado').map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Cantidad por dígito'), React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', style: { marginTop: 8 }, value: vehicleForm.cantidadPorDigito, onChange: e => setVehicleForm({ ...vehicleForm, cantidadPorDigito: e.target.value }), placeholder: 'Ej. 10' }), vehicleForm.tipoFlujoMedidor === 'volumen_acumulado' && React.createElement(React.Fragment, null, React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 10, marginBottom: 6 } }, 'Precios por unidad de medida vendida (máximo 5). Al vender, se elige uno y se multiplica por la cantidad medida.'), (vehicleForm.precios || []).map((p, index) => React.createElement(Row, { key: index, style: { gap: 6, marginBottom: 6, alignItems: 'center' } }, React.createElement(Inp, { value: p.nombre, placeholder: 'Precio ' + (index + 1), onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, nombre: e.target.value } : x) }), style: { flex: 1, margin: 0 } }), React.createElement(Inp, { type: 'number', min: 0, step: '0.01', value: p.precioPorUnidad, placeholder: '$/unidad', onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, precioPorUnidad: e.target.value } : x) }), style: { width: 100, margin: 0 } }), (vehicleForm.precios.length > 1) && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.filter((_, i) => i !== index) }), style: { padding: '7px 9px' } }, '×'))), vehicleForm.precios.length < 5 && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: [...(vehicleForm.precios || []), precioVacio()] }), style: { width: '100%', marginTop: 2 } }, '＋ Añadir precio')), vehicleForm.tipoFlujoMedidor !== 'volumen_acumulado' && React.createElement('div', { style: { fontSize: 11, color: 'var(--warn-text)', marginTop: 10, lineHeight: 1.4 } }, 'Este tipo de medidor se registra como sensor técnico. Para vender por cantidad, selecciona Volumen acumulado.'), React.createElement(BFill, { onClick: saveVehicle, style: { width: '100%', marginTop: 14 } }, 'Guardar vehículo autorizado')), form && React.createElement(Modal, {
+  }), setupWizard && isAdmin && renderSetupWizard(), vehicleForm && React.createElement(Modal, { title: 'Alta de vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Solo administración puede registrar unidades. El repartidor únicamente selecciona vehículos existentes.'), React.createElement(Lbl, null, 'Nombre de vehículo'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Número de serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Tipo de magnitud del medidor'), React.createElement('select', { value: vehicleForm.tipoFlujoMedidor || 'volumen_acumulado', onChange: e => { const tipo = e.target.value; setVehicleForm({ ...vehicleForm, tipoFlujoMedidor: tipo, unidadMedida: unidadesMedidorPara(tipo)[0]?.id || 'L', precios: tipo === 'volumen_acumulado' ? (vehicleForm.precios?.length ? vehicleForm.precios : [precioVacio()]) : [] }); }, style: { width: '100%', padding: 9, marginTop: 3, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))), React.createElement(Lbl, null, 'Unidad de lectura'), React.createElement('select', { value: vehicleForm.unidadMedida || 'L', onChange: e => setVehicleForm({ ...vehicleForm, unidadMedida: e.target.value }), style: { width: '100%', padding: 9, marginTop: 8, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, unidadesMedidorPara(vehicleForm.tipoFlujoMedidor || 'volumen_acumulado').map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Cantidad por dígito'), React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', style: { marginTop: 8 }, value: vehicleForm.cantidadPorDigito, onChange: e => setVehicleForm({ ...vehicleForm, cantidadPorDigito: e.target.value }), placeholder: 'Ej. 10' }), vehicleForm.tipoFlujoMedidor === 'volumen_acumulado' && React.createElement(React.Fragment, null, React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 10, marginBottom: 6 } }, 'Precios por unidad de medida vendida (máximo 5). Al vender, se elige uno y se multiplica por la cantidad medida.'), (vehicleForm.precios || []).map((p, index) => React.createElement(Row, { key: index, style: { gap: 6, marginBottom: 6, alignItems: 'center' } }, React.createElement(Inp, { value: p.nombre, placeholder: 'Precio ' + (index + 1), onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, nombre: e.target.value } : x) }), style: { flex: 1, margin: 0 } }), React.createElement(Inp, { type: 'number', min: 0, step: '0.01', value: p.precioPorUnidad, placeholder: '$/unidad', onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, precioPorUnidad: e.target.value } : x) }), style: { width: 100, margin: 0 } }), (vehicleForm.precios.length > 1) && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.filter((_, i) => i !== index) }), style: { padding: '7px 9px' } }, '×'))), vehicleForm.precios.length < 5 && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: [...(vehicleForm.precios || []), precioVacio()] }), style: { width: '100%', marginTop: 2 } }, '＋ Añadir precio')), vehicleForm.tipoFlujoMedidor !== 'volumen_acumulado' && React.createElement('div', { style: { fontSize: 11, color: 'var(--warn-text)', marginTop: 10, lineHeight: 1.4 } }, 'Este tipo de medidor se registra como sensor técnico. Para vender por cantidad, selecciona Volumen acumulado.'), React.createElement(BFill, { onClick: saveVehicle, style: { width: '100%', marginTop: 14 } }, 'Guardar vehículo autorizado')), form && React.createElement(Modal, {
     title: 'Editar Usuario',
     onClose: () => {
       setForm(null);
@@ -601,5 +653,5 @@ function Configuracion({
     style: {
       width: '100%'
     }
-  }, "💾 Guardar cambios")));
+  }, "Guardar cambios"))));
 }

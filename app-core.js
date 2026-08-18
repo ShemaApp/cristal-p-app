@@ -84,6 +84,30 @@ const Gear = () => React.createElement(Ic, null, React.createElement("circle", {
 }), React.createElement("path", {
   d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
 }));
+const LINE_ICON_SHAPES = {
+  dot: [['circle', { cx: '12', cy: '12', r: '3' }]],
+  home: [['path', { d: 'M3 11.5 12 4l9 7.5' }], ['path', { d: 'M5 10v10h14V10' }], ['path', { d: 'M9 20v-6h6v6' }]],
+  box: [['path', { d: 'm4 7 8-4 8 4-8 4-8-4Z' }], ['path', { d: 'M4 7v10l8 4 8-4V7' }], ['path', { d: 'M12 11v10' }]],
+  tag: [['path', { d: 'M20 13 13 20 4 11V4h7l9 9Z' }], ['circle', { cx: '8', cy: '8', r: '1' }]],
+  note: [['path', { d: 'M5 3h14v18H5z' }], ['path', { d: 'M8 8h8M8 12h8M8 16h5' }]],
+  users: [['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }], ['circle', { cx: '9', cy: '7', r: '4' }], ['path', { d: 'M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' }]],
+  credit: [['rect', { x: '3', y: '5', width: '18', height: '14', rx: '2' }], ['path', { d: 'M3 10h18M7 15h3' }]],
+  compass: [['circle', { cx: '12', cy: '12', r: '9' }], ['path', { d: 'm15 9-2 4-4 2 2-4 4-2Z' }]],
+  route: [['circle', { cx: '5', cy: '19', r: '2' }], ['circle', { cx: '19', cy: '5', r: '2' }], ['path', { d: 'M7 18c4-1 3-6 6-7s3-5 4-6' }]],
+  truck: [['path', { d: 'M3 6h11v10H3zM14 10h4l3 3v3h-7z' }], ['circle', { cx: '7', cy: '19', r: '2' }], ['circle', { cx: '18', cy: '19', r: '2' }]],
+  inventory: [['path', { d: 'M4 4h16v16H4zM4 9h16M9 4v5' }], ['path', { d: 'M8 13h8M8 17h5' }]],
+  chart: [['path', { d: 'M4 19V5M4 19h16' }], ['path', { d: 'm7 15 3-4 3 2 4-6' }]],
+  cash: [['rect', { x: '3', y: '6', width: '18', height: '12', rx: '2' }], ['circle', { cx: '12', cy: '12', r: '2' }], ['path', { d: 'M7 9h.01M17 15h.01' }]],
+  bell: [['path', { d: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4' }]],
+  plus: [['path', { d: 'M12 5v14M5 12h14' }]],
+  search: [['circle', { cx: '11', cy: '11', r: '7' }], ['path', { d: 'm20 20-4-4' }]],
+  qr: [['rect', { x: '4', y: '4', width: '6', height: '6' }], ['rect', { x: '14', y: '4', width: '6', height: '6' }], ['rect', { x: '4', y: '14', width: '6', height: '6' }], ['path', { d: 'M14 14h3v3h3v3h-6v-6Z' }]],
+  alert: [['path', { d: 'M12 3 2 21h20L12 3Z' }], ['path', { d: 'M12 9v4M12 17h.01' }]],
+  lock: [['rect', { x: '5', y: '10', width: '14', height: '10', rx: '2' }], ['path', { d: 'M8 10V7a4 4 0 0 1 8 0v3' }]],
+  arrowLeft: [['path', { d: 'm15 18-6-6 6-6M9 12h11' }]],
+  chevronRight: [['path', { d: 'm9 18 6-6-6-6' }]]
+};
+const LineIcon = ({ name = 'dot', size = 20 }) => React.createElement(Ic, { size }, ...(LINE_ICON_SHAPES[name] || LINE_ICON_SHAPES.dot).map(([tag, props]) => React.createElement(tag, props)));
 const Menu = () => React.createElement(Ic, null, React.createElement("line", {
   x1: "3",
   y1: "6",
@@ -105,11 +129,12 @@ const Card = ({
   style = {}
 }) => React.createElement("div", {
   style: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 4,
-    padding: '12px 14px',
-    marginBottom: 10,
+    background: 'var(--fw-surface)',
+    border: '1px solid var(--fw-border)',
+    borderRadius: 10,
+    padding: '16px',
+    marginBottom: 12,
+    boxShadow: '0 2px 8px rgba(16,42,67,.06)',
     minWidth: 0,
     maxWidth: '100%',
     boxSizing: 'border-box',
@@ -128,15 +153,15 @@ const BFill = ({
   style: {
     background: bg,
     color,
-    border: 'none',
-    borderRadius: 3,
-    padding: '9px 14px',
+    border: '1px solid transparent',
+    borderRadius: 8,
+    padding: '12px 16px',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: 700,
-    fontFamily: 'var(--font-display)',
-    textTransform: 'uppercase',
-    letterSpacing: '.03em',
+    fontFamily: 'var(--font-body)',
+    letterSpacing: '0',
+    minHeight: 48,
     minWidth: 0,
     maxWidth: '100%',
     overflowWrap: 'anywhere',
@@ -155,17 +180,17 @@ const BOut = ({
 }) => React.createElement("button", {
   onClick: onClick,
   style: {
-    background: 'transparent',
+    background: 'var(--fw-surface)',
     color,
-    border: `1.5px solid ${color}`,
-    borderRadius: 3,
-    padding: '8px 14px',
+    border: `1px solid ${color}`,
+    borderRadius: 8,
+    padding: '11px 16px',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: 600,
-    fontFamily: 'var(--font-display)',
-    textTransform: 'uppercase',
-    letterSpacing: '.03em',
+    fontFamily: 'var(--font-body)',
+    letterSpacing: '0',
+    minHeight: 48,
     minWidth: 0,
     maxWidth: '100%',
     overflowWrap: 'anywhere',
@@ -180,12 +205,12 @@ const Inp = ({
   ...p
 }) => React.createElement("input", {
   style: {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--line-strong)',
-    borderRadius: 3,
-    padding: '8px 10px',
-    color: 'var(--ink)',
-    fontSize: 13,
+    background: 'var(--fw-surface)',
+    border: '1px solid var(--fw-border)',
+    borderRadius: 8,
+    padding: '12px 14px',
+    color: 'var(--fw-text)',
+    fontSize: 16,
     width: '100%',
     boxSizing: 'border-box',
     ...style
@@ -196,13 +221,13 @@ const Lbl = ({
   children
 }) => React.createElement("div", {
   style: {
-    fontSize: 10,
-    color: 'var(--ink-faint)',
-    marginBottom: 3,
-    textTransform: 'uppercase',
-    letterSpacing: '.06em',
-    fontFamily: 'var(--font-mono)',
-    fontWeight: 600
+    fontSize: 12,
+    color: 'var(--fw-text-muted)',
+    marginBottom: 6,
+    textTransform: 'none',
+    letterSpacing: '.01em',
+    fontFamily: 'var(--font-body)',
+    fontWeight: 700
   }
 }, children);
 const Row = ({
@@ -251,18 +276,18 @@ function Modal({
     }
   }, React.createElement("div", {
     style: {
-      background: 'var(--surface)',
+      background: 'var(--fw-surface)',
       width: '100%',
       maxWidth: 420,
       minWidth: 0,
       boxSizing: 'border-box',
       margin: '0 auto',
-      borderRadius: '6px 6px 0 0',
+      borderRadius: '16px 16px 0 0',
       padding: 20,
-      paddingTop: 16,
+      paddingTop: 18,
       maxHeight: '90vh',
       overflowY: 'auto',
-      borderTop: '4px solid var(--accent)'
+      borderTop: '3px solid var(--fw-aqua)'
     }
   }, React.createElement(Row, {
     style: {
@@ -413,7 +438,7 @@ function BarcodeScanner({
     };
   }, []);
   return React.createElement(Modal, {
-    title: "📷 Escanear código de barras",
+    title: "Escanear código de barras",
     onClose: onClose
   }, err ? React.createElement("div", {
     style: {

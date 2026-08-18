@@ -64,7 +64,7 @@ function Gerencia({ currentUser, notas, creditos }) {
                 capturadoPorNombre: currentUser.nombre,
             });
             setForm({ pagadoA: '', monto: '', motivo: '', formaPago: 'efectivo' });
-            flash('✅ Gasto registrado');
+            flash(' Gasto registrado');
         }
         catch (e) {
             alert('Error al guardar el gasto: ' + e.message);
@@ -129,7 +129,7 @@ function Gerencia({ currentUser, notas, creditos }) {
                 incidenciasInventario: incidenciasInventarioHoy,
                 gastosTarjetaPendientes: gastosTarjetaHoy.map(g => ({ pagadoA: g.pagadoA, monto: g.monto })),
             });
-            flash('✅ Caja cerrada — comprobante guardado');
+            flash(' Caja cerrada — comprobante guardado');
             setCierreOpen(false);
         }
         catch (e) {
@@ -205,8 +205,8 @@ function Gerencia({ currentUser, notas, creditos }) {
             React.createElement(Lbl, null, "Motivo (nota)"),
             React.createElement(Inp, { value: form.motivo, onChange: e => setForm(f => ({ ...f, motivo: e.target.value })), placeholder: "Ej. gasolina para la ruta de hoy\u2026", style: { marginBottom: 10 } }),
             React.createElement(Lbl, null, "\u00BFC\u00F3mo se pag\u00F3?"),
-            React.createElement(Row, { style: { gap: 8, marginBottom: 14 } }, [['efectivo', '💵 Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['tarjeta', '💳 Tarjeta', 'var(--info-bg)', 'var(--info-text)']].map(([v, l, bg, col]) => (React.createElement("button", { key: v, onClick: () => setForm(f => ({ ...f, formaPago: v })), style: { flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: form.formaPago === v ? bg : 'var(--surface-2)', color: form.formaPago === v ? col : 'var(--ink-soft)', fontSize: 12, fontWeight: 700, cursor: 'pointer' } }, l)))),
-            React.createElement(BFill, { onClick: guardar, style: { width: '100%' }, disabled: saving }, saving ? 'Guardando…' : '💾 Guardar gasto')),
+            React.createElement(Row, { style: { gap: 8, marginBottom: 14 } }, [['efectivo', ' Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['tarjeta', ' Tarjeta', 'var(--info-bg)', 'var(--info-text)']].map(([v, l, bg, col]) => (React.createElement("button", { key: v, onClick: () => setForm(f => ({ ...f, formaPago: v })), style: { flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: form.formaPago === v ? bg : 'var(--surface-2)', color: form.formaPago === v ? col : 'var(--ink-soft)', fontSize: 12, fontWeight: 700, cursor: 'pointer' } }, l)))),
+            React.createElement(BFill, { onClick: guardar, style: { width: '100%' }, disabled: saving }, saving ? 'Guardando…' : ' Guardar gasto')),
         isAdmin && React.createElement(Card, null,
             React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 10 } },
                 React.createElement("span", { style: { fontSize: 11, color: 'var(--ink-faint)', fontWeight: 700 } }, "REPORTE DE CAJA POR PERSONA")),
@@ -263,7 +263,7 @@ function Gerencia({ currentUser, notas, creditos }) {
                     React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 3 } },
                         React.createElement("span", { style: { fontWeight: 700, fontSize: 13 } }, g.pagadoA),
                         React.createElement(Row, { style: { gap: 6 } },
-                            React.createElement(Tag, { color: g.formaPago === 'tarjeta' ? 'var(--info-text)' : 'var(--ok-text)' }, g.formaPago === 'tarjeta' ? '💳 Tarjeta' : '💵 Efectivo'),
+                            React.createElement(Tag, { color: g.formaPago === 'tarjeta' ? 'var(--info-text)' : 'var(--ok-text)' }, g.formaPago === 'tarjeta' ? ' Tarjeta' : ' Efectivo'),
                             React.createElement("span", { style: { fontWeight: 700, color: 'var(--danger-text)' } }, fmt(g.monto)))),
                     g.motivo && React.createElement("div", { style: { fontSize: 12, color: 'var(--ink-soft)' } }, g.motivo),
                     React.createElement("div", { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 4 } },
@@ -297,7 +297,7 @@ function Gerencia({ currentUser, notas, creditos }) {
                     React.createElement("span", { style: { fontWeight: 700 } }, "Efectivo a entregar"),
                     React.createElement("span", { style: { fontWeight: 800, fontSize: 18, color: 'var(--accent-text)' } }, fmt(efectivoEsperadoHoy)))),
             incidenciasInventarioHoy.length > 0 && React.createElement(Card, { style: { background: 'var(--warn-bg)', marginTop: 10, marginBottom: 10 } },
-                React.createElement("div", { style: { fontWeight: 800, color: 'var(--warn-text)', marginBottom: 6 } }, "⚠️ Productos a revisar"),
+                React.createElement("div", { style: { fontWeight: 800, color: 'var(--warn-text)', marginBottom: 6 } }, " Productos a revisar"),
                 incidenciasInventarioHoy.map((incidencia, index) => React.createElement("div", { key: incidencia.notaId || index, style: { fontSize: 11, color: 'var(--warn-text)', padding: '6px 0', borderBottom: index < incidenciasInventarioHoy.length - 1 ? '1px solid rgba(0,0,0,.12)' : 'none' } },
                     React.createElement("div", { style: { fontWeight: 700 } }, incidencia.clienteNombre, " · venta ", incidencia.notaId),
                     (incidencia.items || []).map(item => React.createElement("div", { key: item.id || item.nombre }, item.nombre, " — solicitado ", item.cantSolicitada || item.cant, ", aplicado ", item.cantAplicada || 0, ", faltante ", item.cantFaltante || 0))))),
@@ -307,5 +307,5 @@ function Gerencia({ currentUser, notas, creditos }) {
                 new Set(misNotasHoy.map(n => n.clienteId)).size,
                 " cliente(s) atendido(s) hoy",
                 incidenciasInventarioHoy.length ? ' · ' + incidenciasInventarioHoy.length + ' incidencia(s) para revisión' : ''),
-            React.createElement(BFill, { onClick: confirmarCierre, style: { width: '100%' }, disabled: cierreSaving }, cierreSaving ? 'Guardando…' : '✅ Confirmar cierre')));
+            React.createElement(BFill, { onClick: confirmarCierre, style: { width: '100%' }, disabled: cierreSaving }, cierreSaving ? 'Guardando…' : ' Confirmar cierre')));
 }

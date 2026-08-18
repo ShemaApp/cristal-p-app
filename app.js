@@ -56,7 +56,7 @@ function App() {
     if (typeof fluttWaterSuscribirVentasOffline !== 'function') return undefined;
     return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
-  const ALL_TABS = [['home', '🏠', 'Inicio'], ['productos', '📦', 'Productos'], ['barcodes', '🏷️', 'Etiquetas'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
+  const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
   const permTabs = permisoTabs(currentUser);
   const tabsPermitidos = ['home', ...ALL_TABS.filter(([id]) => id !== 'home' && permTabs[id]).map(([id]) => id)];
   const TABS = ALL_TABS.filter(([id]) => tabsPermitidos.includes(id));
@@ -126,9 +126,15 @@ function App() {
       padding: 24,
       textAlign: 'center'
     }
-  }, React.createElement("div", {
-    style: { fontSize: 38, marginBottom: 10 }
-  }, "🔐"), React.createElement("h1", {
+    }, React.createElement("div", {
+    style: {
+      color: 'var(--fw-warning)',
+      display: 'grid',
+      placeItems: 'center',
+      minHeight: 48,
+      marginBottom: 10
+    }
+  }, React.createElement(LineIcon, { name: 'lock', size: 34 })), React.createElement("h1", {
     style: { fontSize: 20, margin: '0 0 8px' }
   }, "Perfil pendiente"), React.createElement("p", {
     style: { color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }
@@ -158,10 +164,11 @@ function App() {
     style: {
       minHeight: '100vh',
       position: 'relative',
-      paddingTop: mostrarBanner ? 81 : 53,
+      paddingTop: mostrarBanner ? 105 : 67,
       paddingBottom: 24,
-      background: 'var(--bg)'
-    }
+      background: 'var(--fw-bg)'
+    },
+    className: 'flutt-water-app-shell'
   }, React.createElement("div", {
     style: {
       position: 'fixed',
@@ -170,15 +177,16 @@ function App() {
       transform: 'translateX(-50%)',
       width: '100%',
       maxWidth: 420,
-      background: 'var(--rail)',
+      background: 'var(--fw-navy)',
       zIndex: 100,
-      height: 50,
+      height: 64,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 16px',
+      padding: '0 20px',
       boxSizing: 'border-box'
-    }
+    },
+    className: 'flutt-water-topbar'
   }, React.createElement(Row, {
     style: {
       gap: 10
@@ -198,7 +206,7 @@ function App() {
       fontSize: 24,
       lineHeight: 1
     }
-  }, '←'), tab !== 'config' && React.createElement("button", {
+  }, React.createElement(LineIcon, { name: 'arrowLeft', size: 20 })), tab !== 'config' && React.createElement("button", {
     onClick: () => setNavOpen(o => !o),
     style: {
       background: 'none',
@@ -211,11 +219,11 @@ function App() {
     }
   }, React.createElement(Menu, null)), React.createElement("div", {
     style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: 'var(--accent)',
-      fontFamily: 'var(--font-display)',
-      textTransform: 'uppercase',
+      fontSize: 16,
+      fontWeight: 800,
+      color: 'var(--fw-aqua)',
+      fontFamily: 'var(--font-body)',
+      textTransform: 'none',
       letterSpacing: '.02em',
       display: 'flex',
       alignItems: 'center',
@@ -229,7 +237,7 @@ function App() {
     alt: '',
     width: 24,
     height: 24,
-    style: { width: 24, height: 24, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }
+    style: { width: 24, height: 24, objectFit: 'contain', borderRadius: 4, flexShrink: 0 }
   }), React.createElement("span", {
     style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
   }, branding.nombreComercial)), React.createElement(Row, {
@@ -249,7 +257,7 @@ function App() {
       padding: '4px 6px',
       fontSize: 17
     }
-  }, '🔔', React.createElement("span", {
+  }, React.createElement(LineIcon, { name: 'bell', size: 18 }), React.createElement("span", {
     style: {
       position: 'absolute',
       top: -2,
@@ -284,19 +292,19 @@ function App() {
   }, React.createElement(Gear, null))))), React.createElement("div", {
     style: {
       position: 'fixed',
-      top: 50,
+      top: 64,
       left: '50%',
       transform: 'translateX(-50%)',
       width: '100%',
       maxWidth: 420,
       height: 3,
       zIndex: 100,
-      background: 'repeating-linear-gradient(-45deg,var(--accent),var(--accent) 10px,var(--rail) 10px,var(--rail) 20px)'
+      background: 'var(--fw-aqua)'
     }
   }), mostrarBanner && React.createElement("div", {
     style: {
       position: 'fixed',
-      top: 53,
+      top: 67,
       left: '50%',
       transform: 'translateX(-50%)',
       width: '100%',
@@ -307,10 +315,11 @@ function App() {
       fontSize: 12,
       fontWeight: 600,
       textAlign: 'center',
-      padding: '6px 12px',
+      padding: '8px 16px',
       boxSizing: 'border-box'
-    }
-  }, isOnline ? `⏳ Sincronizando ${pendientesTotales} cambio${pendientesTotales === 1 ? '' : 's'}…` : `📡 Sin conexión — puedes seguir trabajando, se sincroniza solo${pendientesTotales > 0 ? ` (${pendientesTotales} en cola)` : ''}`), firestoreError && React.createElement("div", {
+    },
+    className: 'flutt-water-offline-banner'
+  }, isOnline ? `Sincronizando ${pendientesTotales} cambio${pendientesTotales === 1 ? '' : 's'}…` : `Sin conexión — puedes seguir trabajando, se sincroniza solo${pendientesTotales > 0 ? ` (${pendientesTotales} en cola)` : ''}`), firestoreError && React.createElement("div", {
     style: {
       margin: '0 12px 10px',
       background: 'var(--danger-bg)',
@@ -402,7 +411,8 @@ function App() {
       height: '100vh',
       zIndex: 200,
       pointerEvents: 'none'
-    }
+    },
+    className: 'flutt-water-nav-shell'
   }, React.createElement("nav", {
     style: {
       position: 'absolute',
@@ -418,7 +428,7 @@ function App() {
       transition: 'transform .22s ease',
       display: 'flex',
       flexDirection: 'column',
-      paddingTop: 60,
+      paddingTop: 76,
       paddingBottom: 16,
       boxSizing: 'border-box',
       pointerEvents: 'auto',
@@ -441,13 +451,16 @@ function App() {
       fontSize: 13,
       fontWeight: tab === id ? 700 : 400
     }
-  }, React.createElement("span", {
-    style: {
-      fontSize: 19,
-      lineHeight: 1,
-      width: 22,
-      textAlign: 'center'
-    }
-  }, ico), lbl)))));
+    }, React.createElement("span", {
+      style: {
+        width: 24,
+        minWidth: 24,
+        height: 24,
+        display: 'grid',
+        placeItems: 'center'
+      }
+    }, React.createElement(LineIcon, { name: ico, size: 19 })), React.createElement("span", {
+      style: { flex: 1 }
+    }, lbl))))))
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));

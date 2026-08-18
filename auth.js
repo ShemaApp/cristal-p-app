@@ -37,58 +37,60 @@ function Login({ branding = normalizarBranding() } = {}) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 28,
-      background: 'var(--bg)'
+      padding: 24,
+      background: 'var(--fw-bg)'
     }
   }, React.createElement("img", {
     src: branding.logoLoginPath || branding.logoPath,
     alt: "Emblema de " + branding.nombreComercial,
     width: 340,
     height: 227,
-    className: 'flutt-water-login-logo-art',
+    className: 'flutt-water-login-logo-base',
     style: {
       width: 'min(340px, 100%)',
       height: 'auto',
       maxWidth: '100%',
       objectFit: 'contain',
       display: 'block',
-      marginBottom: 2
+      marginBottom: 12
     }
   }), React.createElement("div", {
     style: {
-      fontSize: 22,
-      fontWeight: 700,
-      marginBottom: 2,
-      fontFamily: 'var(--font-display)',
-      textTransform: 'uppercase',
-      letterSpacing: '.02em'
+      fontSize: 24,
+      fontWeight: 800,
+      marginBottom: 4,
+      fontFamily: 'var(--font-body)',
+      textTransform: 'none',
+      letterSpacing: '-.02em',
+      color: 'var(--fw-navy)'
     }
   }, branding.nombreComercial), React.createElement("div", {
     style: {
-      fontSize: 12,
-      color: 'var(--ink-faint)',
-      marginBottom: 36,
-      fontFamily: 'var(--font-mono)',
-      textTransform: 'uppercase',
-      letterSpacing: '.08em'
+      fontSize: 14,
+      color: 'var(--fw-text-muted)',
+      marginBottom: 18,
+      fontFamily: 'var(--font-body)',
+      textTransform: 'none',
+      letterSpacing: '0'
     }
   }, branding.subtitulo || "Panel de administración"), branding.lema && React.createElement("div", {
     style: {
-      fontSize: 11,
-      color: 'var(--accent-text)',
-      marginBottom: 12,
+      fontSize: 13,
+      color: 'var(--fw-aqua-action)',
+      marginBottom: 16,
       textAlign: 'center',
       fontStyle: 'italic'
     }
   }, branding.lema), React.createElement("div", {
     style: {
       width: '100%',
-      maxWidth: 340,
-      background: 'var(--surface)',
-      border: '1px solid var(--line)',
-      borderTop: '4px solid var(--accent)',
-      borderRadius: 4,
-      padding: 24
+      maxWidth: 380,
+      background: 'var(--fw-surface)',
+      border: '1px solid var(--fw-border)',
+      borderTop: '4px solid var(--fw-aqua)',
+      borderRadius: 14,
+      padding: 24,
+      boxShadow: '0 10px 30px rgba(16,42,67,.08)'
     }
   }, React.createElement(Lbl, null, "Correo electrónico"), React.createElement(Inp, {
     type: "email",
@@ -114,12 +116,12 @@ function Login({ branding = normalizarBranding() } = {}) {
     disabled: loading,
     style: {
       width: '100%',
-      fontSize: 14,
-      padding: 12,
+      fontSize: 16,
+      padding: 14,
       marginTop: 4,
       opacity: loading ? 0.6 : 1
     }
-  }, loading ? 'Ingresando…' : 'Iniciar sesión →')));
+  }, loading ? 'Ingresando…' : 'Iniciar sesión')));
 }
 function PinPad({
   len = 4,
@@ -203,15 +205,15 @@ function PinLock({
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 28,
-      background: 'var(--bg)'
+      padding: 24,
+      background: 'var(--fw-bg)'
     }
   }, React.createElement("div", {
     style: {
       fontSize: 36,
       marginBottom: 6
     }
-  }, "🔒"), React.createElement("div", {
+  }, React.createElement(LineIcon, { name: 'lock', size: 34 })), React.createElement("div", {
     style: {
       fontSize: 15,
       fontWeight: 700,

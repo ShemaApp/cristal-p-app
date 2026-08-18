@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet"/>
 <script defer crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script defer crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js"></script>
@@ -28,20 +28,23 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    /* ── Tokens: industrial / logística, tema claro ── */
-    --bg:#EAF1F8; --surface:#FFFFFF; --surface-2:#F1F5FA;
-    --ink:#162235; --ink-soft:#52627A; --ink-faint:#8191A6;
-    --line:#D8E2EE; --line-strong:#B9C9DA;
-    --rail:#10263F; --rail-border:#1F3B5A; --rail-ink:#EAF3FF; --rail-ink-faint:#9FB3C8;
-    --accent:#4A90C2; --accent-text:#1F5E8C; --accent-ink:#FFFFFF;
-    --info:#4B85B5; --info-text:#24597F; --info-bg:#DCEBF6;
-    --ok:#2E8B74; --ok-text:#216A58; --ok-bg:#DCEFEA;
-    --danger:#C23B2E; --danger-text:#8C2A20; --danger-bg:#F4DEDA;
-    --warn:#C2601D; --warn-text:#8C4515; --warn-bg:#F3E4D3;
-    --admin:#365E87; --font-display:'Oswald',sans-serif; --font-body:'IBM Plex Sans',system-ui,sans-serif; --font-mono:'IBM Plex Mono',monospace;
+    --fw-navy:#102A43; --fw-navy-deep:#0F172A; --fw-aqua:#19C3D1; --fw-aqua-action:#0B7285;
+    --fw-bg:#F7FAFC; --fw-surface:#FFFFFF; --fw-border:#CBD5E1; --fw-text:#102A43; --fw-text-muted:#52606D;
+    --fw-success:#087F5B; --fw-warning:#8A5A00; --fw-danger:#C92A2A;
+    --bg:var(--fw-bg); --surface:var(--fw-surface); --surface-2:#F0F5F8;
+    --ink:var(--fw-text); --ink-soft:var(--fw-text-muted); --ink-faint:#718096;
+    --line:var(--fw-border); --line-strong:#94A3B8;
+    --rail:var(--fw-navy); --rail-border:#244563; --rail-ink:#F7FAFC; --rail-ink-faint:#B8C7D6;
+    --accent:var(--fw-aqua); --accent-text:var(--fw-aqua-action); --accent-ink:#FFFFFF;
+    --info:#0B7285; --info-text:#075985; --info-bg:#DDF4F6;
+    --ok:var(--fw-success); --ok-text:var(--fw-success); --ok-bg:#E3F5EE;
+    --danger:var(--fw-danger); --danger-text:var(--fw-danger); --danger-bg:#FDE8E7;
+    --warn:var(--fw-warning); --warn-text:var(--fw-warning); --warn-bg:#FFF3D6;
+    --admin:#334E68; --font-display:'Inter',system-ui,sans-serif; --font-body:'Inter',system-ui,sans-serif; --font-mono:'IBM Plex Mono',monospace;
   }
-  html,body{height:100%;width:100%;max-width:100%;background:var(--bg);color:var(--ink);font-family:var(--font-body);overflow-x:hidden}
+  html,body{height:100%;width:100%;max-width:100%;background:var(--fw-bg);color:var(--fw-text);font-family:var(--font-body);overflow-x:hidden}
   #root{width:100%;max-width:420px;min-width:0;margin:0 auto;min-height:100vh;position:relative;overflow-x:clip}
+  .flutt-water-app-shell{min-height:100vh}
   #root img,#root svg,#root canvas,#root video,#root iframe{max-width:100%}
   #root input,#root select,#root textarea,#root button{max-width:100%;min-width:0;box-sizing:border-box}
   body{scrollbar-width:none}
@@ -53,9 +56,10 @@
     .flutt-water-topbar,.flutt-water-accent-bar,.flutt-water-offline-banner,.flutt-water-nav-shell{
       max-width:none!important;left:0!important;transform:none!important
     }
+    .flutt-water-app-shell{padding-left:260px!important}
     .flutt-water-main-content{
       width:100%;max-width:1600px;min-width:0;margin:0 auto;
-      padding-left:260px;padding-right:28px
+      padding-left:0;padding-right:28px
     }
     .flutt-water-topbar{padding-left:260px!important;padding-right:28px!important}
     .flutt-water-offline-banner{
@@ -73,27 +77,19 @@
     .flutt-water-login-panel{max-width:460px!important;padding:32px!important}
   }
   @media (min-width:1280px){
-    .flutt-water-main-content{padding-left:280px;padding-right:40px}
+    .flutt-water-app-shell{padding-left:280px!important}
+    .flutt-water-main-content{padding-left:0;padding-right:40px}
     .flutt-water-topbar{padding-left:280px!important;padding-right:40px!important}
     .flutt-water-offline-banner{padding-left:280px!important;padding-right:40px!important}
   }
   ::-webkit-scrollbar{display:none}
-  input:focus{outline:none!important;border-color:var(--accent-text)!important}
+  input:focus{outline:none!important;border-color:var(--fw-aqua-action)!important}
   button,select{font-family:inherit}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--fw-aqua);outline-offset:2px}
+  button:not(:disabled),select:not(:disabled),input:not(:disabled),textarea:not(:disabled){min-height:48px}
   *{-webkit-tap-highlight-color:transparent}
-  @keyframes flutt-water-logo-float{
-    0%,100%{transform:translate3d(0,0,0) rotateZ(0deg)}
-    50%{transform:translate3d(0,-7px,0) rotateZ(-0.35deg)}
-  }
-  .flutt-water-login-logo-art{
-    filter:drop-shadow(0 14px 12px rgba(16,38,63,.18));
-    animation:flutt-water-logo-float 4.8s ease-in-out infinite;
-    transform-origin:50% 58%;
-    will-change:transform;
-  }
-  @media (prefers-reduced-motion:reduce){
-    .flutt-water-login-logo-art{animation:none}
-  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
 </style>
 </head>
 <body>

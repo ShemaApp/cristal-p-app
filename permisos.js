@@ -157,7 +157,7 @@ function Permisos({
       style: {
         gap: 8
       }
-    }, React.createElement("span", null, ico), React.createElement("span", {
+    }, React.createElement("span", { style: { width: 24, minWidth: 24, height: 24, display: 'grid', placeItems: 'center', color: 'var(--fw-aqua-action)' } }, React.createElement(LineIcon, { name: ico, size: 18 })), React.createElement("span", {
       style: {
         fontSize: 13
       }
@@ -186,7 +186,7 @@ function Permisos({
       style: {
         gap: 8
       }
-    }, React.createElement("span", null, ico), React.createElement("span", {
+    }, React.createElement("span", { style: { width: 24, minWidth: 24, height: 24, display: 'grid', placeItems: 'center', color: 'var(--fw-aqua-action)' } }, React.createElement(LineIcon, { name: ico, size: 18 })), React.createElement("span", {
       style: {
         fontSize: 13
       }
@@ -215,7 +215,7 @@ function Permisos({
       style: {
         gap: 8
       }
-    }, React.createElement("span", null, ico), React.createElement("span", {
+    }, React.createElement("span", { style: { width: 24, minWidth: 24, height: 24, display: 'grid', placeItems: 'center', color: 'var(--fw-aqua-action)' } }, React.createElement(LineIcon, { name: ico, size: 18 })), React.createElement("span", {
       style: {
         fontSize: 13
       }

@@ -7,9 +7,9 @@ function FabricacionInventario({ productos, currentUser, flash }) {
   const producto = productos.find(p => p.id === productoId);
   const guardar = async () => {
     const cantidadNum = Number(cantidad);
-    if (!producto) { flash('⚠️ Selecciona una presentación/SKU'); return; }
-    if (!Number.isFinite(cantidadNum) || cantidadNum <= 0) { flash('⚠️ La cantidad fabricada debe ser mayor que cero'); return; }
-    if (!producto.permiteDecimales && !Number.isInteger(cantidadNum)) { flash('⚠️ Este SKU solo admite unidades enteras'); return; }
+    if (!producto) { flash(' Selecciona una presentación/SKU'); return; }
+    if (!Number.isFinite(cantidadNum) || cantidadNum <= 0) { flash(' La cantidad fabricada debe ser mayor que cero'); return; }
+    if (!producto.permiteDecimales && !Number.isInteger(cantidadNum)) { flash(' Este SKU solo admite unidades enteras'); return; }
     setSaving(true);
     try {
       const ref = db.collection('productos').doc(producto.id);
@@ -38,13 +38,13 @@ function FabricacionInventario({ productos, currentUser, flash }) {
           fecha
         });
       });
-      flash(`✅ Fabricación registrada: +${cantidadNum} ${etiquetaProducto(producto)}`);
+      flash(` Fabricación registrada: +${cantidadNum} ${etiquetaProducto(producto)}`);
       setProductoId(''); setCantidad('');
-    } catch (e) { flash('❌ ' + e.message); }
+    } catch (e) { flash(' ' + e.message); }
     setSaving(false);
   };
   return React.createElement(Card, null,
-    React.createElement('div', { style: { fontWeight: 700, marginBottom: 6 } }, '🏭 Fabricación / producción'),
+    React.createElement('div', { style: { fontWeight: 700, marginBottom: 6 } }, ' Fabricación / producción'),
     React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10, lineHeight: 1.4 } }, 'Cada presentación se fabrica y se almacena por separado. Fabricar un saco de 25 kg no modifica las bolsas de 10 kg.'),
     React.createElement('select', { value: productoId, onChange: e => setProductoId(e.target.value), style: { ...localInputStyle, marginBottom: 8 } }, React.createElement('option', { value: '' }, 'Selecciona presentación/SKU'), productos.filter(p => p.activo !== false).map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.nombre} · ${etiquetaProducto(p)} · stock ${p.stock || 0}`))),
     producto && React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 8 } }, `Existencia actual: ${producto.stock || 0} ${producto.unidadInventario || 'pieza'} · contenido: ${producto.contenidoPorUnidad ?? '—'} ${producto.unidadContenido || ''}`),
@@ -100,7 +100,7 @@ function Inventario({
   const cambiosConteo = productos.filter(p => conteoDraft[p.id] !== undefined && conteoDraft[p.id] !== '' && Number(conteoDraft[p.id]) !== p.stock);
   const guardarConteo = async () => {
     if (cambiosConteo.length === 0) {
-      flash('⚠️ No hay cambios que guardar');
+      flash(' No hay cambios que guardar');
       return;
     }
     setConteoSaving(true);
@@ -125,10 +125,10 @@ function Inventario({
         });
       });
       await batch.commit();
-      flash('✅ Conteo guardado — ' + cambiosConteo.length + ' producto(s) ajustado(s)');
+      flash(' Conteo guardado — ' + cambiosConteo.length + ' producto(s) ajustado(s)');
       setConteoDraft({});
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setConteoSaving(false);
   };
@@ -150,12 +150,12 @@ function Inventario({
   }, []);
   const registrarDevolucion = async () => {
     if (!devProdSel) {
-      flash('⚠️ Selecciona un producto');
+      flash(' Selecciona un producto');
       return;
     }
     const cant = Number(devCantidad);
     if (!cant || cant < 1) {
-      flash('⚠️ Cantidad inválida');
+      flash(' Cantidad inválida');
       return;
     }
     setDevSaving(true);
@@ -194,7 +194,7 @@ function Inventario({
         });
       }
       await batch.commit();
-      flash(devAccion === 'reingreso' ? '✅ Devolución registrada — regresó a inventario' : '✅ Baja registrada');
+      flash(devAccion === 'reingreso' ? ' Devolución registrada — regresó a inventario' : ' Baja registrada');
       setDevProdSel(null);
       setDevProdSearch('');
       setDevCliSel(null);
@@ -202,7 +202,7 @@ function Inventario({
       setDevCantidad(1);
       setDevMotivo('dañado');
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setDevSaving(false);
   };
@@ -216,7 +216,7 @@ function Inventario({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, "📋 Inventario"), msg && React.createElement("div", {
+  }, " Inventario"), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
       borderRadius: 8,
@@ -231,7 +231,7 @@ function Inventario({
       gap: 6,
       marginBottom: 14
     }
-  }, [['conteo', '📋 Conteo físico'], ['fabricacion', '🏭 Fabricación'], ['devoluciones', '↩️ Devoluciones']].map(([v, l]) => React.createElement("button", {
+  }, [['conteo', ' Conteo físico'], ['fabricacion', ' Fabricación'], ['devoluciones', '↩ Devoluciones']].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => setSubTab(v),
     style: {
@@ -254,7 +254,7 @@ function Inventario({
   }, "Cuenta físicamente lo que hay en bodega y anota la cantidad real. Solo se guardan los productos donde el número cambió — queda registrado en el historial de inventario de Productos."), React.createElement("input", {
     value: conteoSearch,
     onChange: e => setConteoSearch(e.target.value),
-    placeholder: "🔍 Buscar producto…",
+    placeholder: " Buscar producto…",
     style: inputStyle
   }), React.createElement("div", {
     style: {
@@ -348,7 +348,7 @@ function Inventario({
       cursor: 'pointer',
       opacity: conteoSaving ? 0.6 : 1
     }
-      }, conteoSaving ? 'Guardando…' : '💾 Guardar conteo (' + cambiosConteo.length + ')'))), subTab === 'fabricacion' && React.createElement(FabricacionInventario, { productos, currentUser, flash }), subTab === 'devoluciones' && React.createElement(React.Fragment, null, React.createElement("div", {
+      }, conteoSaving ? 'Guardando…' : ' Guardar conteo (' + cambiosConteo.length + ')'))), subTab === 'fabricacion' && React.createElement(FabricacionInventario, { productos, currentUser, flash }), subTab === 'devoluciones' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -381,7 +381,7 @@ function Inventario({
       color: 'var(--ink-soft)',
       cursor: 'pointer'
     }
-  }, "✕")) : React.createElement(React.Fragment, null, React.createElement("input", {
+  }, "")) : React.createElement(React.Fragment, null, React.createElement("input", {
     value: devProdSearch,
     onChange: e => setDevProdSearch(e.target.value),
     placeholder: "Buscar producto…",
@@ -427,7 +427,7 @@ function Inventario({
       color: 'var(--ink-soft)',
       cursor: 'pointer'
     }
-  }, "✕")) : React.createElement(React.Fragment, null, React.createElement("input", {
+  }, "")) : React.createElement(React.Fragment, null, React.createElement("input", {
     value: devCliSearch,
     onChange: e => setDevCliSearch(e.target.value),
     placeholder: "Buscar cliente…",
@@ -480,7 +480,7 @@ function Inventario({
       gap: 8,
       marginBottom: 14
     }
-  }, [['reingreso', '↩️ Regresa a inventario', 'var(--ok-bg)', 'var(--ok-text)'], ['baja', '🗑️ Baja (no se vende)', 'var(--danger-bg)', 'var(--danger-text)']].map(([v, l, bg, col]) => React.createElement("button", {
+  }, [['reingreso', '↩ Regresa a inventario', 'var(--ok-bg)', 'var(--ok-text)'], ['baja', ' Baja (no se vende)', 'var(--danger-bg)', 'var(--danger-text)']].map(([v, l, bg, col]) => React.createElement("button", {
     key: v,
     onClick: () => setDevAccion(v),
     style: {
@@ -508,7 +508,7 @@ function Inventario({
       cursor: 'pointer',
       opacity: devSaving ? 0.6 : 1
     }
-  }, devSaving ? 'Guardando…' : '💾 Registrar')), React.createElement("div", {
+  }, devSaving ? 'Guardando…' : ' Registrar')), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',

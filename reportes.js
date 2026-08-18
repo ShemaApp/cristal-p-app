@@ -58,9 +58,9 @@ function Reportes({
       }, {
         merge: true
       });
-      flash('✅ Respaldo descargado');
+      flash(' Respaldo descargado');
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setBackupGenerating(false);
   };
@@ -80,7 +80,7 @@ function Reportes({
       notas.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
       setUbicNotas(notas);
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setUbicLoading(false);
   };
@@ -158,9 +158,9 @@ function Reportes({
         topClientes,
         topProductos
       });
-      flash('✅ Reporte generado');
+      flash(' Reporte generado');
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setReporteGenerating(false);
   };
@@ -237,7 +237,7 @@ function Reportes({
   const exportarLibroExcel = async () => {
     if (excelGenerating) return;
     if (typeof XLSX === 'undefined') {
-      flash('❌ No se pudo cargar la herramienta de Excel. Revisa tu conexión e inténtalo de nuevo.');
+      flash(' No se pudo cargar la herramienta de Excel. Revisa tu conexión e inténtalo de nuevo.');
       return;
     }
     setExcelGenerating(true);
@@ -505,9 +505,9 @@ function Reportes({
         compression: true,
         cellDates: true
       });
-      flash('✅ Libro Excel descargado: ' + ventas.length + ' ventas y ' + clientesFilas.length + ' clientes');
+      flash(' Libro Excel descargado: ' + ventas.length + ' ventas y ' + clientesFilas.length + ' clientes');
     } catch (e) {
-      flash('❌ No se pudo generar el libro Excel: ' + e.message);
+      flash(' No se pudo generar el libro Excel: ' + e.message);
     }
     setExcelGenerating(false);
   };
@@ -529,7 +529,7 @@ function Reportes({
   const exportarClientesQRImprimible = () => {
     const activos = clientes.filter(c => c.activo);
     if (activos.length === 0) {
-      flash('⚠️ No hay clientes activos');
+      flash(' No hay clientes activos');
       return;
     }
     setClientesQrGenerating(true);
@@ -542,7 +542,7 @@ function Reportes({
         if (pending === 0) {
           const w = window.open('', '_blank');
           if (!w) {
-            flash('⚠️ Habilita las ventanas emergentes para imprimir.');
+            flash(' Habilita las ventanas emergentes para imprimir.');
             setClientesQrGenerating(false);
             return;
           }
@@ -572,9 +572,9 @@ function Reportes({
         rows.push([fDateTime(n.fecha), n.clienteNombre, n.capturadoPorNombre || '', (n.items || []).map(it => it.nombre + ' x' + it.cant).join(' | '), (n.total || 0).toFixed(2), n.formaPago, origen, n.tipoVenta || '', n.medioOperacion || '', n.responsableTipo || '', n.transferenciaId || '']);
       });
       downloadCSV('ventas_semana_' + Date.now() + '.csv', rows);
-      flash('✅ Ventas de la semana exportadas — ' + notas.length);
+      flash(' Ventas de la semana exportadas — ' + notas.length);
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setVentasSemanaGenerating(false);
   };
@@ -606,7 +606,7 @@ function Reportes({
   };
   const generarNomina = async () => {
     if (!nominaVendedorId) {
-      flash('⚠️ Selecciona un vendedor');
+      flash(' Selecciona un vendedor');
       return;
     }
     setNominaGenerating(true);
@@ -641,9 +641,9 @@ function Reportes({
         totalVentas: notas.length,
         totalVendido: notas.reduce((s, n) => s + (n.total || 0), 0)
       });
-      flash('✅ Formato generado — ' + filas.length + ' día(s) con ventas');
+      flash(' Formato generado — ' + filas.length + ' día(s) con ventas');
     } catch (e) {
-      flash('❌ ' + e.message);
+      flash(' ' + e.message);
     }
     setNominaGenerating(false);
   };
@@ -672,7 +672,7 @@ function Reportes({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, "📈 Reportes"), msg && React.createElement("div", {
+  }, " Reportes"), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
       borderRadius: 8,
@@ -687,7 +687,7 @@ function Reportes({
       gap: 6,
       marginBottom: 14
     }
-  }, [['respaldo', '💾 Respaldo'], ['ubicacion', '📍 Ubicación'], ['reporte', '📈 Reporte de ventas'], ['exportar', '📤 Exportar']].map(([v, l]) => React.createElement("button", {
+  }, [['respaldo', ' Respaldo'], ['ubicacion', ' Ubicación'], ['reporte', ' Reporte de ventas'], ['exportar', ' Exportar']].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => setSubTab(v),
     style: {
@@ -726,7 +726,7 @@ function Reportes({
       color: diasDesdeUltimoRespaldo === null ? 'var(--warn-text)' : diasDesdeUltimoRespaldo >= 30 ? 'var(--danger-text)' : diasDesdeUltimoRespaldo >= 7 ? 'var(--warn-text)' : 'var(--ok-text)',
       marginBottom: 12
     }
-  }, diasDesdeUltimoRespaldo === null ? '⚠️ Nunca se ha generado un respaldo' : `Último respaldo: hace ${diasDesdeUltimoRespaldo} día(s)${backupMeta.por ? ' · ' + backupMeta.por : ''}`), React.createElement("button", {
+  }, diasDesdeUltimoRespaldo === null ? ' Nunca se ha generado un respaldo' : `Último respaldo: hace ${diasDesdeUltimoRespaldo} día(s)${backupMeta.por ? ' · ' + backupMeta.por : ''}`), React.createElement("button", {
     onClick: generarRespaldo,
     disabled: backupGenerating,
     style: {
@@ -740,7 +740,7 @@ function Reportes({
       cursor: 'pointer',
       opacity: backupGenerating ? 0.6 : 1
     }
-  }, backupGenerating ? 'Generando…' : '💾 Generar y descargar respaldo')), React.createElement("div", {
+  }, backupGenerating ? 'Generando…' : ' Generar y descargar respaldo')), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)'
@@ -821,7 +821,7 @@ function Reportes({
         fontSize: 10,
         color: 'var(--ok-text)'
       }
-    }, "✅ Concuerdan")), React.createElement("div", {
+    }, " Concuerdan")), React.createElement("div", {
       style: {
         flex: 1,
         background: 'var(--danger-bg)',
@@ -840,7 +840,7 @@ function Reportes({
         fontSize: 10,
         color: 'var(--danger-text)'
       }
-    }, "⚠️ No concuerdan")), React.createElement("div", {
+    }, " No concuerdan")), React.createElement("div", {
       style: {
         flex: 1,
         background: 'var(--surface)',
@@ -859,7 +859,7 @@ function Reportes({
         fontSize: 10,
         color: 'var(--ink-faint)'
       }
-    }, "➖ Sin datos"))), mal.length > 0 && React.createElement(React.Fragment, null, React.createElement("div", {
+    }, " Sin datos"))), mal.length > 0 && React.createElement(React.Fragment, null, React.createElement("div", {
       style: {
         fontSize: 11,
         color: 'var(--danger-text)',
@@ -961,7 +961,7 @@ function Reportes({
       marginBottom: 14,
       opacity: reporteGenerating ? 0.6 : 1
     }
-  }, reporteGenerating ? 'Generando…' : '📊 Generar reporte'), reporteData && React.createElement("div", {
+  }, reporteGenerating ? 'Generando…' : ' Generar reporte'), reporteData && React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -1100,7 +1100,7 @@ function Reportes({
       fontSize: 12,
       marginBottom: 10
     }
-  }, "📤 Exportar CSV"), React.createElement("div", {
+  }, " Exportar CSV"), React.createElement("div", {
     style: lblStyle
   }, "Correo destino (opcional)"), React.createElement("input", {
     value: reporteEmail,
@@ -1125,7 +1125,7 @@ function Reportes({
       fontWeight: 700,
       cursor: 'pointer'
     }
-  }, "📧 Preparar correo"))), subTab === 'exportar' && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, " Preparar correo"))), subTab === 'exportar' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -1139,7 +1139,7 @@ function Reportes({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "📊 Libro Excel estructurado"), React.createElement("div", {
+  }, " Libro Excel estructurado"), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -1160,7 +1160,7 @@ function Reportes({
       cursor: 'pointer',
       opacity: excelGenerating ? 0.6 : 1
     }
-  }, excelGenerating ? 'Generando libro…' : '📊 Descargar libro Excel (.xlsx)')), React.createElement("div", {
+  }, excelGenerating ? 'Generando libro…' : ' Descargar libro Excel (.xlsx)')), React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -1173,7 +1173,7 @@ function Reportes({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "👥 Clientes con su código QR"), React.createElement("div", {
+  }, " Clientes con su código QR"), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -1194,7 +1194,7 @@ function Reportes({
       marginBottom: 8,
       opacity: clientesQrGenerating ? 0.6 : 1
     }
-  }, clientesQrGenerating ? 'Generando…' : '🖨️ Generar hoja de QR imprimible'), React.createElement("button", {
+  }, clientesQrGenerating ? 'Generando…' : ' Generar hoja de QR imprimible'), React.createElement("button", {
     onClick: exportarClientesCSV,
     style: {
       width: '100%',
@@ -1207,7 +1207,7 @@ function Reportes({
       cursor: 'pointer',
       fontSize: 12
     }
-  }, "📤 CSV con datos + código QR")), React.createElement("div", {
+  }, " CSV con datos + código QR")), React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -1220,7 +1220,7 @@ function Reportes({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "📈 Ventas de la semana"), React.createElement("div", {
+  }, " Ventas de la semana"), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -1240,7 +1240,7 @@ function Reportes({
       cursor: 'pointer',
       opacity: ventasSemanaGenerating ? 0.6 : 1
     }
-  }, ventasSemanaGenerating ? 'Generando…' : '📤 Exportar ventas de esta semana (CSV)')), React.createElement("div", {
+  }, ventasSemanaGenerating ? 'Generando…' : ' Exportar ventas de esta semana (CSV)')), React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -1252,7 +1252,7 @@ function Reportes({
       fontWeight: 700,
       marginBottom: 6
     }
-  }, "💵 Formato de ventas para cálculo de sueldo"), React.createElement("div", {
+  }, " Formato de ventas para cálculo de sueldo"), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -1338,7 +1338,7 @@ function Reportes({
       marginBottom: nominaData ? 12 : 0,
       opacity: nominaGenerating ? 0.6 : 1
     }
-  }, nominaGenerating ? 'Generando…' : '📊 Generar formato'), nominaData && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, nominaGenerating ? 'Generando…' : ' Generar formato'), nominaData && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface-2)',
       borderRadius: 8,
@@ -1398,5 +1398,5 @@ function Reportes({
       cursor: 'pointer',
       fontSize: 12
     }
-  }, "📤 Exportar CSV (con columna de horas en blanco)")))));
+  }, " Exportar CSV (con columna de horas en blanco)")))));
 }

@@ -14,7 +14,7 @@ function normalizarBranding(data = {}) {
     return (limpio || fallback).slice(0, max);
   };
   const logoPath = String(data.logoPath || BRANDING_DEFAULTS.logoPath).trim();
-  const logoLoginPath = String(data.logoLoginPath || BRANDING_DEFAULTS.logoLoginPath).trim();
+  const logoLoginPath = BRANDING_DEFAULTS.logoLoginPath;
   return {
     nombreComercial: texto(data.nombreComercial, BRANDING_DEFAULTS.nombreComercial, 80),
     subtitulo: texto(data.subtitulo, BRANDING_DEFAULTS.subtitulo, 100),

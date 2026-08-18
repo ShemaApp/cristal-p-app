@@ -265,13 +265,13 @@ function CodigosBarras({ productos, currentUser, branding }) {
 
   return React.createElement('div', { style: { padding: '16px 12px' } },
     React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 8 } },
-      React.createElement('div', { style: { fontSize: 20, fontWeight: 800 } }, '🏷️ Etiquetas'),
+      React.createElement('div', { style: { fontSize: 20, fontWeight: 800 } }, ' Etiquetas'),
       React.createElement(Tag, { color: puedeGestionar ? 'var(--ok-text)' : 'var(--info-text)' }, puedeGestionar ? 'Gestión autorizada' : 'Solo lectura')
     ),
     React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: 12 } }, 'Genera códigos Code 128 internos enlazados a Productos o imprime etiquetas de códigos externos. El código identifica la presentación; el medidor continúa controlando los litros.'),
     error && React.createElement('div', { style: { background: 'var(--danger-bg)', color: 'var(--danger-text)', padding: '9px 11px', fontSize: 12, marginBottom: 10, borderRadius: 6 } }, error),
     React.createElement(Row, { style: { gap: 8, marginBottom: 8 } },
-      React.createElement(Inp, { value: q, onChange: e => setQ(e.target.value), placeholder: '🔍 Buscar producto o código', style: { flex: 1 } }),
+      React.createElement(Inp, { value: q, onChange: e => setQ(e.target.value), placeholder: ' Buscar producto o código', style: { flex: 1 } }),
       React.createElement('button', { onClick: () => setSoloSinCodigo(v => !v), style: { border: '1px solid var(--line-strong)', background: soloSinCodigo ? 'var(--info-bg)' : 'var(--surface)', color: soloSinCodigo ? 'var(--info-text)' : 'var(--ink-soft)', borderRadius: 6, padding: '0 10px', minHeight: 38, cursor: 'pointer', fontSize: 12 } }, soloSinCodigo ? 'Todos' : 'Sin código')
     ),
     React.createElement(Row, { style: { gap: 8, marginBottom: 12, alignItems: 'center' } },
@@ -288,24 +288,24 @@ function CodigosBarras({ productos, currentUser, branding }) {
           React.createElement('div', { style: { minWidth: 0, flex: 1 } },
             React.createElement('div', { style: { fontWeight: 700, fontSize: 14, overflowWrap: 'anywhere' } }, p.nombre),
             React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, etiquetaProducto(p) + ' · ' + (PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (p.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza')) + ' · $' + precioProducto(p).toFixed(2)),
-            React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: codigo ? 'var(--accent-text)' : 'var(--warn-text)', marginTop: 5, overflowWrap: 'anywhere' } }, codigo ? '🏷️ ' + codigo + (interno ? ' · interno' : ' · externo') : 'Sin código enlazado')
+            React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: codigo ? 'var(--accent-text)' : 'var(--warn-text)', marginTop: 5, overflowWrap: 'anywhere' } }, codigo ? ' ' + codigo + (interno ? ' · interno' : ' · externo') : 'Sin código enlazado')
           ),
           codigo ? React.createElement(Tag, { color: 'var(--ok-text)' }, 'Listo') : React.createElement(Tag, { color: 'var(--warn-text)' }, 'Pendiente')
         ),
         React.createElement(Row, { style: { gap: 8, marginTop: 10 } },
-          !codigo && puedeGestionar && React.createElement(BFill, { disabled: guardando === p.id, onClick: () => generar(p), style: { flex: 1 } }, guardando === p.id ? 'Generando…' : '⚙️ Generar código'),
-          codigo && React.createElement(BOut, { onClick: () => { setProductoActivo(p); setError(''); }, style: { flex: 1 } }, '👁️ Vista previa'),
-          codigo && React.createElement(BFill, { onClick: () => imprimir(p), style: { flex: 1 } }, '🖨️ Imprimir')
+          !codigo && puedeGestionar && React.createElement(BFill, { disabled: guardando === p.id, onClick: () => generar(p), style: { flex: 1 } }, guardando === p.id ? 'Generando…' : ' Generar código'),
+          codigo && React.createElement(BOut, { onClick: () => { setProductoActivo(p); setError(''); }, style: { flex: 1 } }, ' Vista previa'),
+          codigo && React.createElement(BFill, { onClick: () => imprimir(p), style: { flex: 1 } }, ' Imprimir')
         )
       );
     }),
     list.length === 0 && React.createElement('div', { style: { textAlign: 'center', color: 'var(--ink-faint)', padding: '28px 12px', fontSize: 13 } }, 'No hay productos que coincidan con el filtro.'),
-    productoActivo && React.createElement(Modal, { title: '🏷️ Código enlazado al producto', onClose: () => setProductoActivo(null) },
+    productoActivo && React.createElement(Modal, { title: ' Código enlazado al producto', onClose: () => setProductoActivo(null) },
       React.createElement(BarcodePreview, { producto: productoActivo, codigo: codigoBarrasDeProducto(productoActivo), branding: marca }),
       React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.45, marginBottom: 12 } }, 'Este código se guarda como cadena de texto y queda reservado en Firestore para este producto. No se regenera automáticamente para no invalidar etiquetas ya impresas.'),
       React.createElement(Row, { style: { gap: 8, justifyContent: 'flex-end' } },
         React.createElement(BOut, { onClick: () => setProductoActivo(null) }, 'Cerrar'),
-        React.createElement(BFill, { onClick: () => imprimir(productoActivo) }, '🖨️ Imprimir ' + Math.max(1, Math.min(100, Math.floor(Number(cantidad) || 1))))
+        React.createElement(BFill, { onClick: () => imprimir(productoActivo) }, ' Imprimir ' + Math.max(1, Math.min(100, Math.floor(Number(cantidad) || 1))))
       )
     )
   );

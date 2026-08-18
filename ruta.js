@@ -94,7 +94,7 @@ function RutaReparto({
     if (!recepcion) return;
     const hayMerma = Object.values(recepcion.items).some(item => Number(item.cantidadDevuelta || 0) < Number(item.restante || 0));
     if (hayMerma && !recepcion.motivoMerma.trim()) {
-      flash('⚠️ Indica el motivo de la diferencia antes de cerrar la transferencia');
+      flash(' Indica el motivo de la diferencia antes de cerrar la transferencia');
       return;
     }
     setSaving(true);
@@ -168,21 +168,21 @@ function RutaReparto({
         });
       });
       setRecepcion(null);
-      flash('✅ Transferencia recibida y conciliada con almacén');
+      flash(' Transferencia recibida y conciliada con almacén');
     } catch (e) {
-      flash('❌ Error al recibir la transferencia: ' + e.message);
+      flash(' Error al recibir la transferencia: ' + e.message);
     }
     setSaving(false);
   };
   const confirmarAsignacion = () => {
     if (currentUser.role !== 'admin' && currentUser.role !== 'repartidor') return;
     if (!progForm?.repartidorId) {
-      flash('⚠️ Elige a qué repartidor se la asignas');
+      flash(' Elige a qué repartidor se la asignas');
       return;
     }
     flash(currentUser.role === 'repartidor'
-      ? '✅ Transferencia preparada para ti. Ahora agrega el cargamento e inicia la ruta.'
-      : '✅ Repartidor asignado. Ahora agrega el cargamento e inicia la ruta.');
+      ? ' Transferencia preparada para ti. Ahora agrega el cargamento e inicia la ruta.'
+      : ' Repartidor asignado. Ahora agrega el cargamento e inicia la ruta.');
   };
   const pedidosPendientesRepartidor = (pedidos || []).filter(p => p.estado === 'asignado_pendiente_transferencia' && p.repartidorId === progForm?.repartidorId);
   const togglePedidoTransferencia = pedido => {
@@ -213,7 +213,7 @@ function RutaReparto({
         cant: 1
       }];
     });
-    flash('✅ ' + p.nombre + ' agregado');
+    flash(' ' + p.nombre + ' agregado');
   };
   const handleScan = code => {
     setScanOpen(false);
@@ -221,7 +221,7 @@ function RutaReparto({
     try {
       codigo = normalizarCodigoBarras(code || '');
     } catch (e) {
-      flash('⚠️ El código escaneado no tiene un formato válido');
+      flash(' El código escaneado no tiene un formato válido');
       return;
     }
     if (!codigo) return;
@@ -238,7 +238,7 @@ function RutaReparto({
     }
     const puedeCrearProducto = currentUser.role === 'admin' || permisoEdita(currentUser).productos;
     if (!puedeCrearProducto) {
-      flash('⚠️ Código no encontrado. Solicita a almacén que dé de alta el producto.');
+      flash(' Código no encontrado. Solicita a almacén que dé de alta el producto.');
       return;
     }
     setProductoNoEncontrado(codigo);
@@ -257,26 +257,26 @@ function RutaReparto({
   };
   const guardarProductoEscaneado = async () => {
     if (currentUser.role === 'repartidor') {
-      flash('⚠️ El repartidor no puede dar de alta productos en el inventario general');
+      flash(' El repartidor no puede dar de alta productos en el inventario general');
       return;
     }
     if (!altaProducto?.nombre?.trim() || altaProducto.precio === '') {
-      flash('⚠️ Indica nombre y precio del producto');
+      flash(' Indica nombre y precio del producto');
       return;
     }
     if (!Number.isFinite(Number(altaProducto.stock)) || Number(altaProducto.stock) < 1) {
-      flash('⚠️ Indica al menos una unidad disponible para la transferencia');
+      flash(' Indica al menos una unidad disponible para la transferencia');
       return;
     }
     let codigo;
     try {
       codigo = normalizarCodigoBarras(altaProducto.codigoBarras || '');
     } catch (e) {
-      flash('⚠️ Código de barras inválido: ' + e.message);
+      flash(' Código de barras inválido: ' + e.message);
       return;
     }
     if (!codigo) {
-      flash('⚠️ El código de barras es obligatorio');
+      flash(' El código de barras es obligatorio');
       return;
     }
     setGuardandoProducto(true);
@@ -341,13 +341,13 @@ function RutaReparto({
       setAltaProducto(null);
       if (duplicado) {
         addToCart(duplicado);
-        flash('ℹ️ El código ya existía; se agregó el producto encontrado');
+        flash('ℹ El código ya existía; se agregó el producto encontrado');
       } else if (creado) {
         addToCart(creado);
-        flash('✅ Producto creado y agregado a la transferencia');
+        flash(' Producto creado y agregado a la transferencia');
       }
     } catch (e) {
-      flash('❌ No se pudo guardar el producto: ' + e.message);
+      flash(' No se pudo guardar el producto: ' + e.message);
     }
     setGuardandoProducto(false);
   };
@@ -366,11 +366,11 @@ function RutaReparto({
   };
   const guardarRuta = async () => {
     if (currentUser.role !== 'admin' && currentUser.role !== 'repartidor') {
-      flash('⚠️ Tu rol no puede crear transferencias');
+      flash(' Tu rol no puede crear transferencias');
       return;
     }
     if (cart.length === 0) {
-      flash('⚠️ Agrega al menos un producto a la transferencia');
+      flash(' Agrega al menos un producto a la transferencia');
       return;
     }
     const cantidadesCart = cart.map(item => ({
@@ -379,14 +379,14 @@ function RutaReparto({
       cant: Number(item.cant)
     }));
     if (cantidadesCart.some(item => item.cant < 1 || (!item.permiteDecimales && !Number.isInteger(item.cant)))) {
-      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
+      flash(' Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
       const asignacion = currentUser.role === 'repartidor'
         ? { ...progForm, repartidorId: currentUser.uid, repartidorNombre: currentUser.nombre || '' }
         : progForm;
     if (!asignacion?.repartidorId) {
-      flash('⚠️ Asigna la transferencia a un responsable antes de confirmar la salida');
+      flash(' Asigna la transferencia a un responsable antes de confirmar la salida');
       return;
     }
     setSaving(true);
@@ -459,15 +459,15 @@ function RutaReparto({
       setCart([]);
       setPedidosIncluidos([]);
       setProgForm(null);
-      flash('✅ Transferencia creada y disponible para ventas');
+      flash(' Transferencia creada y disponible para ventas');
     } catch (e) {
-      flash('❌ Error al crear la transferencia: ' + e.message);
+      flash(' Error al crear la transferencia: ' + e.message);
     }
     setSaving(false);
   };
   const entregarPedido = async () => {
     if (!pedidoEntrega?.id || !rutaActiva) return;
-    if (currentUser.role !== 'repartidor' || rutaActiva.repartidorId !== currentUser.uid) { flash('⚠️ Solo el repartidor asignado puede entregar este pedido'); return; }
+    if (currentUser.role !== 'repartidor' || rutaActiva.repartidorId !== currentUser.uid) { flash(' Solo el repartidor asignado puede entregar este pedido'); return; }
     setSaving(true);
     try {
       const items = (pedidoEntrega.items || []).map(item => ({
@@ -506,14 +506,14 @@ function RutaReparto({
       });
       setPedidoEntrega(null);
       if (resultado.estado === 'pendiente_local') {
-        flash('📴 Entrega guardada en pendientes; se sincronizará al volver la conexión');
+        flash(' Entrega guardada en pendientes; se sincronizará al volver la conexión');
       } else if (resultado.estado === 'incidencia_inventario') {
-        flash('⚠️ Entrega guardada con incidencia; revisa el cierre de caja');
+        flash(' Entrega guardada con incidencia; revisa el cierre de caja');
       } else {
-        flash('✅ Pedido entregado y venta registrada desde tu transferencia');
+        flash(' Pedido entregado y venta registrada desde tu transferencia');
       }
     } catch (e) {
-      flash('❌ No se pudo entregar el pedido: ' + e.message);
+      flash(' No se pudo entregar el pedido: ' + e.message);
     }
     setSaving(false);
   };
@@ -573,10 +573,10 @@ function RutaReparto({
   const guardarEntrega = async () => {
     if (!canSaveEnt || !rutaActiva) return;
     if (entCart.some(item => Number(item.cant) < 1 || Number(item.cant) > Number(item.max) || (!productos.find(p => p.id === item.id)?.permiteDecimales && !Number.isInteger(Number(item.cant))))) {
-      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
+      flash(' Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
-    if (currentUser.role !== 'repartidor' || rutaActiva.repartidorId !== currentUser.uid) { flash('⚠️ Solo el repartidor asignado puede registrar ventas desde esta transferencia'); return; }
+    if (currentUser.role !== 'repartidor' || rutaActiva.repartidorId !== currentUser.uid) { flash(' Solo el repartidor asignado puede registrar ventas desde esta transferencia'); return; }
     setSaving(true);
     try {
       let cl = cliSel;
@@ -625,14 +625,14 @@ function RutaReparto({
       setCliMode('buscar');
       setEntOpen(false);
       if (resultado.estado === 'pendiente_local') {
-        flash('📴 Venta guardada en pendientes; se sincronizará al volver la conexión');
+        flash(' Venta guardada en pendientes; se sincronizará al volver la conexión');
       } else if (resultado.estado === 'incidencia_inventario') {
-        flash('⚠️ Venta guardada con incidencia; revisa el cierre de caja');
+        flash(' Venta guardada con incidencia; revisa el cierre de caja');
       } else {
-        flash('✅ Venta desde transferencia registrada a ' + cl.nombre);
+        flash(' Venta desde transferencia registrada a ' + cl.nombre);
       }
     } catch (e) {
-      flash('❌ Error al guardar la venta: ' + e.message);
+      flash(' Error al guardar la venta: ' + e.message);
     }
     setSaving(false);
   };
@@ -645,7 +645,7 @@ function RutaReparto({
     const pendientesFn = runtime && runtime.fluttWaterVentasPendientesRuta;
     const pendientesOffline = typeof pendientesFn === 'function' ? await pendientesFn(rutaActiva.id) : { total: 0 };
     if (pendientesOffline.total > 0) {
-      flash('⚠️ Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');
+      flash(' Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');
       return;
     }
     if (!confirm('¿Enviar esta transferencia a recepción de almacén? Ya no se podrán registrar más ventas hasta que se concilie.')) return;
@@ -657,9 +657,9 @@ function RutaReparto({
         solicitadoPorUid: currentUser.uid,
         solicitadoPorNombre: currentUser.nombre || ''
       });
-      flash('📦 Transferencia enviada a recepción de almacén');
+      flash(' Transferencia enviada a recepción de almacén');
     } catch (e) {
-      flash('❌ No se pudo solicitar la recepción: ' + e.message);
+      flash(' No se pudo solicitar la recepción: ' + e.message);
     }
   };
   return React.createElement("div", {
@@ -672,7 +672,7 @@ function RutaReparto({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, "📦 Transferencias de almacén"), msg && React.createElement("div", {
+  }, " Transferencias de almacén"), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
       borderRadius: 8,
@@ -707,7 +707,7 @@ function RutaReparto({
     style: {
       fontWeight: 700
     }
-  }, "📋 Crear transferencia de almacén"), progForm ? React.createElement(CUp, null) : React.createElement(CDown, null))), progForm && React.createElement("div", {
+  }, " Crear transferencia de almacén"), progForm ? React.createElement(CUp, null) : React.createElement(CDown, null))), progForm && React.createElement("div", {
     style: {
       marginTop: 12
     }
@@ -804,14 +804,14 @@ function RutaReparto({
       marginTop: 10
     },
     disabled: progSaving
-  }, progSaving ? 'Validando…' : '✅ Confirmar asignación')), !rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(BFill, {
+  }, progSaving ? 'Validando…' : ' Confirmar asignación')), !rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(BFill, {
     onClick: () => setScanOpen(true),
     style: {
       width: '100%',
       fontSize: 14,
       padding: 12
     }
-  }, "📷 Escanear producto"), React.createElement("div", {
+  }, " Escanear producto"), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -837,12 +837,12 @@ function RutaReparto({
     style: {
       fontWeight: 700
     }
-  }, "➕ Agregar manualmente"), manualOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), manualOpen && React.createElement("div", {
+  }, " Agregar manualmente"), manualOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), manualOpen && React.createElement("div", {
     style: {
       marginTop: 12
     }
   }, React.createElement(Inp, {
-    placeholder: "🔍 Buscar producto…",
+    placeholder: " Buscar producto…",
     value: manualSearch,
     onChange: e => setManualSearch(e.target.value),
     style: {
@@ -928,7 +928,7 @@ function RutaReparto({
       marginTop: 6
     },
     disabled: saving
-  }, saving ? 'Guardando…' : '📦 Confirmar transferencia desde almacén'))), rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, {
+  }, saving ? 'Guardando…' : ' Confirmar transferencia desde almacén'))), rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, {
     style: {
       borderLeft: '3px solid var(--accent-text)'
     }
@@ -942,7 +942,7 @@ function RutaReparto({
       fontWeight: 700,
       fontSize: 14
     }
-  }, "📦 Transferencia activa"), React.createElement(Tag, {
+  }, " Transferencia activa"), React.createElement(Tag, {
     color: "var(--accent-text)"
   }, "Transferencia abierta")), Object.entries(rutaActiva.items).map(([id, it]) => React.createElement(Row, {
     key: id,
@@ -966,7 +966,7 @@ function RutaReparto({
       width: '100%',
       marginTop: 10
     }
-  }, "📥 Enviar a recepción de almacén")), currentUser.role === 'repartidor' && pedidosEnTransferencia.length > 0 && React.createElement(Card, null, React.createElement('div', { style: { fontWeight: 700, marginBottom: 8 } }, '📋 Pedidos pendientes de entregar'), pedidosEnTransferencia.map(pedido => React.createElement('div', { key: pedido.id, style: { padding: '9px 0', borderBottom: '1px solid var(--line)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8 } }, React.createElement('div', null, React.createElement('div', { style: { fontSize: 13, fontWeight: 700 } }, pedido.clienteNombre), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)' } }, (pedido.items || []).map(item => item.nombre + ' ×' + item.cant).join(', '))), React.createElement('strong', { style: { fontSize: 12, color: 'var(--accent-text)' } }, fmt(pedido.total || 0))), React.createElement(BFill, { onClick: () => setPedidoEntrega(pedido), style: { marginTop: 8, padding: '6px 10px', fontSize: 11 } }, 'Confirmar entrega')))), currentUser.role === 'repartidor' && React.createElement(Card, null, React.createElement("button", {
+  }, " Enviar a recepción de almacén")), currentUser.role === 'repartidor' && pedidosEnTransferencia.length > 0 && React.createElement(Card, null, React.createElement('div', { style: { fontWeight: 700, marginBottom: 8 } }, ' Pedidos pendientes de entregar'), pedidosEnTransferencia.map(pedido => React.createElement('div', { key: pedido.id, style: { padding: '9px 0', borderBottom: '1px solid var(--line)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8 } }, React.createElement('div', null, React.createElement('div', { style: { fontSize: 13, fontWeight: 700 } }, pedido.clienteNombre), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)' } }, (pedido.items || []).map(item => item.nombre + ' ×' + item.cant).join(', '))), React.createElement('strong', { style: { fontSize: 12, color: 'var(--accent-text)' } }, fmt(pedido.total || 0))), React.createElement(BFill, { onClick: () => setPedidoEntrega(pedido), style: { marginTop: 8, padding: '6px 10px', fontSize: 11 } }, 'Confirmar entrega')))), currentUser.role === 'repartidor' && React.createElement(Card, null, React.createElement("button", {
     onClick: () => setEntOpen(o => !o),
     style: {
       background: 'none',
@@ -985,7 +985,7 @@ function RutaReparto({
     style: {
       fontWeight: 700
     }
-  }, "➕ Registrar venta desde transferencia"), entOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), entOpen && React.createElement("div", {
+  }, " Registrar venta desde transferencia"), entOpen ? React.createElement(CUp, null) : React.createElement(CDown, null))), entOpen && React.createElement("div", {
     style: {
       marginTop: 12
     }
@@ -1041,7 +1041,7 @@ function RutaReparto({
       fontSize: 11,
       color: 'var(--ink-soft)'
     }
-  }, "📱 ", c.telefono))))) : React.createElement(React.Fragment, null, React.createElement(Inp, {
+  }, " ", c.telefono))))) : React.createElement(React.Fragment, null, React.createElement(Inp, {
     placeholder: "Nombre *",
     value: nuevoC.nombre,
     onChange: e => setNuevoC(x => ({
@@ -1141,7 +1141,7 @@ function RutaReparto({
       gap: 8,
       marginBottom: 12
     }
-  }, [['efectivo', '💵 Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', '🏦 Transferencia', 'var(--info-bg)', 'var(--info-text)'], ['credito', '📋 Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
+  }, [['efectivo', ' Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', ' Transferencia', 'var(--info-bg)', 'var(--info-text)'], ['credito', ' Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
     key: v,
     onClick: () => setPago(v),
     style: {
@@ -1163,7 +1163,7 @@ function RutaReparto({
       width: '100%'
     },
     disabled: !canSaveEnt || saving
-  }, saving ? 'Guardando…' : '💾 Guardar entrega'))), rutaActiva.entregas?.length > 0 && React.createElement(Card, null, React.createElement("div", {
+  }, saving ? 'Guardando…' : ' Guardar entrega'))), rutaActiva.entregas?.length > 0 && React.createElement(Card, null, React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
@@ -1202,7 +1202,7 @@ function RutaReparto({
     onClick: () => abrirRecepcion(t),
     style: { fontSize: 12, padding: '7px 10px' }
   }, "Recibir")))), recepcion && React.createElement(Modal, {
-    title: '📥 Recibir transferencia de ' + recepcion.responsable,
+    title: ' Recibir transferencia de ' + recepcion.responsable,
     onClose: () => !saving && setRecepcion(null)
   }, React.createElement("div", { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.45 } }, "Confirma lo recibido en almacén. Las cantidades devueltas regresan al stock general; cualquier diferencia se registra como merma."), Object.entries(recepcion.items).map(([id, item]) => React.createElement(Row, {
     key: id,
@@ -1223,14 +1223,14 @@ function RutaReparto({
     onClick: recibirTransferencia,
     disabled: saving,
     style: { width: '100%' }
-  }, saving ? 'Conciliando…' : '✅ Recibir y cerrar transferencia')), scanOpen && React.createElement(BarcodeScanner, {
+  }, saving ? 'Conciliando…' : ' Recibir y cerrar transferencia')), scanOpen && React.createElement(BarcodeScanner, {
     onDetected: handleScan,
     onClose: () => setScanOpen(false)
   }), pedidoEntrega && React.createElement(Modal, { title: 'Confirmar entrega de pedido', onClose: () => !saving && setPedidoEntrega(null) }, React.createElement('div', { style: { fontWeight: 700, marginBottom: 8 } }, pedidoEntrega.clienteNombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12 } }, (pedidoEntrega.items || []).map(item => item.nombre + ' ×' + item.cant).join(', ')), React.createElement('div', { style: { fontSize: 12, marginBottom: 14 } }, 'Al confirmar se registrará la venta desde tu transferencia y se aplicará el pago previsto: ', React.createElement('strong', null, pedidoEntrega.formaPagoPrevista || 'efectivo'), '.'), React.createElement(BFill, { onClick: entregarPedido, disabled: saving, style: { width: '100%' } }, saving ? 'Registrando…' : 'Confirmar entrega y venta')), productoNoEncontrado && React.createElement(Modal, {
     title: 'Producto no encontrado',
     onClose: () => setProductoNoEncontrado('')
   }, React.createElement("div", { style: { fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: 16 } }, 'El código ', React.createElement("strong", null, productoNoEncontrado), ' no existe en el catálogo. ¿Quieres agregar este producto?'), React.createElement(Row, { style: { gap: 8, justifyContent: 'flex-end' } }, React.createElement(BOut, { onClick: () => setProductoNoEncontrado('') }, 'Cancelar'), React.createElement(BFill, { onClick: abrirAltaProductoEscaneado }, 'Agregar producto'))), altaProducto && React.createElement(Modal, {
-    title: '➕ Agregar producto escaneado',
+    title: ' Agregar producto escaneado',
     onClose: () => !guardandoProducto && setAltaProducto(null)
   }, React.createElement("div", { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.45 } }, 'Completa los datos del producto. El código escaneado se conservará y se verificará nuevamente al guardar.'), React.createElement(Lbl, null, 'Código de barras'), React.createElement(Inp, {
     value: altaProducto.codigoBarras,
@@ -1263,7 +1263,7 @@ function RutaReparto({
     onClick: guardarProductoEscaneado,
     disabled: guardandoProducto,
     style: { width: '100%' }
-  }, guardandoProducto ? 'Guardando…' : '💾 Guardar y agregar a transferencia')), historial.length > 0 && React.createElement(Card, null, React.createElement("div", {
+  }, guardandoProducto ? 'Guardando…' : ' Guardar y agregar a transferencia')), historial.length > 0 && React.createElement(Card, null, React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
