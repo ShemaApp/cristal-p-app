@@ -40,8 +40,10 @@
     --warn:#C2601D; --warn-text:#8C4515; --warn-bg:#F3E4D3;
     --admin:#365E87; --font-display:'Oswald',sans-serif; --font-body:'IBM Plex Sans',system-ui,sans-serif; --font-mono:'IBM Plex Mono',monospace;
   }
-  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--font-body)}
-  #root{max-width:420px;margin:0 auto;min-height:100vh;position:relative}
+  html,body{height:100%;width:100%;max-width:100%;background:var(--bg);color:var(--ink);font-family:var(--font-body);overflow-x:hidden}
+  #root{width:100%;max-width:420px;min-width:0;margin:0 auto;min-height:100vh;position:relative;overflow-x:clip}
+  #root img,#root svg,#root canvas,#root video,#root iframe{max-width:100%}
+  #root input,#root select,#root textarea,#root button{max-width:100%;min-width:0;box-sizing:border-box}
   body{scrollbar-width:none}
 
   /* Frittz v47: la experiencia móvil sigue siendo la base. Estas reglas
@@ -52,7 +54,7 @@
       max-width:none!important;left:0!important;transform:none!important
     }
     .frittz-main-content{
-      width:100%;max-width:1600px;margin:0 auto;
+      width:100%;max-width:1600px;min-width:0;margin:0 auto;
       padding-left:260px;padding-right:28px
     }
     .frittz-topbar{padding-left:260px!important;padding-right:28px!important}

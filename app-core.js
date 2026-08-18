@@ -110,6 +110,9 @@ const Card = ({
     borderRadius: 4,
     padding: '12px 14px',
     marginBottom: 10,
+    minWidth: 0,
+    maxWidth: '100%',
+    boxSizing: 'border-box',
     ...style
   }
 }, children);
@@ -134,6 +137,11 @@ const BFill = ({
     fontFamily: 'var(--font-display)',
     textTransform: 'uppercase',
     letterSpacing: '.03em',
+    minWidth: 0,
+    maxWidth: '100%',
+    overflowWrap: 'anywhere',
+    whiteSpace: 'normal',
+    lineHeight: 1.2,
     ...style
   },
   ...p
@@ -158,6 +166,11 @@ const BOut = ({
     fontFamily: 'var(--font-display)',
     textTransform: 'uppercase',
     letterSpacing: '.03em',
+    minWidth: 0,
+    maxWidth: '100%',
+    overflowWrap: 'anywhere',
+    whiteSpace: 'normal',
+    lineHeight: 1.2,
     ...style
   },
   ...p
@@ -200,6 +213,8 @@ const Row = ({
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    minWidth: 0,
+    maxWidth: '100%',
     ...style
   }
 }, children);
@@ -239,6 +254,8 @@ function Modal({
       background: 'var(--surface)',
       width: '100%',
       maxWidth: 420,
+      minWidth: 0,
+      boxSizing: 'border-box',
       margin: '0 auto',
       borderRadius: '6px 6px 0 0',
       padding: 20,
