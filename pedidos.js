@@ -19,6 +19,18 @@ function VentaAlmacen({
   const [pago, setPago] = useState('efectivo');
   const [done, setDone] = useState(null);
   const [saving, setSaving] = useState(false);
+  const ventaDraftValor = { cliOpen, prodOpen, cliMode, cliSearch, cliSel, nuevoC, cart, pago };
+  const ventaDraft = useBorradorLocal('pedido:venta-almacen', ventaDraftValor, { uid: currentUser?.uid, habilitado: !done, etiqueta: 'Venta directa de almacén' });
+  const cancelarVenta = () => {
+    if (!confirmarSalidaBorrador({ sucio: ventaDraft.sucio, borrador: ventaDraft.borrador, etiqueta: 'la venta directa' })) return;
+    ventaDraft.descartar();
+    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo');
+  };
+  const recuperarVenta = () => {
+    const recuperado = ventaDraft.consumir();
+    if (!recuperado) return;
+    setCliOpen(recuperado.cliOpen ?? true); setProdOpen(recuperado.prodOpen ?? false); setCliMode(recuperado.cliMode || 'buscar'); setCliSearch(recuperado.cliSearch || ''); setCliSel(recuperado.cliSel || null); setNuevoC(recuperado.nuevoC || { nombre: '', telefono: '' }); setCart(Array.isArray(recuperado.cart) ? recuperado.cart : []); setPago(recuperado.pago || 'efectivo');
+  };
   useEffect(() => {
     if (ventaRapida) {
       setCliMode('nuevo');
@@ -154,6 +166,7 @@ function VentaAlmacen({
           });
         });
       });
+      ventaDraft.descartar();
       setDone({ nota: { ...nota, id: notaRef.id }, cl });
       setCart([]);
       setCliSel(null);
@@ -210,7 +223,7 @@ function VentaAlmacen({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, " Venta directa del administrador"), React.createElement("div", {
+  }, "Venta directa del administrador"), React.createElement(BorradorRecuperable, { borrador: ventaDraft.borrador, onContinuar: recuperarVenta, onDescartar: ventaDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: ventaDraft.guardadoEn }), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -489,7 +502,7 @@ function VentaAlmacen({
       padding: '8px 16px',
       fontSize: 18
     }
-  }, ""))));
+  }, ""), React.createElement(BOut, { onClick: cancelarVenta, style: { flex: 1 } }, 'Cancelar'))));
 }
 
 
@@ -506,6 +519,18 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [asignando, setAsignando] = useState(null);
+  const pedidoDraftValor = { cliMode, cliSearch, cliSel, nuevoC, cart, pagoPrevisto, repartidorId };
+  const pedidoDraft = useBorradorLocal('pedido:nuevo', pedidoDraftValor, { uid: currentUser?.uid, habilitado: true, etiqueta: 'Nuevo pedido' });
+  const cancelarPedido = () => {
+    if (!confirmarSalidaBorrador({ sucio: pedidoDraft.sucio, borrador: pedidoDraft.borrador, etiqueta: 'el pedido' })) return;
+    pedidoDraft.descartar();
+    setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPagoPrevisto('efectivo'); setRepartidorId('');
+  };
+  const recuperarPedido = () => {
+    const recuperado = pedidoDraft.consumir();
+    if (!recuperado) return;
+    setCliMode(recuperado.cliMode || 'buscar'); setCliSearch(recuperado.cliSearch || ''); setCliSel(recuperado.cliSel || null); setNuevoC(recuperado.nuevoC || { nombre: '', telefono: '' }); setCart(Array.isArray(recuperado.cart) ? recuperado.cart : []); setPagoPrevisto(recuperado.pagoPrevisto || 'efectivo'); setRepartidorId(recuperado.repartidorId || '');
+  };
   const flash = texto => { setMsg(texto); setTimeout(() => setMsg(''), 3000); };
   const puedeAsignar = currentUser.role === 'admin';
   const puedeCrearTransferenciaPropia = currentUser.role === 'repartidor';
@@ -568,6 +593,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
           creadoPorNombre: currentUser.nombre || ''
         });
       });
+      pedidoDraft.descartar();
       flash(estado === 'borrador' ? ' Borrador guardado sin mover inventario' : ' Pedido asignado; queda pendiente de confirmar transferencia');
       setCart([]); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCliMode('buscar'); setRepartidorId('');
     } catch (e) { flash(' No se pudo guardar el pedido: ' + e.message); }
@@ -593,6 +619,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   return React.createElement('div', { style: { padding: '16px 12px' } },
     React.createElement('div', { style: { fontSize: 20, fontWeight: 800, marginBottom: 4 } }, ' Pedidos'),
     React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.4 } }, 'Un pedido no descuenta inventario ni genera crédito. Se carga al repartidor únicamente al confirmar la transferencia.'),
+    React.createElement(BorradorRecuperable, { borrador: pedidoDraft.borrador, onContinuar: recuperarPedido, onDescartar: pedidoDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: pedidoDraft.guardadoEn }),
     msg && React.createElement('div', { style: { background: 'var(--ok-bg)', color: 'var(--ok-text)', padding: '8px 10px', borderRadius: 6, fontSize: 12, marginBottom: 12 } }, msg),
     React.createElement(Card, null,
       React.createElement('div', { style: { fontWeight: 700, marginBottom: 10 } }, ' Nuevo pedido'),
@@ -614,7 +641,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
       puedeAsignar && React.createElement(React.Fragment, null, React.createElement(Lbl, null, 'Repartidor responsable'), React.createElement('select', { value: repartidorId, onChange: e => setRepartidorId(e.target.value), style: Object.assign({}, inputStyle, { marginBottom: 10 }) }, React.createElement('option', { value: '' }, 'Asignar después…'), repartidores.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre)))),
       !puedeAsignar && !puedeCrearTransferenciaPropia && React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10 } }, 'El pedido se guardará como borrador para que administración asigne al repartidor.'),
       puedeCrearTransferenciaPropia && React.createElement('div', { style: { fontSize: 11, color: 'var(--info-text)', marginBottom: 10 } }, 'El pedido quedará asignado a ti y podrás incluirlo en tu propia transferencia.'),
-      React.createElement(Row, { style: { gap: 8 } }, React.createElement(BOut, { onClick: () => crearPedido(puedeCrearTransferenciaPropia ? 'asignado_pendiente_transferencia' : 'borrador'), disabled: saving, style: { flex: 1 } }, puedeCrearTransferenciaPropia ? 'Guardar para mi transferencia' : 'Guardar borrador'), puedeAsignar && React.createElement(BFill, { onClick: () => crearPedido('asignado_pendiente_transferencia'), disabled: saving, style: { flex: 1 } }, saving ? 'Guardando…' : 'Asignar pedido'))
+      React.createElement(Row, { style: { gap: 8 } }, React.createElement(BOut, { onClick: () => crearPedido(puedeCrearTransferenciaPropia ? 'asignado_pendiente_transferencia' : 'borrador'), disabled: saving, style: { flex: 1 } }, puedeCrearTransferenciaPropia ? 'Guardar para mi transferencia' : 'Guardar borrador'), puedeAsignar && React.createElement(BFill, { onClick: () => crearPedido('asignado_pendiente_transferencia'), disabled: saving, style: { flex: 1 } }, saving ? 'Guardando…' : 'Asignar pedido'), React.createElement(BOut, { onClick: cancelarPedido, disabled: saving, style: { flex: 1 } }, 'Cancelar'))
     ),
     React.createElement(Card, null, React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 10 } }, React.createElement('div', { style: { fontWeight: 700 } }, 'Pedidos registrados'), React.createElement('select', { value: filtro, onChange: e => setFiltro(e.target.value), style: { fontSize: 11, padding: 5, background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 5 } }, React.createElement('option', { value: 'abiertos' }, 'Abiertos'), React.createElement('option', { value: 'asignado_pendiente_transferencia' }, 'Pend. transferencia'), React.createElement('option', { value: 'transferencia_confirmada' }, 'En transferencia'), React.createElement('option', { value: 'borrador' }, 'Borradores'), React.createElement('option', { value: 'todos' }, 'Todos'))), abiertos.length === 0 ? React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-faint)' } }, 'No hay pedidos para este filtro.') : abiertos.map(p => React.createElement('div', { key: p.id, style: { padding: '10px 0', borderBottom: '1px solid var(--line)' } }, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8 } }, React.createElement('div', null, React.createElement('div', { style: { fontSize: 13, fontWeight: 700 } }, p.clienteNombre), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)' } }, etiquetaEstado(p.estado) + (p.repartidorNombre ? ' · ' + p.repartidorNombre : ''))), React.createElement('strong', { style: { fontSize: 13, color: 'var(--accent-text)' } }, fmt(p.total || 0))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 } }, (p.items || []).map(x => x.nombre + ' ×' + x.cant).join(', ')), p.estado === 'borrador' && puedeAsignar && React.createElement(BFill, { onClick: () => setAsignando({ pedido: p, repartidorId: '' }), style: { marginTop: 8, padding: '6px 10px', fontSize: 11 } }, 'Asignar a repartidor')))),
     asignando && React.createElement(Modal, { title: 'Asignar pedido a repartidor', onClose: () => !saving && setAsignando(null) }, React.createElement('div', { style: { fontSize: 13, marginBottom: 10 } }, asignando.pedido.clienteNombre + ' · ' + fmt(asignando.pedido.total || 0)), React.createElement('select', { value: asignando.repartidorId, onChange: e => setAsignando(x => ({ ...x, repartidorId: e.target.value })), style: Object.assign({}, inputStyle, { marginBottom: 12 }) }, React.createElement('option', { value: '' }, 'Selecciona repartidor…'), repartidores.map(r => React.createElement('option', { key: r.id, value: r.id }, r.nombre))), React.createElement(BFill, { onClick: confirmarAsignacion, disabled: saving, style: { width: '100%' } }, saving ? 'Asignando…' : 'Confirmar asignación'))

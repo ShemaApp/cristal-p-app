@@ -5,7 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v19-mobile-config-fix';
+const CACHE_NAME = 'flutt-water-v20-local-drafts';
 // Cache aparte para tiles de mapa offline: a propósito NO se borra cuando
 // sube la versión del shell (ver 'activate' más abajo) — si viviera en
 // CACHE_NAME, cada actualización de la app borraría el mapa descargado.
@@ -22,6 +22,7 @@ const SHELL_URLS = [
   './offline.html',
   './app-core.js',
   './ventas-offline.js',
+  './borradores.js',
   './sesion.js',
   './auth.js',
   './dashboard.js',

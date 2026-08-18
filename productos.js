@@ -200,6 +200,17 @@ function Productos({
   const [saving, setSaving] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
   const [priceProduct, setPriceProduct] = useState(null);
+  const productoDraftId = form ? `producto:${form.id || 'nuevo'}` : 'producto';
+  const productoDraft = useBorradorLocal(productoDraftId, form || {}, { uid: currentUser?.uid, habilitado: !!form, etiqueta: form?.id ? 'Edición de producto' : 'Nuevo producto' });
+  const cerrarFormularioProducto = () => {
+    if (!confirmarSalidaBorrador({ sucio: productoDraft.sucio, borrador: productoDraft.borrador, etiqueta: 'el producto' })) return;
+    productoDraft.descartar();
+    setForm(null);
+  };
+  const recuperarProducto = () => {
+    const recuperado = productoDraft.consumir();
+    if (recuperado) setForm(recuperado);
+  };
   useEffect(() => {
     if (abrirForm) {
       setForm({
@@ -331,6 +342,7 @@ function Productos({
         const ref = await crearProductoConIndiceCodigo(item);
         await logInventario(ref.id, form.nombre, 0, nuevoStock, form.motivo || 'Alta de producto');
       }
+      productoDraft.descartar();
       setForm(null);
     } catch (e) {
       alert(e.code === 'barcode-already-assigned' ? e.message : 'Error al guardar: ' + e.message);
@@ -580,8 +592,8 @@ function Productos({
     }, " Eliminar"))));
   }), form && React.createElement(Modal, {
     title: form.id ? 'Editar Producto' : 'Nuevo Producto',
-    onClose: () => setForm(null)
-  }, React.createElement(Lbl, null, "Nombre"), React.createElement(Inp, {
+    onClose: cerrarFormularioProducto
+  }, React.createElement(BorradorRecuperable, { borrador: productoDraft.borrador, onContinuar: recuperarProducto, onDescartar: productoDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: productoDraft.guardadoEn }), React.createElement(Lbl, null, "Nombre"), React.createElement(Inp, {
     value: form.nombre,
     onChange: e => setForm(f => ({
       ...f,
@@ -656,13 +668,11 @@ function Productos({
       color: 'var(--ink-faint)',
       marginBottom: 16
     }
-  }, "Se registra en el historial de inventario si cambias la cantidad de stock."), React.createElement(BFill, {
+  }, "Se registra en el historial de inventario si cambias la cantidad de stock."), React.createElement(Row, { style: { gap: 8, marginTop: 12 } }, React.createElement(BOut, { onClick: cerrarFormularioProducto, style: { flex: 1 } }, 'Cancelar'), React.createElement(BFill, {
     onClick: save,
-    style: {
-      width: '100%'
-    },
+    style: { flex: 1 },
     disabled: saving
-  }, saving ? 'Guardando…' : ' Guardar')), priceProduct && React.createElement(PrecioProductoModal, { producto: priceProduct, currentUser, onClose: () => setPriceProduct(null) }), scanOpen && React.createElement(BarcodeScanner, {
+  }, saving ? 'Guardando…' : 'Guardar')), priceProduct && React.createElement(PrecioProductoModal, { producto: priceProduct, currentUser, onClose: () => setPriceProduct(null) }), scanOpen && React.createElement(BarcodeScanner, {
     onDetected: code => {
       setForm(f => ({
         ...f,
@@ -673,5 +683,5 @@ function Productos({
     onClose: () => setScanOpen(false)
   }), histOpen && React.createElement(InventarioHistorial, {
     onClose: () => setHistOpen(false)
-  }));
+  })));
 }

@@ -59,6 +59,18 @@ function RutaReparto({
   const [progForm, setProgForm] = useState(null);
   const [progSaving, setProgSaving] = useState(false);
   const [pedidosIncluidos, setPedidosIncluidos] = useState([]);
+  const rutaDraftValor = { progForm, cart, pedidosIncluidos };
+  const rutaDraft = useBorradorLocal('jornada:ruta-transferencia', rutaDraftValor, { uid: currentUser?.uid, habilitado: !!progForm, etiqueta: 'Programación de jornada y transferencia' });
+  const cerrarProgForm = () => {
+    if (!confirmarSalidaBorrador({ sucio: rutaDraft.sucio, borrador: rutaDraft.borrador, etiqueta: 'la jornada y transferencia' })) return;
+    rutaDraft.descartar();
+    setProgForm(null); setCart([]); setPedidosIncluidos([]);
+  };
+  const recuperarProgForm = () => {
+    const recuperado = rutaDraft.consumir();
+    if (!recuperado) return;
+    setProgForm(recuperado.progForm || null); setCart(Array.isArray(recuperado.cart) ? recuperado.cart : []); setPedidosIncluidos(Array.isArray(recuperado.pedidosIncluidos) ? recuperado.pedidosIncluidos : []);
+  };
   const [recepcion, setRecepcion] = useState(null);
   const [pedidoEntrega, setPedidoEntrega] = useState(null);
   const transferenciasPendientes = currentUser.role === 'admin' ? rutas.filter(r => r.estado === 'pendiente_recepcion') : [];
@@ -456,6 +468,7 @@ function RutaReparto({
           confirmadaPorUid: currentUser.uid, confirmadaPorNombre: currentUser.nombre || '', fechaActualizacion: fecha
         }));
       });
+      rutaDraft.descartar();
       setCart([]);
       setPedidosIncluidos([]);
       setProgForm(null);
@@ -672,7 +685,7 @@ function RutaReparto({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, " Transferencias de almacén"), msg && React.createElement("div", {
+  }, "Transferencias de almacén"), React.createElement(BorradorRecuperable, { borrador: rutaDraft.borrador, onContinuar: recuperarProgForm, onDescartar: rutaDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: rutaDraft.guardadoEn }), msg && React.createElement("div", {
     style: {
       background: 'var(--ok-bg)',
       borderRadius: 8,
@@ -804,7 +817,7 @@ function RutaReparto({
       marginTop: 10
     },
     disabled: progSaving
-  }, progSaving ? 'Validando…' : ' Confirmar asignación')), !rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(BFill, {
+  }, progSaving ? 'Validando…' : 'Confirmar asignación'), React.createElement(BOut, { onClick: cerrarProgForm, style: { width: '100%', marginTop: 8 } }, 'Cancelar')), !rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(BFill, {
     onClick: () => setScanOpen(true),
     style: {
       width: '100%',
@@ -928,7 +941,7 @@ function RutaReparto({
       marginTop: 6
     },
     disabled: saving
-  }, saving ? 'Guardando…' : ' Confirmar transferencia desde almacén'))), rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, {
+  }, saving ? 'Guardando…' : 'Confirmar transferencia desde almacén'), React.createElement(BOut, { onClick: cerrarProgForm, style: { width: '100%', marginTop: 8 } }, 'Cancelar'))), rutaActiva && React.createElement(React.Fragment, null, React.createElement(Card, {
     style: {
       borderLeft: '3px solid var(--accent-text)'
     }

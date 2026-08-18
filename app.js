@@ -77,11 +77,13 @@ function App() {
     setTab(destino);
   };
   const volverAtras = () => {
+    if (!confirmarNavegacionConBorradores(currentUser?.uid)) return;
     setNavOpen(false);
     setTab(historialTabs.current.pop() || 'home');
   };
   const goConfig = () => navegarA('config');
   const logout = () => {
+    if (!confirmarNavegacionConBorradores(currentUser?.uid)) return;
     auth.signOut();
     setTab('nota');
   };

@@ -5,6 +5,17 @@ function FabricacionInventario({ productos, currentUser, flash }) {
   const [saving, setSaving] = useState(false);
   const localInputStyle = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', fontSize: 13 };
   const producto = productos.find(p => p.id === productoId);
+  const fabricacionValor = { productoId, cantidad, motivo };
+  const fabricacionDraft = useBorradorLocal('inventario:fabricacion', fabricacionValor, { uid: currentUser?.uid, habilitado: true, etiqueta: 'Fabricación de inventario' });
+  const cancelarFabricacion = () => {
+    if (!confirmarSalidaBorrador({ sucio: fabricacionDraft.sucio, borrador: fabricacionDraft.borrador, etiqueta: 'la fabricación' })) return;
+    fabricacionDraft.descartar();
+    setProductoId(''); setCantidad(''); setMotivo('Fabricación para venta');
+  };
+  const recuperarFabricacion = () => {
+    const recuperado = fabricacionDraft.consumir();
+    if (recuperado) { setProductoId(recuperado.productoId || ''); setCantidad(recuperado.cantidad || ''); setMotivo(recuperado.motivo || 'Fabricación para venta'); }
+  };
   const guardar = async () => {
     const cantidadNum = Number(cantidad);
     if (!producto) { flash(' Selecciona una presentación/SKU'); return; }
@@ -39,18 +50,21 @@ function FabricacionInventario({ productos, currentUser, flash }) {
         });
       });
       flash(` Fabricación registrada: +${cantidadNum} ${etiquetaProducto(producto)}`);
+      fabricacionDraft.descartar();
       setProductoId(''); setCantidad('');
     } catch (e) { flash(' ' + e.message); }
     setSaving(false);
   };
   return React.createElement(Card, null,
-    React.createElement('div', { style: { fontWeight: 700, marginBottom: 6 } }, ' Fabricación / producción'),
+    React.createElement(BorradorRecuperable, { borrador: fabricacionDraft.borrador, onContinuar: recuperarFabricacion, onDescartar: fabricacionDraft.descartar }),
+    React.createElement(BorradorGuardado, { guardadoEn: fabricacionDraft.guardadoEn }),
+    React.createElement('div', { style: { fontWeight: 700, marginBottom: 6 } }, 'Fabricación / producción'),
     React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10, lineHeight: 1.4 } }, 'Cada presentación se fabrica y se almacena por separado. Fabricar un saco de 25 kg no modifica las bolsas de 10 kg.'),
     React.createElement('select', { value: productoId, onChange: e => setProductoId(e.target.value), style: { ...localInputStyle, marginBottom: 8 } }, React.createElement('option', { value: '' }, 'Selecciona presentación/SKU'), productos.filter(p => p.activo !== false).map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.nombre} · ${etiquetaProducto(p)} · stock ${p.stock || 0}`))),
     producto && React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 8 } }, `Existencia actual: ${producto.stock || 0} ${producto.unidadInventario || 'pieza'} · contenido: ${producto.contenidoPorUnidad ?? '—'} ${producto.unidadContenido || ''}`),
     React.createElement('input', { type: 'number', min: '0', step: producto?.permiteDecimales ? 'any' : '1', value: cantidad, onChange: e => setCantidad(e.target.value), placeholder: 'Cantidad fabricada', style: { ...localInputStyle, marginBottom: 8 } }),
     React.createElement('input', { value: motivo, onChange: e => setMotivo(e.target.value), placeholder: 'Motivo o lote de fabricación', style: { ...localInputStyle, marginBottom: 10 } }),
-    React.createElement(BFill, { onClick: guardar, disabled: saving, style: { width: '100%' } }, saving ? 'Guardando…' : '＋ Registrar fabricación')
+    React.createElement(Row, { style: { gap: 8, marginTop: 10 } }, React.createElement(BOut, { onClick: cancelarFabricacion, style: { flex: 1 } }, 'Cancelar'), React.createElement(BFill, { onClick: guardar, disabled: saving, style: { flex: 1 } }, saving ? 'Guardando…' : 'Registrar fabricación'))
   );
 }
 
@@ -126,6 +140,7 @@ function Inventario({
       });
       await batch.commit();
       flash(' Conteo guardado — ' + cambiosConteo.length + ' producto(s) ajustado(s)');
+      inventarioDraft.descartar();
       setConteoDraft({});
     } catch (e) {
       flash(' ' + e.message);
@@ -141,6 +156,21 @@ function Inventario({
   const [devMotivo, setDevMotivo] = useState('dañado');
   const [devAccion, setDevAccion] = useState('reingreso');
   const [devSaving, setDevSaving] = useState(false);
+  const inventarioDraftValor = { subTab, conteoDraft, conteoMotivo, devProdSearch, devProdSel, devCliSearch, devCliSel, devCantidad, devMotivo, devAccion };
+  const inventarioDraft = useBorradorLocal('inventario:operacion', inventarioDraftValor, { uid: currentUser?.uid, habilitado: true, etiqueta: 'Operación de inventario' });
+  const descartarInventario = () => {
+    inventarioDraft.descartar();
+    setConteoDraft({}); setConteoMotivo('Conteo físico de bodega'); setDevProdSearch(''); setDevProdSel(null); setDevCliSearch(''); setDevCliSel(null); setDevCantidad(1); setDevMotivo('dañado'); setDevAccion('reingreso');
+  };
+  const cancelarInventario = () => {
+    if (!confirmarSalidaBorrador({ sucio: inventarioDraft.sucio, borrador: inventarioDraft.borrador, etiqueta: 'la operación de inventario' })) return;
+    descartarInventario();
+  };
+  const recuperarInventario = () => {
+    const recuperado = inventarioDraft.consumir();
+    if (!recuperado) return;
+    setSubTab(recuperado.subTab || 'conteo'); setConteoDraft(recuperado.conteoDraft || {}); setConteoMotivo(recuperado.conteoMotivo || 'Conteo físico de bodega'); setDevProdSearch(recuperado.devProdSearch || ''); setDevProdSel(recuperado.devProdSel || null); setDevCliSearch(recuperado.devCliSearch || ''); setDevCliSel(recuperado.devCliSel || null); setDevCantidad(recuperado.devCantidad ?? 1); setDevMotivo(recuperado.devMotivo || 'dañado'); setDevAccion(recuperado.devAccion || 'reingreso');
+  };
   useEffect(() => {
     const unsub = db.collection('devoluciones').orderBy('fecha', 'desc').limit(100).onSnapshot(snap => setDevoluciones(snap.docs.map(d => ({
       id: d.id,
@@ -195,6 +225,7 @@ function Inventario({
       }
       await batch.commit();
       flash(devAccion === 'reingreso' ? ' Devolución registrada — regresó a inventario' : ' Baja registrada');
+      inventarioDraft.descartar();
       setDevProdSel(null);
       setDevProdSearch('');
       setDevCliSel(null);
@@ -225,7 +256,7 @@ function Inventario({
       color: 'var(--ok-text)',
       marginBottom: 12
     }
-  }, msg), React.createElement("div", {
+  }, msg), React.createElement(BorradorRecuperable, { borrador: inventarioDraft.borrador, onContinuar: recuperarInventario, onDescartar: descartarInventario }), React.createElement(BorradorGuardado, { guardadoEn: inventarioDraft.guardadoEn }), React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,
@@ -508,7 +539,7 @@ function Inventario({
       cursor: 'pointer',
       opacity: devSaving ? 0.6 : 1
     }
-  }, devSaving ? 'Guardando…' : ' Registrar')), React.createElement("div", {
+      }, devSaving ? 'Guardando…' : ' Registrar'), React.createElement(BOut, { onClick: cancelarInventario, style: { width: '100%', marginTop: 8 } }, 'Cancelar')), React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',
