@@ -10,8 +10,9 @@ service cloud.firestore {
     // catch-all final para funcionar — ese catch-all solo existe para
     // bloquear colecciones NO anticipadas (typos, nombres nuevos que se
     // agreguen en el código sin agregar su regla aquí).
-    //   ✅ productos            ✅ notas              ✅ pedidos
-    //   ✅ inventario_historial ✅ creditos           ✅ rutas
+    //   ✅ productos            ✅ barcodes            ✅ notas
+    //   ✅ pedidos             ✅ inventario_historial ✅ creditos
+    //   ✅ rutas
     //   ✅ clientes             ✅ devoluciones       ✅ gastos
     //   ✅ cierres_caja         ✅ usuarios           ✅ _meta
     //   ✅ vehiculos/medidores  ✅ jornadas y subcolecciones
@@ -65,14 +66,27 @@ service cloud.firestore {
         && (datos.role == 'admin' || valor);
     }
 
+    // Comprueba que la reserva en barcodes/{codigo} apunte al mismo producto.
+    // Se usa getAfter/existsAfter para exigir una escritura atómica.
+    function indiceCodigoProductoValido(data, productoId) {
+      return !('codigoBarrasNormalizado' in data)
+        || data.codigoBarrasNormalizado == ''
+        || (data.codigoBarrasNormalizado is string
+          && existsAfter(/databases/$(database)/documents/barcodes/$(data.codigoBarrasNormalizado))
+          && getAfter(/databases/$(database)/documents/barcodes/$(data.codigoBarrasNormalizado)).data.productoId == productoId
+          && getAfter(/databases/$(database)/documents/barcodes/$(data.codigoBarrasNormalizado)).data.codigo == data.codigoBarrasNormalizado);
+    }
+
     // ── productos ──
     match /productos/{id} {
       allow read: if signedIn();
-      allow create: if permisoEdicion('productos');
+      allow create: if permisoEdicion('productos')
+        && indiceCodigoProductoValido(request.resource.data, id);
       // Admin/usuario pueden ajustar inventario según permisos. El repartidor
       // solo puede descontar stock en la creación atómica de una transferencia
       // nueva que queda asignada a él; no puede hacer ajustes posteriores.
-      allow update: if permisoEdicion('productos')
+      allow update: if (permisoEdicion('productos')
+          && indiceCodigoProductoValido(request.resource.data, id))
         || (signedIn() && role() == 'repartidor'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'stock', 'ultimaTransferenciaId',
@@ -90,6 +104,20 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items.keys().hasAny([id])
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items[id].cantCargada == request.resource.data.ultimaTransferenciaCantidad);
       allow delete: if isAdmin();
+    }
+
+    // Índice de unicidad y resolución rápida del código. No se permite
+    // modificarlo de forma independiente: siempre debe apuntar a un producto.
+    match /barcodes/{codigo} {
+      allow read: if signedIn();
+      allow create, update: if permisoEdicion('productos')
+        && request.resource.data.productoId is string
+        && request.resource.data.codigo == codigo
+        && request.resource.data.activo == true
+        && getAfter(/databases/$(database)/documents/productos/$(request.resource.data.productoId)).data.codigoBarrasNormalizado == codigo;
+      allow delete: if permisoEdicion('productos')
+        && resource.data.productoId is string
+        && get(/databases/$(database)/documents/productos/$(resource.data.productoId)).data.codigoBarrasNormalizado == codigo;
     }
 
     // ── inventario_historial ──

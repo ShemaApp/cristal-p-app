@@ -217,9 +217,21 @@ function RutaReparto({
   };
   const handleScan = code => {
     setScanOpen(false);
-    const codigo = String(code || '').trim();
+    let codigo;
+    try {
+      codigo = normalizarCodigoBarras(code || '');
+    } catch (e) {
+      flash('⚠️ El código escaneado no tiene un formato válido');
+      return;
+    }
     if (!codigo) return;
-    const p = productos.find(x => String(x.codigoBarras || '').trim() === codigo);
+    const p = productos.find(x => {
+      try {
+        return codigoBarrasDeProducto(x) === codigo;
+      } catch (e) {
+        return false;
+      }
+    });
     if (p) {
       addToCart(p);
       return;
@@ -255,7 +267,13 @@ function RutaReparto({
       flash('⚠️ Indica al menos una unidad disponible para la transferencia');
       return;
     }
-    const codigo = String(altaProducto.codigoBarras || '').trim();
+    let codigo;
+    try {
+      codigo = normalizarCodigoBarras(altaProducto.codigoBarras || '');
+    } catch (e) {
+      flash('⚠️ Código de barras inválido: ' + e.message);
+      return;
+    }
     if (!codigo) {
       flash('⚠️ El código de barras es obligatorio');
       return;
@@ -267,21 +285,42 @@ function RutaReparto({
         precio: Number(altaProducto.precio),
         stock: Math.max(0, Number(altaProducto.stock || 0)),
         unidad: altaProducto.unidad.trim(),
-        codigoBarras: codigo
+        codigoBarras: codigo,
+        codigoBarrasNormalizado: codigo,
+        codigoBarrasTipo: codigo.indexOf('FLW-PROD-') === 0 ? 'interno_code128' : 'externo'
       };
       let creado = null;
       let duplicado = null;
       await db.runTransaction(async tx => {
-        const coincidencias = await tx.get(db.collection('productos').where('codigoBarras', '==', codigo).limit(1));
+        const coincidencias = await tx.get(db.collection('productos').where('codigoBarrasNormalizado', '==', codigo).limit(1));
         if (!coincidencias.empty) {
           const existente = coincidencias.docs[0];
           duplicado = { id: existente.id, ...existente.data() };
           return;
         }
         const productoRef = db.collection('productos').doc();
+        const barcodeRef = db.collection('barcodes').doc(codigo);
+        const barcodeSnap = await tx.get(barcodeRef);
+        if (barcodeSnap.exists) {
+          const reservado = barcodeSnap.data() || {};
+          const existenteSnap = await tx.get(db.collection('productos').doc(reservado.productoId || '__no_existe__'));
+          if (existenteSnap.exists) duplicado = { id: existenteSnap.id, ...existenteSnap.data() };
+          else throw new Error('El código de barras está reservado por otro registro.');
+          return;
+        }
         const historialRef = db.collection('inventario_historial').doc();
         const fecha = new Date().toISOString();
         tx.set(productoRef, item);
+        tx.set(barcodeRef, {
+          productoId: productoRef.id,
+          productoNombre: item.nombre,
+          codigo,
+          tipo: item.codigoBarrasTipo,
+          activo: true,
+          actualizadoPorUid: currentUser.uid,
+          actualizadoPorNombre: currentUser.nombre || currentUser.email || '',
+          actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
         tx.set(historialRef, {
           productoId: productoRef.id,
           productoNombre: item.nombre,

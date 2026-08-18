@@ -10,7 +10,7 @@
 
 /* ── Modelo de permisos: constantes de rol + helpers de acceso ──
    (movido de app-core.js, sin cambios de lógica) */
-const TABS_INFO = [['productos', '📦', 'Productos'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
+const TABS_INFO = [['productos', '📦', 'Productos'], ['barcodes', '🏷️', 'Etiquetas'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
 const EDICION_INFO = [['productos', '📦', 'Editar / dar de alta productos'], ['clientes', '👥', 'Editar / dar de alta clientes'], ['creditos', '💳', 'Registrar abonos a créditos']];
 const ACCIONES_INFO = [['camara', '📷', 'Usar cámara (escanear QR de cliente)'], ['csv', '📄', 'Descargar reportes en CSV'], ['gps', '📍', 'Compartir ubicación en vivo (GPS)'], ['password', '🔑', 'Cambiar su propia contraseña']];
 const ACCIONES_DEFAULT_ROL = {
@@ -46,6 +46,7 @@ const permisoAcciones = u => {
 const TABS_DEFAULT_ROL = {
   admin: {
     productos: true,
+    barcodes: true,
     nota: true,
     clientes: true,
     creditos: true,
@@ -58,6 +59,7 @@ const TABS_DEFAULT_ROL = {
   },
   usuario: {
     productos: true,
+    barcodes: true,
     nota: true,
     clientes: true,
     creditos: true,
@@ -70,6 +72,7 @@ const TABS_DEFAULT_ROL = {
   },
   repartidor: {
     productos: false,
+    barcodes: false,
     nota: true,
     clientes: true,
     creditos: true,

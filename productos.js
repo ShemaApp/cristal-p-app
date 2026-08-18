@@ -85,7 +85,8 @@ function Productos({
   productos,
   currentUser,
   abrirForm,
-  onAbrirFormConsumido
+  onAbrirFormConsumido,
+  onAbrirEtiquetas
 }) {
   const isAdmin = currentUser?.role === 'admin';
   const puedeEditar = isAdmin || permisoEdita(currentUser).productos;
@@ -151,6 +152,13 @@ function Productos({
       alert('Nombre y precio son obligatorios');
       return;
     }
+    let codigo;
+    try {
+      codigo = normalizarCodigoBarras(form.codigoBarras || '');
+    } catch (e) {
+      alert('Código de barras inválido: ' + e.message);
+      return;
+    }
     setSaving(true);
     const nuevoStock = +form.stock || 0;
     const item = {
@@ -158,28 +166,35 @@ function Productos({
       precio: +form.precio,
       stock: nuevoStock,
       unidad: form.unidad,
-      codigoBarras: form.codigoBarras || ''
+      codigoBarras: codigo,
+      codigoBarrasNormalizado: codigo,
+      codigoBarrasTipo: codigo ? (codigo.indexOf('FLW-PROD-') === 0 ? 'interno_code128' : 'externo') : ''
     };
-    if (form.codigoBarras) {
-      const existente = productos.find(p => p.codigoBarras === form.codigoBarras && p.id !== form.id);
+    try {
+      const existente = codigo && productos.find(p => {
+        try {
+          return codigoBarrasDeProducto(p) === codigo && p.id !== form.id;
+        } catch (e) {
+          return false;
+        }
+      });
       if (existente) {
-        alert(`❌ El código de barras "${form.codigoBarras}" ya está asignado a "${existente.nombre}"`);
+        alert(`❌ El código de barras "${codigo}" ya está asignado a "${existente.nombre}"`);
         setSaving(false);
         return;
       }
-    }
-    try {
       if (form.id) {
         const anterior = productos.find(p => p.id === form.id);
-        await db.collection('productos').doc(form.id).update(item);
+        const codigoAnterior = anterior ? codigoBarrasDeProducto(anterior) : '';
+        await guardarProductoConIndiceCodigo(form.id, item, codigoAnterior);
         if (anterior) await logInventario(form.id, form.nombre, anterior.stock, nuevoStock, form.motivo);
       } else {
-        const ref = await db.collection('productos').add(item);
+        const ref = await crearProductoConIndiceCodigo(item);
         await logInventario(ref.id, form.nombre, 0, nuevoStock, form.motivo || 'Alta de producto');
       }
       setForm(null);
     } catch (e) {
-      alert('Error al guardar: ' + e.message);
+      alert(e.code === 'barcode-already-assigned' ? e.message : 'Error al guardar: ' + e.message);
     }
     setSaving(false);
   };
@@ -376,12 +391,20 @@ function Productos({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"), isAdmin && React.createElement(BOut, {
-      onClick: () => entrarSeleccion(p.id),
-      style: {
-        flex: 1
-      }
-    }, "☑️ Seleccionar"), isAdmin && React.createElement(BOut, {
+    }, "✏️ Editar"),         React.createElement(BOut, {
+          onClick: () => {
+            onAbrirEtiquetas && onAbrirEtiquetas();
+            setExpandedId(null);
+          },
+          style: {
+            flex: 1
+          }
+        }, "🏷️ Etiqueta"), isAdmin && React.createElement(BOut, {
+          onClick: () => entrarSeleccion(p.id),
+          style: {
+            flex: 1
+          }
+        }, "☑️ Seleccionar"), isAdmin && React.createElement(BOut, {
       onClick: () => {
         if (window.confirm(`¿Eliminar "${p.nombre}"? Esta acción no se puede deshacer.`)) db.collection('productos').doc(p.id).delete();
         setExpandedId(null);

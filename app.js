@@ -17,7 +17,7 @@ function App() {
     if (typeof frittzSuscribirVentasOffline !== 'function') return undefined;
     return frittzSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
-  const ALL_TABS = [['home', '🏠', 'Inicio'], ['productos', '📦', 'Productos'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
+  const ALL_TABS = [['home', '🏠', 'Inicio'], ['productos', '📦', 'Productos'], ['barcodes', '🏷️', 'Etiquetas'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
   const permTabs = permisoTabs(currentUser);
   const tabsPermitidos = ['home', ...ALL_TABS.filter(([id]) => id !== 'home' && permTabs[id]).map(([id]) => id)];
   const TABS = ALL_TABS.filter(([id]) => tabsPermitidos.includes(id));
@@ -287,7 +287,11 @@ function App() {
     ...ctx,
     currentUser: currentUser,
     abrirForm: abrirFormProducto,
-    onAbrirFormConsumido: () => setAbrirFormProducto(false)
+    onAbrirFormConsumido: () => setAbrirFormProducto(false),
+    onAbrirEtiquetas: () => navegarA('barcodes')
+  }), tab === 'barcodes' && React.createElement(CodigosBarras, {
+    productos,
+    currentUser: currentUser
   }), tab === 'nota' && React.createElement(CrearNota, {
     ...ctx,
     currentUser: currentUser,

@@ -28,7 +28,7 @@ function Reportes({
   const generarRespaldo = async () => {
     setBackupGenerating(true);
     try {
-      const colecciones = ['productos', 'clientes', 'notas', 'creditos', 'rutas', 'devoluciones', 'inventario_historial', 'usuarios'];
+      const colecciones = ['productos', 'barcodes', 'clientes', 'notas', 'creditos', 'rutas', 'devoluciones', 'inventario_historial', 'usuarios'];
       const data = {
         generado: new Date().toISOString(),
         generadoPor: currentUser.nombre || currentUser.email
@@ -488,7 +488,7 @@ function Reportes({
       agregarHojaExcel(libro, 'MovimientosInventario', ['Movimiento ID', 'Fecha', 'Producto ID', 'Producto', 'Stock anterior', 'Stock nuevo', 'Diferencia', 'Motivo', 'Usuario UID', 'Usuario', 'Correo usuario'], movimientosFilas, [], ['Fecha']);
       agregarHojaExcel(libro, 'Productos', ['Producto ID', 'Código de barras', 'Producto', 'Unidad', 'Precio actual', 'Stock actual', 'Activo'], productosFilas, ['Precio actual'], []);
       agregarHojaExcel(libro, 'Clientes', ['Cliente ID', 'Cliente', 'Teléfono', 'Localidad', 'Fuente de localidad', 'Domicilio histórico', 'Activo', 'Código QR', 'Estado GPS', 'GPS latitud', 'GPS longitud', 'GPS precisión (m)', 'Fecha GPS', 'Creado por UID'], clientesFilas, [], ['Fecha GPS']);
-      XLSX.writeFile(libro, 'libro_operativo_productos_de_la_costa_' + new Date().toISOString().slice(0, 10) + '.xlsx', {
+      XLSX.writeFile(libro, 'libro_operativo_flutt_water_' + new Date().toISOString().slice(0, 10) + '.xlsx', {
         compression: true,
         cellDates: true
       });
