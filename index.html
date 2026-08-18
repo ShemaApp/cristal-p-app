@@ -81,6 +81,19 @@
   input:focus{outline:none!important;border-color:var(--accent-text)!important}
   button,select{font-family:inherit}
   *{-webkit-tap-highlight-color:transparent}
+  @keyframes flutt-water-logo-float{
+    0%,100%{transform:translate3d(0,0,0) rotateZ(0deg)}
+    50%{transform:translate3d(0,-7px,0) rotateZ(-0.35deg)}
+  }
+  .flutt-water-login-logo-art{
+    filter:drop-shadow(0 14px 12px rgba(16,38,63,.18));
+    animation:flutt-water-logo-float 4.8s ease-in-out infinite;
+    transform-origin:50% 58%;
+    will-change:transform;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .flutt-water-login-logo-art{animation:none}
+  }
 </style>
 </head>
 <body>

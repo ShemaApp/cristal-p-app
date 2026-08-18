@@ -41,16 +41,18 @@ function Login({ branding = normalizarBranding() } = {}) {
       background: 'var(--bg)'
     }
   }, React.createElement("img", {
-    src: branding.logoPath,
+    src: branding.logoLoginPath || branding.logoPath,
     alt: "Emblema de " + branding.nombreComercial,
-    width: 82,
-    height: 82,
+    width: 340,
+    height: 227,
+    className: 'flutt-water-login-logo-art',
     style: {
-      width: 82,
-      height: 82,
+      width: 'min(340px, 100%)',
+      height: 'auto',
+      maxWidth: '100%',
       objectFit: 'contain',
       display: 'block',
-      marginBottom: 8
+      marginBottom: 2
     }
   }), React.createElement("div", {
     style: {
