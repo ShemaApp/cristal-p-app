@@ -301,8 +301,11 @@ function Configuracion({
   }, React.createElement(Row, {
     style: {
       marginBottom: 20,
-      alignItems: 'center'
-    }
+      alignItems: 'center',
+      width: '100%',
+      flexWrap: 'wrap'
+    },
+    className: 'flutt-water-config-header'
   }, React.createElement("button", {
     onClick: onBack,
     style: {
@@ -344,8 +347,10 @@ function Configuracion({
     style: {
       gap: 8,
       flexWrap: 'wrap',
-      marginBottom: 20
-    }
+      marginBottom: 20,
+      width: '100%'
+    },
+    className: 'flutt-water-config-tabs'
   }, [['perfil', 'Perfil'], ...(isAdmin ? [['marca', 'Marca']] : []), ...(permisoAcciones(currentUser).password ? [['password', 'Contraseña']] : []), ['pin', 'PIN'], ...(isAdmin ? [['usuarios', 'Usuarios'], ['vehiculos', 'Vehículos'], ['permisos', 'Permisos']] : [])].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => {

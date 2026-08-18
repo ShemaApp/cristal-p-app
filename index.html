@@ -45,18 +45,27 @@
   html,body{height:100%;width:100%;max-width:100%;background:var(--fw-bg);color:var(--fw-text);font-family:var(--font-body);overflow-x:hidden}
   #root{width:100%;max-width:420px;min-width:0;margin:0 auto;min-height:100vh;position:relative;overflow-x:clip}
   .flutt-water-app-shell{min-height:100vh}
+  .flutt-water-config-header,.flutt-water-config-tabs{width:100%;min-width:0}
   #root img,#root svg,#root canvas,#root video,#root iframe{max-width:100%}
   #root input,#root select,#root textarea,#root button{max-width:100%;min-width:0;box-sizing:border-box}
   body{scrollbar-width:none}
 
   /* Flutt-Water v47: la experiencia móvil sigue siendo la base. Estas reglas
      solo se activan en pantallas anchas y no alteran el layout compacto. */
+  @media (max-width:767px){
+    .flutt-water-config-tabs{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:8px!important}
+    .flutt-water-config-tabs button{width:100%!important;min-width:0!important;flex:none!important}
+    .flutt-water-config-header{display:flex!important;align-items:center!important}
+    .flutt-water-config-header > div{min-width:0}
+  }
   @media (min-width:768px){
     #root{max-width:none!important;margin:0}
     .flutt-water-topbar,.flutt-water-accent-bar,.flutt-water-offline-banner,.flutt-water-nav-shell{
       max-width:none!important;left:0!important;transform:none!important
     }
     .flutt-water-app-shell{padding-left:260px!important}
+    .flutt-water-config-tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:10px!important}
+    .flutt-water-config-tabs button{width:100%!important;min-width:0!important;flex:none!important}
     .flutt-water-main-content{
       width:100%;max-width:1600px;min-width:0;margin:0 auto;
       padding-left:0;padding-right:28px
