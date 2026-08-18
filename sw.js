@@ -5,7 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v23-rules-ready';
+const CACHE_NAME = 'flutt-water-v24-firebase-sdk-12-17-1';
 
 // Ajusta la ruta de tu HTML principal si tu index no se llama exactamente así.
 const SHELL_URLS = [
@@ -43,10 +43,10 @@ const SHELL_URLS = [
   './icons/icon-original-droplet.png',
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
-  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js',
-  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-auth-compat.js',
-  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-firestore-compat.js',
-  'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-check-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@12.17.1/firebase-app-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@12.17.1/firebase-auth-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@12.17.1/firebase-firestore-compat.js',
+  'https://cdn.jsdelivr.net/npm/firebase@12.17.1/firebase-app-check-compat.js',
   'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
   'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
