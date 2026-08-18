@@ -5,7 +5,7 @@ const BRANDING_DEFAULTS = Object.freeze({
   lema: '',
   telefono: '',
   logoPath: 'icons/icon-192.png',
-  logoLoginPath: 'icons/logo-flutt-water-login-3d.png'
+  logoLoginPath: 'icons/logo-flutt-water-login-base.png'
 });
 
 function normalizarBranding(data = {}) {
