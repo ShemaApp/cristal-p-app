@@ -4,6 +4,7 @@ function VentaAlmacen({
   currentUser,
   branding,
   ventaRapida,
+  modoVentaPlanta = false,
   onVentaRapidaConsumida
 }) {
   const [cliOpen, setCliOpen] = useState(true);
@@ -19,8 +20,9 @@ function VentaAlmacen({
   const [pago, setPago] = useState('efectivo');
   const [done, setDone] = useState(null);
   const [saving, setSaving] = useState(false);
+  const esVendedor = rolEfectivo(currentUser) === 'vendedor';
   const ventaDraftValor = { cliOpen, prodOpen, cliMode, cliSearch, cliSel, nuevoC, cart, pago };
-  const ventaDraft = useBorradorLocal('pedido:venta-almacen', ventaDraftValor, { uid: currentUser?.uid, habilitado: !done, etiqueta: 'Venta directa de almacén' });
+  const ventaDraft = useBorradorLocal(modoVentaPlanta ? 'pedido:venta-planta' : 'pedido:venta-almacen', ventaDraftValor, { uid: currentUser?.uid, habilitado: !done, etiqueta: modoVentaPlanta ? 'Ticket público de planta' : 'Venta directa de almacén' });
   const cancelarVenta = () => {
     if (!confirmarSalidaBorrador({ sucio: ventaDraft.sucio, borrador: ventaDraft.borrador, etiqueta: 'la venta directa' })) return;
     ventaDraft.descartar();
@@ -94,14 +96,15 @@ function VentaAlmacen({
   };
   const guardar = async () => {
     if (!canSave) return;
-    if (currentUser.role !== 'admin') {
-      alert('Solo administración puede registrar una venta directa desde almacén.');
+    if (!((currentUser.role === 'admin') || (modoVentaPlanta && esVendedor))) {
+      alert('Este flujo solo está disponible para administración o venta pública de planta.');
       return;
     }
     setSaving(true);
     try {
       const fecha = new Date().toISOString();
       const esPublicoGeneral = cliMode === 'nuevo' && String(nuevoC.nombre || '').trim().toLowerCase() === 'público general';
+      if (modoVentaPlanta && !esPublicoGeneral) throw new Error('La venta pública de planta debe usar el cliente Público general');
       const clienteRef = cliMode === 'nuevo' ? (esPublicoGeneral ? db.collection('clientes').doc('publico_general') : db.collection('clientes').doc()) : db.collection('clientes').doc(cliSel.id);
       const cl = cliMode === 'nuevo' ? {
         id: clienteRef.id,
@@ -120,10 +123,11 @@ function VentaAlmacen({
         items: cartValido.map(x => ({ ...x })),
         total,
         formaPago: pago,
-        origen: 'almacen',
-        tipoVenta: 'directa_administrador',
-        medioOperacion: 'vehiculo_administrador',
-        responsableTipo: 'administrador',
+        origen: modoVentaPlanta ? 'planta_publico_general' : 'almacen',
+        tipoVenta: modoVentaPlanta ? 'planta_publico_general' : 'directa_administrador',
+        productoIds: cartValido.map(item => item.id),
+        medioOperacion: modoVentaPlanta ? 'planta' : 'vehiculo_administrador',
+        responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
         capturadoPorUid: currentUser.uid,
         capturadoPorNombre: currentUser.nombre || ''
       };
@@ -161,9 +165,16 @@ function VentaAlmacen({
           });
         }
         cartValido.forEach(item => {
-          tx.update(db.collection('productos').doc(item.id), {
+          const cambiosStock = {
             stock: firebase.firestore.FieldValue.increment(-item.cant)
-          });
+          };
+          if (modoVentaPlanta) {
+            cambiosStock.ultimaVentaPublicaId = notaRef.id;
+            cambiosStock.ultimaVentaPublicaVendedorUid = currentUser.uid;
+            cambiosStock.ultimaVentaPublicaProductoId = item.id;
+            cambiosStock.ultimaVentaPublicaCantidad = item.cant;
+          }
+          tx.update(db.collection('productos').doc(item.id), cambiosStock);
         });
       });
       ventaDraft.descartar();
@@ -173,7 +184,7 @@ function VentaAlmacen({
       setNuevoC({ nombre: '', telefono: '' });
       setCliMode('buscar');
     } catch (e) {
-      alert('Error al guardar la venta rápida de almacén: ' + e.message);
+      alert('Error al guardar el ticket de ' + (modoVentaPlanta ? 'planta' : 'almacén') + ': ' + e.message);
     }
     setSaving(false);
   };
@@ -193,7 +204,7 @@ function VentaAlmacen({
       fontWeight: 700,
       marginBottom: 4
     }
-  }, "Venta directa del administrador registrada"), React.createElement("div", {
+  }, modoVentaPlanta ? "Ticket público de planta registrado" : "Venta directa del administrador registrada", React.createElement("div", {
     style: {
       color: 'var(--ink-soft)',
       marginBottom: 24
@@ -212,7 +223,7 @@ function VentaAlmacen({
     style: {
       width: '100%'
     }
-  }, "+ Nueva venta directa desde vehículo"));
+  }, modoVentaPlanta ? "+ Nuevo ticket de planta" : "+ Nueva venta directa desde vehículo")));
   return React.createElement("div", {
     style: {
       padding: '16px 12px'
@@ -223,14 +234,14 @@ function VentaAlmacen({
       fontWeight: 800,
       marginBottom: 12
     }
-  }, "Venta directa del administrador"), React.createElement(BorradorRecuperable, { borrador: ventaDraft.borrador, onContinuar: recuperarVenta, onDescartar: ventaDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: ventaDraft.guardadoEn }), React.createElement("div", {
+  }, modoVentaPlanta ? "Venta pública de planta" : "Venta directa del administrador"), React.createElement(BorradorRecuperable, { borrador: ventaDraft.borrador, onContinuar: recuperarVenta, onDescartar: ventaDraft.descartar }), React.createElement(BorradorGuardado, { guardadoEn: ventaDraft.guardadoEn }), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
       lineHeight: 1.45,
       marginBottom: 12
     }
-  }, "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), React.createElement(Card, null, React.createElement("button", {
+  }, modoVentaPlanta ? "El ticket es público y pertenece a la caja de planta. No se asigna a una ruta ni a un repartidor." : "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), React.createElement(Card, null, React.createElement("button", {
     onClick: () => setCliOpen(o => !o),
     style: {
       background: 'none',
@@ -648,7 +659,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   ));
 }
 
-function CrearNota({ productos, clientes, pedidos, currentUser, branding, ventaRapida, onVentaRapidaConsumida }) {
+function CrearNota({ productos, clientes, pedidos, currentUser, branding, ventaRapida, modoVentaPlanta = false, onVentaRapidaConsumida }) {
   useEffect(() => { if (ventaRapida && onVentaRapidaConsumida) onVentaRapidaConsumida(); }, [ventaRapida]);
-  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, branding, ventaRapida: true }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser, branding });
+  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, branding, ventaRapida: true, modoVentaPlanta }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser, branding });
 }

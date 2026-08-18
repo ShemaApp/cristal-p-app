@@ -58,6 +58,7 @@ function Dashboard({
 }) {
   const isAdmin = currentUser.role === 'admin';
   const isRepartidor = currentUser.role === 'repartidor';
+  const isVendedor = rolEfectivo(currentUser) === 'vendedor';
   const tabsPermitidos = permisoTabs(currentUser);
   const esEfectivo = fp => fp === 'efectivo' || fp === 'contado';
   const hoy = new Date().toDateString();
@@ -103,9 +104,9 @@ function Dashboard({
     onClick: irA('gerencia')
   }] : [{
     icon: 'note',
-    label: 'Nuevo pedido',
-    detalle: 'Solicitud sin descontar inventario',
-    onClick: irA('nota'),
+    label: isVendedor ? 'Venta pública de planta' : 'Nuevo pedido',
+    detalle: isVendedor ? 'Ticket general de mostrador' : 'Solicitud sin descontar inventario',
+    onClick: isVendedor ? onVentaRapida : irA('nota'),
     tab: 'nota'
   }, {
     icon: 'plus',

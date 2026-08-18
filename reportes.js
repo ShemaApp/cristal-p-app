@@ -64,26 +64,6 @@ function Reportes({
     }
     setBackupGenerating(false);
   };
-  const [ubicFecha, setUbicFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const [ubicNotas, setUbicNotas] = useState(null);
-  const [ubicLoading, setUbicLoading] = useState(false);
-  const cargarUbicacionDia = async () => {
-    setUbicLoading(true);
-    try {
-      const desde = new Date(ubicFecha + 'T00:00:00').toISOString();
-      const hasta = new Date(ubicFecha + 'T23:59:59').toISOString();
-      const snap = await db.collection('notas').where('fecha', '>=', desde).where('fecha', '<=', hasta).get();
-      const notas = snap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })).filter(n => n.ubicacionVenta);
-      notas.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-      setUbicNotas(notas);
-    } catch (e) {
-      flash(' ' + e.message);
-    }
-    setUbicLoading(false);
-  };
   const [reporteRango, setReporteRango] = useState('semana');
   const [reporteDesde, setReporteDesde] = useState('');
   const [reporteHasta, setReporteHasta] = useState('');
@@ -288,7 +268,6 @@ function Reportes({
           'Unidades faltantes': Math.max(0, unidadesSolicitadas - unidadesAplicadas),
           'Detalle incidencia': itemsFaltantes.length ? JSON.stringify(itemsFaltantes) : '',
           Total: numeroExcel(venta.total),
-          'GPS venta disponible': venta.ubicacionVenta ? 'Sí' : 'No'
         };
       });
       const ventaDetalleFilas = [];
@@ -431,7 +410,6 @@ function Reportes({
         };
       });
       const clientesFilas = (clientes || []).map(cliente => {
-        const ubicacion = cliente.ubicacion || {};
         return {
           'Cliente ID': cliente.id || '',
           Cliente: cliente.nombre || '',
@@ -441,11 +419,6 @@ function Reportes({
           'Domicilio histórico': cliente.localidad && cliente.domicilio && String(cliente.localidad).trim().toLocaleLowerCase('es') !== String(cliente.domicilio).trim().toLocaleLowerCase('es') ? cliente.domicilio : '',
           Activo: cliente.activo === false ? 'No' : 'Sí',
           'Código QR': qrTextForCliente(cliente.id),
-          'Estado GPS': ubicacion.lat !== undefined && ubicacion.lng !== undefined ? 'Con GPS' : 'Sin GPS',
-          'GPS latitud': ubicacion.lat === undefined ? '' : ubicacion.lat,
-          'GPS longitud': ubicacion.lng === undefined ? '' : ubicacion.lng,
-          'GPS precisión (m)': numeroOVacioExcel(ubicacion.precisionMetros),
-          'Fecha GPS': fechaExcel(ubicacion.fecha),
           'Creado por UID': cliente.creadoPorUid || ''
         };
       });
@@ -492,7 +465,7 @@ function Reportes({
         Valor: clientesFilas.length
       }];
       agregarHojaExcel(libro, 'Resumen', ['Indicador', 'Valor'], resumenFilas, [], []);
-      agregarHojaExcel(libro, 'Ventas', ['Venta ID', 'Venta offline ID', 'Fecha', 'Cliente ID', 'Cliente', 'Teléfono', 'Vendedor UID', 'Vendedor', 'Forma de pago', 'Origen', 'Transferencia ID', 'Estado', 'Requiere revisión', 'Líneas de venta', 'Unidades solicitadas', 'Unidades aplicadas inventario', 'Unidades faltantes', 'Detalle incidencia', 'Total', 'GPS venta disponible'], ventasFilas, ['Total'], ['Fecha']);
+      agregarHojaExcel(libro, 'Ventas', ['Venta ID', 'Venta offline ID', 'Fecha', 'Cliente ID', 'Cliente', 'Teléfono', 'Vendedor UID', 'Vendedor', 'Forma de pago', 'Origen', 'Transferencia ID', 'Estado', 'Requiere revisión', 'Líneas de venta', 'Unidades solicitadas', 'Unidades aplicadas inventario', 'Unidades faltantes', 'Detalle incidencia', 'Total'], ventasFilas, ['Total'], ['Fecha']);
       agregarHojaExcel(libro, 'VentaDetalle', ['Venta ID', 'Venta offline ID', 'Línea', 'Fecha venta', 'Cliente ID', 'Cliente', 'Producto ID', 'Producto', 'Unidad', 'Cantidad solicitada', 'Cantidad aplicada inventario', 'Cantidad faltante', 'Precio unitario', 'Subtotal', 'Estado', 'Requiere revisión', 'Origen', 'Transferencia ID', 'Forma de pago'], ventaDetalleFilas, ['Precio unitario', 'Subtotal'], ['Fecha venta']);
       agregarHojaExcel(libro, 'Transferencias', ['Transferencia ID', 'Fecha de salida', 'Fecha programada', 'Regreso programado', 'Fecha de recepción', 'Estado', 'Estado transferencia', 'Origen', 'Responsable', 'Responsable UID', 'Vehículo', 'Zona', 'Asignada por', 'Recibida por', 'Motivo de merma', 'Conciliada'], transferenciasFilas, [], ['Fecha de salida', 'Fecha programada', 'Regreso programado', 'Fecha de recepción']);
       agregarHojaExcel(libro, 'TransferenciaDetalle', ['Transferencia ID', 'Fecha de salida', 'Estado', 'Producto ID', 'Producto', 'Unidad', 'Cantidad cargada', 'Cantidad restante', 'Cantidad devuelta', 'Merma', 'Responsable', 'Zona'], transferenciaDetalleFilas, [], ['Fecha de salida']);
@@ -500,7 +473,7 @@ function Reportes({
       agregarHojaExcel(libro, 'Abonos', ['Crédito ID', 'Abono #', 'Fecha', 'Cliente ID', 'Cliente', 'Monto', 'Forma de pago', 'Capturado por UID', 'Capturado por'], abonosFilas, ['Monto'], ['Fecha']);
       agregarHojaExcel(libro, 'MovimientosInventario', ['Movimiento ID', 'Fecha', 'Producto ID', 'Producto', 'Stock anterior', 'Stock nuevo', 'Diferencia', 'Motivo', 'Usuario UID', 'Usuario', 'Correo usuario'], movimientosFilas, [], ['Fecha']);
       agregarHojaExcel(libro, 'Productos', ['Producto ID', 'Producto base ID', 'Código de barras', 'Producto', 'Presentación', 'Tipo de venta', 'Unidad inventario', 'Contenido por unidad', 'Unidad de contenido', 'Unidad', 'Tamaño / presentación', 'Precio activo', 'Precio activo ID', 'Precio actual', 'Stock actual', 'Activo'], productosFilas, ['Precio activo', 'Precio actual'], []);
-      agregarHojaExcel(libro, 'Clientes', ['Cliente ID', 'Cliente', 'Teléfono', 'Localidad', 'Fuente de localidad', 'Domicilio histórico', 'Activo', 'Código QR', 'Estado GPS', 'GPS latitud', 'GPS longitud', 'GPS precisión (m)', 'Fecha GPS', 'Creado por UID'], clientesFilas, [], ['Fecha GPS']);
+      agregarHojaExcel(libro, 'Clientes', ['Cliente ID', 'Cliente', 'Teléfono', 'Localidad', 'Fuente de localidad', 'Domicilio histórico', 'Activo', 'Código QR', 'Creado por UID'], clientesFilas, [], []);
       XLSX.writeFile(libro, 'libro_operativo_flutt_water_' + new Date().toISOString().slice(0, 10) + '.xlsx', {
         compression: true,
         cellDates: true
@@ -687,7 +660,7 @@ function Reportes({
       gap: 6,
       marginBottom: 14
     }
-  }, [['respaldo', ' Respaldo'], ['ubicacion', ' Ubicación'], ['reporte', ' Reporte de ventas'], ['exportar', ' Exportar']].map(([v, l]) => React.createElement("button", {
+  }, [['respaldo', ' Respaldo'], ['reporte', ' Reporte de ventas'], ['exportar', ' Exportar']].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => setSubTab(v),
     style: {
@@ -745,164 +718,7 @@ function Reportes({
       fontSize: 11,
       color: 'var(--ink-faint)'
     }
-  }, "Recomendado: hazlo cada semana, y guarda uno aparte cada fin de mes. Te avisamos aquí arriba cuando ya lleve más de 7 días.")), subTab === 'ubicacion' && (() => {
-    const ok = (ubicNotas || []).filter(n => n.ubicacionVenta.ok === true);
-    const mal = (ubicNotas || []).filter(n => n.ubicacionVenta.ok === false);
-    const sinDatos = (ubicNotas || []).filter(n => n.ubicacionVenta.ok === null);
-    return React.createElement(React.Fragment, null, React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: 'var(--ink-faint)',
-        marginBottom: 12,
-        lineHeight: 1.5
-      }
-    }, "Compara dónde se hizo cada venta de ruta contra el domicilio registrado del cliente (radio de ", RADIO_VISITA_METROS, " m). Es solo informativo: nunca bloquea ni anula una venta."), React.createElement(Row, {
-      style: {
-        gap: 8,
-        marginBottom: 12
-      }
-    }, React.createElement("input", {
-      type: "date",
-      value: ubicFecha,
-      onChange: e => setUbicFecha(e.target.value),
-      style: {
-        ...inputStyle,
-        marginBottom: 0,
-        flex: 1
-      }
-    }), React.createElement("button", {
-      onClick: cargarUbicacionDia,
-      disabled: ubicLoading,
-      style: {
-        background: 'var(--accent)',
-        color: 'var(--surface-2)',
-        border: 'none',
-        borderRadius: 8,
-        padding: '0 16px',
-        fontWeight: 700,
-        cursor: 'pointer',
-        opacity: ubicLoading ? 0.6 : 1
-      }
-    }, ubicLoading ? '…' : 'Ver')), ubicNotas === null && React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: 'var(--ink-faint)',
-        textAlign: 'center',
-        padding: '20px 0'
-      }
-    }, "Elige una fecha y toca \"Ver\"."), ubicNotas !== null && ubicNotas.length === 0 && React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: 'var(--ink-faint)',
-        textAlign: 'center',
-        padding: '20px 0'
-      }
-    }, "Sin ventas de ruta con ubicación ese día."), ubicNotas !== null && ubicNotas.length > 0 && React.createElement(React.Fragment, null, React.createElement(Row, {
-      style: {
-        gap: 8,
-        marginBottom: 14
-      }
-    }, React.createElement("div", {
-      style: {
-        flex: 1,
-        background: 'var(--ok-bg)',
-        borderRadius: 10,
-        padding: '10px 8px',
-        textAlign: 'center'
-      }
-    }, React.createElement("div", {
-      style: {
-        fontSize: 20,
-        fontWeight: 800,
-        color: 'var(--ok-text)'
-      }
-    }, ok.length), React.createElement("div", {
-      style: {
-        fontSize: 10,
-        color: 'var(--ok-text)'
-      }
-    }, " Concuerdan")), React.createElement("div", {
-      style: {
-        flex: 1,
-        background: 'var(--danger-bg)',
-        borderRadius: 10,
-        padding: '10px 8px',
-        textAlign: 'center'
-      }
-    }, React.createElement("div", {
-      style: {
-        fontSize: 20,
-        fontWeight: 800,
-        color: 'var(--danger-text)'
-      }
-    }, mal.length), React.createElement("div", {
-      style: {
-        fontSize: 10,
-        color: 'var(--danger-text)'
-      }
-    }, " No concuerdan")), React.createElement("div", {
-      style: {
-        flex: 1,
-        background: 'var(--surface)',
-        borderRadius: 10,
-        padding: '10px 8px',
-        textAlign: 'center'
-      }
-    }, React.createElement("div", {
-      style: {
-        fontSize: 20,
-        fontWeight: 800,
-        color: 'var(--ink-faint)'
-      }
-    }, sinDatos.length), React.createElement("div", {
-      style: {
-        fontSize: 10,
-        color: 'var(--ink-faint)'
-      }
-    }, " Sin datos"))), mal.length > 0 && React.createElement(React.Fragment, null, React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: 'var(--danger-text)',
-        fontWeight: 700,
-        marginBottom: 8
-      }
-    }, "VENTAS FUERA DE RANGO"), mal.map(n => React.createElement("div", {
-      key: n.id,
-      style: {
-        background: 'var(--danger-bg)',
-        borderRadius: 10,
-        padding: '10px 12px',
-        marginBottom: 6
-      }
-    }, React.createElement(Row, {
-      style: {
-        justifyContent: 'space-between'
-      }
-    }, React.createElement("span", {
-      style: {
-        fontSize: 13,
-        fontWeight: 700,
-        color: 'var(--danger-text)'
-      }
-    }, n.clienteNombre), React.createElement("span", {
-      style: {
-        fontSize: 12,
-        color: 'var(--danger-text)'
-      }
-    }, fmtx(n.total))), React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: 'var(--danger-text)',
-        marginTop: 2
-      }
-    }, fDateTime(n.fecha), " · a ", n.ubicacionVenta.distanciaM, " m del domicilio registrado", n.capturadoPorNombre ? ' · ' + n.capturadoPorNombre : '')))), sinDatos.length > 0 && React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: 'var(--ink-faint)',
-        marginTop: mal.length ? 14 : 0
-      }
-    }, "\"Sin datos\" significa que el cliente no tiene ubicación registrada, o no se pudo obtener el GPS del repartidor en ese momento — no es evidencia de nada, solo falta información para comparar.")));
-  })(), subTab === 'reporte' && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, "Recomendado: hazlo cada semana, y guarda uno aparte cada fin de mes. Te avisamos aquí arriba cuando ya lleve más de 7 días.")), subTab === 'reporte' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,

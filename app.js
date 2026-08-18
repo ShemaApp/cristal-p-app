@@ -57,9 +57,14 @@ function App() {
     return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
   const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
+  const rolApp = rolEfectivo(currentUser);
+  const etiquetasPorRol = {
+    vendedor: { home: 'Planta', nota: 'Venta de planta', clientes: 'Clientes de planta', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
+    repartidor: { home: 'Mi jornada', nota: 'Ventas y pedidos', clientes: 'Mi cartera', creditos: 'Cobro de mi cartera', ruta: 'Jornada', vehiculos: 'Mi vehículo', repartidores: 'Venta QR', gerencia: 'Mi caja' }
+  };
   const permTabs = permisoTabs(currentUser);
   const tabsPermitidos = ['home', ...ALL_TABS.filter(([id]) => id !== 'home' && permTabs[id]).map(([id]) => id)];
-  const TABS = ALL_TABS.filter(([id]) => tabsPermitidos.includes(id));
+  const TABS = ALL_TABS.filter(([id]) => tabsPermitidos.includes(id)).map(([id, ico, lbl]) => [id, ico, etiquetasPorRol[rolApp]?.[id] || lbl]);
   useEffect(() => {
     if (!currentUser) return;
     if (tab !== 'config' && !tabsPermitidos.includes(tab)) {
@@ -337,7 +342,7 @@ function App() {
     notificacionesTransferencias: notificacionesTransferencias,
     onIrA: navegarA,
     onVentaRapida: () => {
-      setModoNota('almacen');
+      setModoNota(rolApp === 'vendedor' ? 'planta' : 'almacen');
       navegarA('nota', { conservarModoNota: true });
     },
     onAgregarProducto: () => {
@@ -361,7 +366,8 @@ function App() {
   }), tab === 'nota' && React.createElement(CrearNota, {
     ...ctx,
     currentUser: currentUser,
-    ventaRapida: modoNota === 'almacen'
+    ventaRapida: modoNota === 'almacen' || modoNota === 'planta',
+    modoVentaPlanta: modoNota === 'planta'
   }), tab === 'clientes' && React.createElement(Clientes, {
     ...ctx,
     currentUser: currentUser

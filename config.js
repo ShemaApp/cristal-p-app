@@ -657,8 +657,8 @@ function Configuracion({
       marginBottom: 16
     }
   }, React.createElement("option", {
-    value: "usuario"
-  }, "usuario"), React.createElement("option", {
+    value: "vendedor"
+  }, "vendedor"), React.createElement("option", {
     value: "repartidor"
   }, "repartidor"), React.createElement("option", {
     value: "admin"

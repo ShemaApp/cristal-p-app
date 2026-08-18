@@ -5,12 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v21-context-menus';
-// Cache aparte para tiles de mapa offline: a propósito NO se borra cuando
-// sube la versión del shell (ver 'activate' más abajo) — si viviera en
-// CACHE_NAME, cada actualización de la app borraría el mapa descargado.
-const TILES_CACHE = 'flutt-water-tiles-v1';
-const TILE_HOST = 'tile.openstreetmap.org';
+const CACHE_NAME = 'flutt-water-v22-role-cleanup';
 
 // Ajusta la ruta de tu HTML principal si tu index no se llama exactamente así.
 const SHELL_URLS = [
@@ -55,8 +50,6 @@ const SHELL_URLS = [
   'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
   'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
 ];
 
@@ -77,13 +70,13 @@ self.addEventListener('install', (event) => {
   })());
 });
 
-// --- Activación: conserva tiles y elimina solo versiones antiguas de esta PWA ---
+// --- Activación: elimina versiones antiguas de esta PWA ---
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME && key !== TILES_CACHE)
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
         .map((key) => caches.delete(key))
     );
     await self.clients.claim();
@@ -104,24 +97,6 @@ self.addEventListener('fetch', (event) => {
     request.url.includes('securetoken.googleapis.com')
   ) {
     return; // deja pasar sin interceptar
-  }
-
-  // Tiles de mapa (OpenStreetMap): cache-first puro, sin red si ya están
-  // descargadas — esto es lo que hace que el mapa funcione sin conexión
-  // dentro de la zona que se haya descargado desde la pestaña Mapa.
-  if (request.url.includes(TILE_HOST)) {
-    event.respondWith(
-      caches.open(TILES_CACHE).then((cache) =>
-        cache.match(request).then((cached) => {
-          if (cached) return cached;
-          return fetch(request).then((res) => {
-            if (res && res.ok) cache.put(request, res.clone());
-            return res;
-          }).catch(() => cached);
-        })
-      )
-    );
-    return;
   }
 
   // Navegación: cache-first con actualización en segundo plano. Evita que una

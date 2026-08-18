@@ -1,39 +1,4 @@
 'use strict';
-let leafletLoading = false;
-function ensureLeaflet(cb) {
-  if (window.L) {
-    cb();
-    return;
-  }
-  if (!document.getElementById('leaflet-css')) {
-    const link = document.createElement('link');
-    link.id = 'leaflet-css';
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
-  }
-  if (leafletLoading) {
-    const check = setInterval(() => {
-      if (window.L) {
-        clearInterval(check);
-        cb();
-      }
-    }, 200);
-    return;
-  }
-  leafletLoading = true;
-  const script = document.createElement('script');
-  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-  script.onload = () => {
-    leafletLoading = false;
-    cb();
-  };
-  script.onerror = () => {
-    leafletLoading = false;
-    cb();
-  };
-  document.body.appendChild(script);
-}
 let qrLibLoading = false;
 function ensureQRCodeLib(cb) {
   if (window.QRCode) {
@@ -219,48 +184,6 @@ const ESTADOS = {
     color: '#2E8B45'
   }
 };
-function getLoc() {
-  return new Promise(res => {
-    if (!navigator.geolocation) {
-      res(null);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(p => res({
-      lat: p.coords.latitude,
-      lng: p.coords.longitude,
-      fecha: new Date().toISOString()
-    }), () => res(null), {
-      enableHighAccuracy: true,
-      timeout: 8000
-    });
-  });
-}
-function lonLatATile(lat, lng, z) {
-  const n = Math.pow(2, z);
-  const x = Math.floor((lng + 180) / 360 * n);
-  const latRad = lat * Math.PI / 180;
-  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
-  return {
-    x,
-    y
-  };
-}
-function tilesParaZona(bounds, zMin, zMax) {
-  const tiles = [];
-  for (let z = zMin; z <= zMax; z++) {
-    const nw = lonLatATile(bounds.getNorth(), bounds.getWest(), z);
-    const se = lonLatATile(bounds.getSouth(), bounds.getEast(), z);
-    for (let x = nw.x; x <= se.x; x++) {
-      for (let y = nw.y; y <= se.y; y++) tiles.push({
-        z,
-        x,
-        y
-      });
-    }
-  }
-  return tiles;
-}
-const MAPA_OFFLINE_KEY = 'flutt-water-map-offline-v1';
 const inputStyle = {
   background: 'var(--surface-2)',
   border: '1px solid var(--line-strong)',
@@ -380,7 +303,7 @@ function ClienteScanner({
     }
   })));
 }
-function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onCerrar }) {
+function RutaActivaCard({ ruta, currentUser, onCerrar }) {
   const puedeOperar = currentUser.role === 'admin' || ruta.repartidorId === currentUser.uid;
   const resumen = resumenRuta(ruta);
   const inventario = Object.entries(ruta.items || {}).map(([id, item]) => React.createElement("div", {
@@ -395,21 +318,7 @@ function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onC
   const acciones = puedeOperar ? React.createElement("div", {
     key: 'acciones',
     style: { display: 'flex', gap: 8, marginTop: 9 }
-  }, [puedeGps && React.createElement("button", {
-    key: 'gps',
-    onClick: onTracking,
-    style: {
-      flex: 1,
-      background: tracking ? 'var(--warn-bg)' : 'var(--surface-2)',
-      color: tracking ? 'var(--warn-text)' : 'var(--ink-soft)',
-      border: '1px solid var(--line-strong)',
-      borderRadius: 8,
-      padding: 8,
-      fontWeight: 700,
-      cursor: 'pointer',
-      fontSize: 11
-    }
-  }, tracking ? ' GPS activo' : ' Compartir GPS'), React.createElement("button", {
+  }, React.createElement("button", {
     key: 'cerrar',
     onClick: onCerrar,
     style: {
@@ -423,7 +332,7 @@ function RutaActivaCard({ ruta, currentUser, puedeGps, tracking, onTracking, onC
       cursor: 'pointer',
       fontSize: 11
     }
-  }, ' Cerrar ruta')]) : null;
+  }, ' Cerrar ruta')) : null;
   return React.createElement("div", {
     style: {
       background: 'var(--surface)',
@@ -470,20 +379,6 @@ function RepartidoresPanel({
   const [waPhone, setWaPhone] = useState('');
   const [expandComp, setExpandComp] = useState(null);
   const [msg, setMsg] = useState('');
-  const [mapReady, setMapReady] = useState(false);
-  const [mapaOffline, setMapaOffline] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(MAPA_OFFLINE_KEY) || 'null');
-    } catch (e) {
-      return null;
-    }
-  });
-  const [descargandoMapa, setDescargandoMapa] = useState(null);
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const markersRef = useRef({});
-  const watchIdRef = useRef(null);
-  const [tracking, setTracking] = useState(null);
   const [qrModalFor, setQrModalFor] = useState(null);
   const [qrDataURL, setQrDataURL] = useState(null);
   const [qrSel, setQrSel] = useState([]);
@@ -508,110 +403,6 @@ function RepartidoresPanel({
     if (typeof fluttWaterSuscribirVentasOffline !== 'function') return undefined;
     return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
-  const descargarZonaOffline = async () => {
-    if (!mapInstance.current) return;
-    const bounds = mapInstance.current.getBounds();
-    const zActual = Math.round(mapInstance.current.getZoom());
-    const zMin = Math.max(zActual, 12),
-      zMax = Math.min(zActual + 3, 17);
-    const tiles = tilesParaZona(bounds, zMin, zMax);
-    if (tiles.length > 3500) {
-      flash(' La zona visible es muy grande (' + tiles.length + ' tiles). Acércate más con el zoom antes de descargar.');
-      return;
-    }
-    if (!confirm('Se van a descargar ' + tiles.length + ' imágenes de mapa (~' + Math.max(1, Math.round(tiles.length * 15 / 1024)) + ' MB aprox., zoom ' + zMin + '–' + zMax + '). ¿Continuar?')) return;
-    setDescargandoMapa({
-      hecho: 0,
-      total: tiles.length
-    });
-    const cola = [...tiles];
-    let hecho = 0;
-    const trabajador = async () => {
-      while (cola.length) {
-        const t = cola.shift();
-        try {
-          await fetch(`https://a.tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`);
-        } catch (e) {}
-        hecho++;
-        setDescargandoMapa({
-          hecho,
-          total: tiles.length
-        });
-      }
-    };
-    await Promise.all(Array.from({
-      length: 6
-    }, trabajador));
-    const meta = {
-      fecha: new Date().toISOString(),
-      tileCount: tiles.length,
-      zMin,
-      zMax,
-      bounds: {
-        n: bounds.getNorth(),
-        s: bounds.getSouth(),
-        e: bounds.getEast(),
-        w: bounds.getWest()
-      }
-    };
-    localStorage.setItem(MAPA_OFFLINE_KEY, JSON.stringify(meta));
-    setMapaOffline(meta);
-    setDescargandoMapa(null);
-    flash(' Zona de mapa lista para uso sin conexión');
-  };
-  const borrarMapaOffline = async () => {
-    if (!confirm('¿Borrar el mapa descargado de este dispositivo?')) return;
-    try {
-      if ('caches' in window) await caches.delete('flutt-water-tiles-v1');
-    } catch (e) {}
-    localStorage.removeItem(MAPA_OFFLINE_KEY);
-    setMapaOffline(null);
-    flash(' Mapa offline borrado');
-  };
-  useEffect(() => {
-    if (tab !== 'mapa') return;
-    ensureLeaflet(() => {
-      if (!window.L || !mapRef.current) return;
-      setTimeout(() => {
-        if (!mapInstance.current && mapRef.current) {
-          mapInstance.current = window.L.map(mapRef.current).setView([23.6, -102.5], 5);
-          window.L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-          }).addTo(mapInstance.current);
-        }
-        setMapReady(true);
-        if (mapInstance.current) setTimeout(() => mapInstance.current.invalidateSize(), 100);
-      }, 50);
-    });
-  }, [tab]);
-  useEffect(() => {
-    if (!mapReady || !mapInstance.current) return;
-    const activas = rutas.filter(r => r.estado === 'activa' && r.ubicacionActual);
-    Object.keys(markersRef.current).forEach(id => {
-      if (!activas.find(r => r.id === id)) {
-        mapInstance.current.removeLayer(markersRef.current[id]);
-        delete markersRef.current[id];
-      }
-    });
-    const pts = [];
-    activas.forEach(r => {
-      const {
-        lat,
-        lng
-      } = r.ubicacionActual;
-      pts.push([lat, lng]);
-      const popup = `<b>${r.repartidorNombre || '—'}</b><br/>${r.vehiculo || ''}<br/>${r.zona || ''}`;
-      if (markersRef.current[r.id]) {
-        markersRef.current[r.id].setLatLng([lat, lng]).setPopupContent(popup);
-      } else {
-        markersRef.current[r.id] = window.L.marker([lat, lng]).addTo(mapInstance.current).bindPopup(popup);
-      }
-    });
-    if (pts.length) mapInstance.current.fitBounds(pts, {
-      maxZoom: 14,
-      padding: [30, 30]
-    });
-  }, [rutas, mapReady]);
   const cerrarRuta = async r => {
     const pendientesOffline = typeof fluttWaterVentasPendientesRuta === 'function' ? await fluttWaterVentasPendientesRuta(r.id) : { total: 0 };
     if (pendientesOffline.total > 0) {
@@ -626,7 +417,6 @@ function RepartidoresPanel({
         solicitadoPorUid: currentUser.uid,
         solicitadoPorNombre: currentUser.nombre || ''
       });
-      if (tracking === r.id) detenerSeguimiento();
       flash(' Transferencia enviada a recepción de almacén para su conciliación');
     } catch (e) {
       flash(' No se pudo solicitar la recepción de la transferencia: ' + e.message);
@@ -687,17 +477,16 @@ function RepartidoresPanel({
       return;
     }
     try {
-      const loc = await getLoc();
       const ref = await dbx.collection('clientes').add({
         nombre: nuevoCliForm.nombre,
         telefono: nuevoCliForm.telefono || '',
         domicilio: nuevoCliForm.domicilio || '',
         activo: true,
         creadoPorUid: currentUser.uid,
-        ubicacion: loc || null
+        identificacion: 'qr'
       });
       setNuevoCliForm(null);
-      flash(loc ? ' Cliente creado con ubicación' : ' Cliente creado (sin ubicación GPS)');
+      flash(' Cliente creado; QR listo para identificación');
       verQR({
         id: ref.id,
         nombre: nuevoCliForm.nombre,
@@ -813,12 +602,7 @@ function RepartidoresPanel({
     }
     setVentaRapida(v => ({ ...v, saving: true }));
     try {
-      const loc = await getLoc();
       const cliente = ventaRapida.cliente;
-      const ubicacionVenta = loc && cliente.ubicacion ? {
-        ok: distanciaMetros(loc.lat, loc.lng, cliente.ubicacion.lat, cliente.ubicacion.lng) <= RADIO_VISITA_METROS,
-        distanciaM: Math.round(distanciaMetros(loc.lat, loc.lng, cliente.ubicacion.lat, cliente.ubicacion.lng))
-      } : { ok: null, distanciaM: null };
       const itemsConPrecio = ventaRapida.items.map(it => {
         const producto = productos.find(p => p.id === it.id);
         return {
@@ -848,7 +632,7 @@ function RepartidoresPanel({
         total,
         formaPago: ventaRapida.pago,
         tipoVenta: 'rapida_repartidor',
-        ubicacionVenta
+        identificacionCliente: 'qr'
       });
       setVentaRapida(v => ({ ...v, saving: false, done: resultado }));
       if (resultado.estado === 'pendiente_local') {
@@ -893,44 +677,9 @@ function RepartidoresPanel({
     downloadCSV('ventas_detalladas_' + Date.now() + '.csv', rows);
   };
   const diasDesdeUltimoRespaldo = backupMeta && backupMeta.ultimoRespaldo ? Math.floor((Date.now() - new Date(backupMeta.ultimoRespaldo).getTime()) / 86400000) : null;
-  const iniciarSeguimiento = r => {
-    if (!navigator.geolocation) {
-      flash(' Este dispositivo no soporta GPS');
-      return;
-    }
-    if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
-    let last = 0;
-    watchIdRef.current = navigator.geolocation.watchPosition(p => {
-      const now = Date.now();
-      if (now - last < 20000) return;
-      last = now;
-      dbx.collection('rutas').doc(r.id).update({
-        ubicacionActual: {
-          lat: p.coords.latitude,
-          lng: p.coords.longitude,
-          fecha: new Date().toISOString()
-        }
-      }).catch(() => {});
-    }, () => flash(' No se pudo obtener ubicación'), {
-      enableHighAccuracy: true
-    });
-    setTracking(r.id);
-    flash(' Compartiendo ubicación en vivo');
-  };
-  const detenerSeguimiento = () => {
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    setTracking(null);
-  };
-  useEffect(() => () => {
-    if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
-  }, []);
   if (!currentUser) return null;
   if (currentUser.role !== 'admin' && currentUser.role !== 'repartidor') return null;
   const puedeCamara = permisoAcciones(currentUser).camara;
-  const puedeGps = currentUser.role === 'admin' || permisoAcciones(currentUser).gps;
   _permisoCSV = currentUser.role === 'admin' || permisoAcciones(currentUser).csv;
   const activas = rutas.filter(r => r.estado === 'activa');
   const hist = rutas.filter(r => r.estado === 'cerrada');
@@ -989,7 +738,7 @@ function RepartidoresPanel({
       gap: 6,
       marginBottom: 14
     }
-  }, [['activas', 'Activas'], ['mapa', 'Mapa'], ['clientesqr', 'Clientes'], ['comprobantes', 'Comprob.'], ['historial', 'Historial']].filter(([v]) => v !== 'mapa' || currentUser.role === 'admin').map(([v, l]) => React.createElement("button", {
+  }, [['activas', 'Activas'], ['clientesqr', 'Clientes QR'], ['comprobantes', 'Comprob.'], ['historial', 'Historial']].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => setTab(v),
     style: {
@@ -1020,91 +769,8 @@ function RepartidoresPanel({
     key: r.id,
     ruta: r,
     currentUser,
-    puedeGps,
-    tracking: tracking === r.id,
-    onTracking: () => tracking === r.id ? detenerSeguimiento() : iniciarSeguimiento(r),
     onCerrar: () => cerrarRuta(r)
-  }))), tab === 'mapa' && currentUser.role === 'admin' && React.createElement("div", null, React.createElement("div", {
-    ref: mapRef,
-    style: {
-      width: '100%',
-      height: 380,
-      borderRadius: 12,
-      background: 'var(--surface)'
-    }
-  }), React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: 'var(--ink-faint)',
-      marginTop: 8,
-      textAlign: 'center'
-    }
-  }, "Muestra las rutas en curso que están compartiendo ubicación en vivo."), React.createElement("div", {
-    style: {
-      background: 'var(--surface)',
-      borderRadius: 10,
-      padding: 12,
-      marginTop: 14
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 6
-    }
-  }, " Mapa sin conexión"), React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: 'var(--ink-faint)',
-      marginBottom: 8,
-      lineHeight: 1.4
-    }
-  }, "Navega el mapa de arriba (pan/zoom) hasta cubrir tu zona de reparto y descárgala — queda guardada en ", React.createElement("strong", null, "este dispositivo"), " para verse sin internet. Cada dispositivo (el tuyo, el de cada repartidor) necesita descargarla por separado, una vez, mientras tenga conexión."), mapaOffline ? React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: 'var(--ok-text)',
-      marginBottom: 8
-    }
-  }, " Zona descargada el ", fDateTime(mapaOffline.fecha), " · ", mapaOffline.tileCount, " imágenes · zoom ", mapaOffline.zMin, "–", mapaOffline.zMax) : React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: 'var(--ink-faint)',
-      marginBottom: 8
-    }
-  }, "Sin zona descargada todavía en este dispositivo."), descargandoMapa ? React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700
-    }
-  }, "Descargando… ", descargandoMapa.hecho, "/", descargandoMapa.total) : React.createElement(Row, {
-    style: {
-      gap: 8
-    }
-  }, React.createElement("button", {
-    onClick: descargarZonaOffline,
-    style: {
-      flex: 1,
-      background: 'var(--accent)',
-      color: 'var(--surface-2)',
-      border: 'none',
-      borderRadius: 8,
-      padding: 10,
-      fontWeight: 700,
-      cursor: 'pointer',
-      fontSize: 12
-    }
-  }, " Descargar esta zona"), mapaOffline && React.createElement("button", {
-    onClick: borrarMapaOffline,
-    style: {
-      background: 'var(--danger-bg)',
-      color: 'var(--danger-text)',
-      border: 'none',
-      borderRadius: 8,
-      padding: '0 14px',
-      fontWeight: 700,
-      cursor: 'pointer'
-    }
-  }, "")))), tab === 'clientesqr' && React.createElement(React.Fragment, null, React.createElement("div", {
+  }))), tab === 'clientesqr' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       display: 'flex',
       gap: 8,
@@ -1860,10 +1526,10 @@ function RepartidoresPanel({
   }, ventaRapida.cliente.nombre, " · ", fmtx(ventaRapida.done.total)), React.createElement("div", {
     style: {
       fontSize: 11,
-      color: ventaRapida.done.ubicacionVenta.ok === false ? 'var(--danger-text)' : ventaRapida.done.ubicacionVenta.ok === true ? 'var(--ok)' : 'var(--warn-text)',
+      color: 'var(--ink-soft)',
       marginBottom: 20
     }
-  }, ventaRapida.done.ubicacionVenta.ok === true ? ' Ubicación confirmada' : ventaRapida.done.ubicacionVenta.ok === false ? ` Ubicación fuera de rango (${ventaRapida.done.ubicacionVenta.distanciaM} m)` : ' No se pudo validar la ubicación'), ventaRapida.cliente.telefono && React.createElement("button", {
+  }, 'Identificación del cliente: QR'), ventaRapida.cliente.telefono && React.createElement("button", {
     onClick: () => window.open(waVentaLink(ventaRapida.cliente, ventaRapida.done.items, ventaRapida.done.total, ventaRapida.done.pago, branding), '_blank'),
     style: {
       width: '100%',

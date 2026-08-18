@@ -12,35 +12,38 @@
    (movido de app-core.js, sin cambios de lógica) */
 const TABS_INFO = [['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
 const EDICION_INFO = [['productos', 'box', 'Editar / dar de alta productos'], ['clientes', 'users', 'Editar / dar de alta clientes'], ['creditos', 'credit', 'Registrar abonos a créditos']];
-const ACCIONES_INFO = [['camara', 'qr', 'Usar cámara (escanear QR de cliente)'], ['csv', 'note', 'Descargar reportes en CSV'], ['gps', 'route', 'Compartir ubicación en vivo (GPS)'], ['password', 'lock', 'Cambiar su propia contraseña']];
+const ACCIONES_INFO = [['camara', 'qr', 'Usar cámara (identificación QR de cliente)'], ['csv', 'note', 'Descargar reportes en CSV'], ['password', 'lock', 'Cambiar su propia contraseña']];
 const ACCIONES_DEFAULT_ROL = {
   admin: {
     camara: true,
     csv: true,
-    gps: true,
     password: true
   },
-  usuario: {
+  vendedor: {
     camara: false,
-    csv: true,
-    gps: false,
+    csv: false,
     password: true
   },
   repartidor: {
     camara: true,
     csv: false,
-    gps: true,
     password: true
   }
 };
+
+// Compatibilidad temporal: perfiles antiguos con role="usuario" se comportan
+// como vendedor, sin volver a exponer módulos administrativos.
+const rolEfectivo = u => u?.role === 'usuario' ? 'vendedor' : (u?.role || 'vendedor');
 const permisoAcciones = u => {
-  if (u?.role === 'admin') return ACCIONES_DEFAULT_ROL.admin;
+  const rol = rolEfectivo(u);
+  if (rol === 'admin') return { ...ACCIONES_DEFAULT_ROL.admin };
   const acciones = {
-    ...(ACCIONES_DEFAULT_ROL[u?.role] || ACCIONES_DEFAULT_ROL.usuario),
+    ...(ACCIONES_DEFAULT_ROL[rol] || ACCIONES_DEFAULT_ROL.vendedor),
     ...(u?.permisos?.acciones || {})
   };
-  // El repartidor nunca puede recuperar exportaciones mediante overrides antiguos.
-  if (u?.role === 'repartidor') acciones.csv = false;
+  // CSV solo queda para admin; QR/cámara solo para repartidor.
+  acciones.csv = false;
+  acciones.camara = rol === 'repartidor';
   return acciones;
 };
 const TABS_DEFAULT_ROL = {
@@ -57,16 +60,18 @@ const TABS_DEFAULT_ROL = {
     reportes: true,
     gerencia: true
   },
-  usuario: {
-    productos: true,
-    barcodes: true,
+  vendedor: {
+    // El vendedor usa productos e inventario dentro de Venta en planta,
+    // pero no necesita sus pantallas administrativas.
+    productos: false,
+    barcodes: false,
     nota: true,
     clientes: true,
     creditos: true,
     ruta: false,
     vehiculos: false,
     repartidores: false,
-    inventario: true,
+    inventario: false,
     reportes: false,
     gerencia: true
   },
@@ -90,24 +95,45 @@ const EDITA_DEFAULT_ROL = {
     clientes: true,
     creditos: true
   },
-  usuario: {
-    productos: true,
-    clientes: true,
+  vendedor: {
+    productos: false,
+    clientes: false,
     creditos: true
   },
   repartidor: {
     productos: false,
-    clientes: true,
+    clientes: false,
     creditos: true
   }
 };
 const permisoTabs = u => {
+  const rol = rolEfectivo(u);
+  if (rol === 'admin') return { ...TABS_DEFAULT_ROL.admin };
   const tabs = {
-    ...(TABS_DEFAULT_ROL[u?.role] || TABS_DEFAULT_ROL.usuario),
+    ...(TABS_DEFAULT_ROL[rol] || TABS_DEFAULT_ROL.vendedor),
     ...(u?.permisos?.tabs || {})
   };
-  if (u?.role === 'repartidor') {
-    // Capacidades operativas obligatorias del repartidor.
+  // La matriz de diagnóstico no permite reactivar pantallas administrativas
+  // mediante overrides antiguos. Las funciones de venta se embeben en el flujo.
+  if (rol === 'vendedor') {
+    tabs.productos = false;
+    tabs.barcodes = false;
+    tabs.ruta = false;
+    tabs.vehiculos = false;
+    tabs.repartidores = false;
+    tabs.inventario = false;
+    tabs.reportes = false;
+    tabs.nota = true;
+    tabs.clientes = true;
+    tabs.creditos = true;
+    tabs.gerencia = true;
+  }
+  if (rol === 'repartidor') {
+    tabs.productos = false;
+    tabs.barcodes = false;
+    tabs.repartidores = false;
+    tabs.inventario = false;
+    tabs.reportes = false;
     tabs.nota = true;
     tabs.clientes = true;
     tabs.creditos = true;
@@ -115,24 +141,21 @@ const permisoTabs = u => {
     tabs.vehiculos = true;
     tabs.repartidores = true;
     tabs.gerencia = true;
-    // Restricciones estructurales: no se pueden reactivar desde UI.
-    tabs.productos = false;
-    tabs.inventario = false;
-    tabs.reportes = false;
   }
   return tabs;
 };
 const permisoEdita = u => {
-  if (u?.role === 'admin') return EDITA_DEFAULT_ROL.admin;
+  const rol = rolEfectivo(u);
+  if (rol === 'admin') return { ...EDITA_DEFAULT_ROL.admin };
   const edita = {
-    ...(EDITA_DEFAULT_ROL[u?.role] || EDITA_DEFAULT_ROL.usuario),
+    ...(EDITA_DEFAULT_ROL[rol] || EDITA_DEFAULT_ROL.vendedor),
     ...(u?.permisos?.edita || {})
   };
-  if (u?.role === 'repartidor') {
-    edita.productos = false;
-    edita.clientes = true;
-    edita.creditos = true;
-  }
+  // Durante esta limpieza los roles operativos no reciben edición de datos
+  // maestros; sus altas y abonos se ejecutan en flujos específicos.
+  edita.productos = false;
+  edita.clientes = false;
+  edita.creditos = true;
   return edita;
 };
 

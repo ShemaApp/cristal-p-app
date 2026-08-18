@@ -32,9 +32,8 @@ service cloud.firestore {
       return signedIn() && role() == 'admin';
     }
     function isStaff() {
-      // admin y vendedor ('usuario') tienen los mismos permisos de escritura
-      // en la mayoría de las colecciones.
-      return signedIn() && (role() == 'admin' || role() == 'usuario');
+      // usuario se conserva únicamente como alias heredado de vendedor.
+      return signedIn() && (role() == 'admin' || role() == 'vendedor' || role() == 'usuario');
     }
     function brandingValida(data) {
       return data.nombreComercial is string
@@ -100,7 +99,8 @@ service cloud.firestore {
     function permisoEdicion(recurso) {
       let datos = datosUsuario();
       let overrides = ('permisos' in datos) && ('edita' in datos.permisos) ? datos.permisos.edita : {};
-      let porDefecto = datos.role == 'usuario'
+      let porDefecto = ((datos.role == 'vendedor' || datos.role == 'usuario')
+          && recurso == 'creditos')
         || (datos.role == 'repartidor'
           && (recurso == 'clientes' || recurso == 'creditos'));
       let valor = recurso in overrides ? overrides[recurso] == true : porDefecto;
@@ -127,9 +127,9 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if permisoEdicion('productos')
         && indiceCodigoProductoValido(request.resource.data, id);
-      // Admin/usuario pueden ajustar inventario según permisos. El repartidor
-      // solo puede descontar stock en la creación atómica de una transferencia
-      // nueva que queda asignada a él; no puede hacer ajustes posteriores.
+      // Admin ajusta inventario. El repartidor descuenta stock únicamente al
+      // crear una transferencia atómica; vendedor descuenta solo el SKU incluido
+      // en su ticket público de planta y deja una referencia inmutable de venta.
       allow update: if (permisoEdicion('productos')
           && indiceCodigoProductoValido(request.resource.data, id))
         || (signedIn() && role() == 'repartidor'
@@ -147,7 +147,22 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.repartidorId == request.auth.uid
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.estado == 'activa'
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items.keys().hasAny([id])
-          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items[id].cantCargada == request.resource.data.ultimaTransferenciaCantidad);
+          && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items[id].cantCargada == request.resource.data.ultimaTransferenciaCantidad)
+        || (signedIn() && (role() == 'vendedor' || role() == 'usuario')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'stock', 'ultimaVentaPublicaId', 'ultimaVentaPublicaVendedorUid',
+            'ultimaVentaPublicaProductoId', 'ultimaVentaPublicaCantidad'
+          ])
+          && request.resource.data.ultimaVentaPublicaVendedorUid == request.auth.uid
+          && request.resource.data.ultimaVentaPublicaProductoId == id
+          && request.resource.data.ultimaVentaPublicaProductoId is string
+          && request.resource.data.ultimaVentaPublicaCantidad is number
+          && request.resource.data.ultimaVentaPublicaCantidad > 0
+          && request.resource.data.stock == resource.data.stock - request.resource.data.ultimaVentaPublicaCantidad
+          && request.resource.data.ultimaVentaPublicaId is string
+          && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.capturadoPorUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.origen == 'planta_publico_general'
+          && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.productoIds.hasAny([id]));
       allow delete: if isAdmin();
     }
 
@@ -189,7 +204,15 @@ service cloud.firestore {
           && request.resource.data.repartidorIds is list
           && request.auth.uid in request.resource.data.repartidorIds
           && request.resource.data.rutaId is string
-          && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid);
+          && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid)
+        || (signedIn() && (role() == 'vendedor' || role() == 'usuario')
+          && id == 'publico_general'
+          && request.resource.data.nombre == 'Público general'
+          && request.resource.data.telefono is string
+          && request.resource.data.domicilio is string
+          && request.resource.data.activo == true
+          && request.resource.data.esPublicoGeneral == true
+          && request.resource.data.creadoPorUid == request.auth.uid);
       allow update: if isAdmin()
         || (signedIn() && role() == 'repartidor'
           && resource.data.asignacionEstado == 'disponible'
@@ -208,6 +231,15 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.capturadoPorUid == request.auth.uid
         && (
           (request.resource.data.origen == 'almacen' && permisoEdicion('productos'))
+          || (request.resource.data.origen == 'planta_publico_general'
+            && (role() == 'vendedor' || role() == 'usuario' || isAdmin())
+            && request.resource.data.tipoVenta == 'planta_publico_general'
+            && request.resource.data.medioOperacion == 'planta'
+            && request.resource.data.responsableTipo == 'vendedor'
+            && request.resource.data.clienteId == 'publico_general'
+            && request.resource.data.formaPago != 'credito'
+            && request.resource.data.productoIds is list
+            && request.resource.data.productoIds.size() > 0)
           || ((request.resource.data.origen == 'transferencia_almacen' || request.resource.data.origen == 'qr_cliente_ruta')
             && request.resource.data.transferenciaId is string
             && request.resource.data.rutaId == request.resource.data.transferenciaId
@@ -290,14 +322,11 @@ service cloud.firestore {
           && resource.data.repartidorId == request.auth.uid
           && request.resource.data.repartidorId == request.auth.uid
           && (
-            // Mientras está abierta, el responsable comparte GPS o registra una venta.
+            // Mientras está abierta, el responsable solo registra una venta.
             (resource.data.estado == 'activa'
               && request.resource.data.estado == 'activa'
-              && (
-                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ubicacionActual'])
-                || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items', 'entregas'])
-                  && request.resource.data.entregas.size() == resource.data.entregas.size() + 1)
-              ))
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items', 'entregas'])
+              && request.resource.data.entregas.size() == resource.data.entregas.size() + 1)
             // Al terminar, únicamente solicita que almacén reciba y concilie.
             || (resource.data.estado == 'activa'
               && request.resource.data.estado == 'pendiente_recepcion'
@@ -314,7 +343,7 @@ service cloud.firestore {
     match /devoluciones/{id} {
       allow read: if signedIn();
       allow create: if isAdmin()
-        || (signedIn() && role() == 'usuario'
+        || (signedIn() && role() == 'repartidor'
           && request.resource.data.capturadoPorUid == request.auth.uid);
       allow update, delete: if isAdmin();
     }
