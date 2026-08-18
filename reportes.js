@@ -47,7 +47,7 @@ function Reportes({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'respaldo_productos_de_la_costa_' + new Date().toISOString().slice(0, 10) + '.json';
+      a.download = 'respaldo_flutt_water_' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -409,16 +409,27 @@ function Reportes({
         Usuario: movimiento.usuarioNombre || movimiento.capturadoPorNombre || '',
         'Correo usuario': movimiento.usuarioEmail || ''
       }));
-      const productosFilas = (productos || []).map(producto => ({
-        'Producto ID': producto.id || '',
-        'Código de barras': producto.codigoBarras || '',
-        Producto: producto.nombre || '',
-        Unidad: unidadProductoNombre(producto.unidadMedida || producto.unidad || 'pieza'),
-        'Tamaño / presentación': presentacionProductoNombre(producto.tamanoPresentacion || 'PZ'),
-        'Precio actual': numeroExcel(producto.precio),
-        'Stock actual': numeroExcel(producto.stock),
-        Activo: producto.activo === false ? 'No' : 'Sí'
-      }));
+      const productosFilas = (productos || []).map(producto => {
+        const precioActivo = typeof precioActivoProducto === 'function' ? precioActivoProducto(producto) : null;
+        return {
+          'Producto ID': producto.id || '',
+          'Producto base ID': producto.productoBaseId || '',
+          'Código de barras': producto.codigoBarras || '',
+          Producto: producto.nombre || '',
+          'Presentación': typeof etiquetaProducto === 'function' ? etiquetaProducto(producto) : presentacionProductoNombre(producto.tamanoPresentacion || 'PZ'),
+          'Tipo de venta': producto.tipoVenta || 'pieza',
+          'Unidad inventario': producto.unidadInventario || producto.unidadMedida || producto.unidad || 'pieza',
+          'Contenido por unidad': numeroOVacioExcel(producto.contenidoPorUnidad),
+          'Unidad de contenido': producto.unidadContenido || '',
+          Unidad: unidadProductoNombre(producto.unidadMedida || producto.unidad || 'pieza'),
+          'Tamaño / presentación': presentacionProductoNombre(producto.tamanoPresentacion || 'PZ'),
+          'Precio activo': numeroExcel(typeof precioProducto === 'function' ? precioProducto(producto) : producto.precio),
+          'Precio activo ID': precioActivo?.id || producto.precioActivoId || '',
+          'Precio actual': numeroExcel(producto.precio),
+          'Stock actual': numeroExcel(producto.stock),
+          Activo: producto.activo === false ? 'No' : 'Sí'
+        };
+      });
       const clientesFilas = (clientes || []).map(cliente => {
         const ubicacion = cliente.ubicacion || {};
         return {
@@ -488,7 +499,7 @@ function Reportes({
       agregarHojaExcel(libro, 'Créditos', ['Crédito ID', 'Venta ID', 'Fecha', 'Cliente ID', 'Cliente', 'Total', 'Abonado', 'Saldo', 'Estado', 'Cantidad de abonos', 'Capturado por UID'], creditosFilas, ['Total', 'Abonado', 'Saldo'], ['Fecha']);
       agregarHojaExcel(libro, 'Abonos', ['Crédito ID', 'Abono #', 'Fecha', 'Cliente ID', 'Cliente', 'Monto', 'Forma de pago', 'Capturado por UID', 'Capturado por'], abonosFilas, ['Monto'], ['Fecha']);
       agregarHojaExcel(libro, 'MovimientosInventario', ['Movimiento ID', 'Fecha', 'Producto ID', 'Producto', 'Stock anterior', 'Stock nuevo', 'Diferencia', 'Motivo', 'Usuario UID', 'Usuario', 'Correo usuario'], movimientosFilas, [], ['Fecha']);
-      agregarHojaExcel(libro, 'Productos', ['Producto ID', 'Código de barras', 'Producto', 'Unidad', 'Precio actual', 'Stock actual', 'Activo'], productosFilas, ['Precio actual'], []);
+      agregarHojaExcel(libro, 'Productos', ['Producto ID', 'Producto base ID', 'Código de barras', 'Producto', 'Presentación', 'Tipo de venta', 'Unidad inventario', 'Contenido por unidad', 'Unidad de contenido', 'Unidad', 'Tamaño / presentación', 'Precio activo', 'Precio activo ID', 'Precio actual', 'Stock actual', 'Activo'], productosFilas, ['Precio activo', 'Precio actual'], []);
       agregarHojaExcel(libro, 'Clientes', ['Cliente ID', 'Cliente', 'Teléfono', 'Localidad', 'Fuente de localidad', 'Domicilio histórico', 'Activo', 'Código QR', 'Estado GPS', 'GPS latitud', 'GPS longitud', 'GPS precisión (m)', 'Fecha GPS', 'Creado por UID'], clientesFilas, [], ['Fecha GPS']);
       XLSX.writeFile(libro, 'libro_operativo_flutt_water_' + new Date().toISOString().slice(0, 10) + '.xlsx', {
         compression: true,

@@ -53,8 +53,8 @@ function App() {
   const [abrirUsuarios, setAbrirUsuarios] = useState(false);
   const [offlineVentaResumen, setOfflineVentaResumen] = useState({ total: 0, pendientes: 0, incidencias: 0, registros: [] });
   useEffect(() => {
-    if (typeof frittzSuscribirVentasOffline !== 'function') return undefined;
-    return frittzSuscribirVentasOffline(setOfflineVentaResumen);
+    if (typeof fluttWaterSuscribirVentasOffline !== 'function') return undefined;
+    return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
   const ALL_TABS = [['home', '🏠', 'Inicio'], ['productos', '📦', 'Productos'], ['barcodes', '🏷️', 'Etiquetas'], ['nota', '📋', 'Pedidos'], ['clientes', '👥', 'Clientes'], ['creditos', '💳', 'Créditos'], ['ruta', '🧭', 'Jornada'], ['vehiculos', '🚚', 'Vehículos'], ['repartidores', '🧭', 'Distribución'], ['inventario', '📋', 'Inventario'], ['reportes', '📈', 'Reportes'], ['gerencia', '💰', 'Gerencia']];
   const permTabs = permisoTabs(currentUser);

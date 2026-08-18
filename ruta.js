@@ -52,7 +52,7 @@ function RutaReparto({
     return unsub;
   }, [currentUser.role]);
   useEffect(() => {
-    const subscribe = runtime && runtime.frittzSuscribirVentasOffline;
+    const subscribe = runtime && runtime.fluttWaterSuscribirVentasOffline;
     if (typeof subscribe !== 'function') return undefined;
     return subscribe(setOfflineVentaResumen);
   }, []);
@@ -353,8 +353,8 @@ function RutaReparto({
   };
   const updQty = (id, v) => {
     const raw = String(v ?? '');
-    // Permitir campo vacío durante la edición, pero mantener cantidades enteras.
-    if (!/^-?\d*$/.test(raw)) return;
+    // Permitir campo vacío durante la edición; el tipo de SKU decide si admite decimales.
+    if (!/^-?\d*(?:\.\d*)?$/.test(raw)) return;
     if (raw !== '' && Number(raw) < 0) {
       setCart(c => c.filter(x => x.id !== id));
       return;
@@ -375,10 +375,11 @@ function RutaReparto({
     }
     const cantidadesCart = cart.map(item => ({
       ...item,
+      permiteDecimales: productos.find(p => p.id === item.id)?.permiteDecimales === true,
       cant: Number(item.cant)
     }));
-    if (cantidadesCart.some(item => !Number.isInteger(item.cant) || item.cant < 1)) {
-      flash('⚠️ Cada producto debe tener una cantidad entera mayor que cero');
+    if (cantidadesCart.some(item => item.cant < 1 || (!item.permiteDecimales && !Number.isInteger(item.cant)))) {
+      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
       const asignacion = currentUser.role === 'repartidor'
@@ -474,10 +475,18 @@ function RutaReparto({
         nombre: item.nombre || '',
         unidad: item.unidad || '',
         precio: Number(item.precio || 0),
+        precioId: item.precioId || '',
+        precioNombre: item.precioNombre || '',
+        productoBaseId: item.productoBaseId || '',
+        tipoVenta: item.tipoVenta || 'pieza',
+        unidadInventario: item.unidadInventario || 'pieza',
+        contenidoPorUnidad: item.contenidoPorUnidad ?? null,
+        unidadContenido: item.unidadContenido || item.unidad || 'pieza',
+        etiquetaPresentacion: item.etiquetaPresentacion || item.nombre || '',
         cant: Number(item.cant || 0)
       }));
       const total = Number(pedidoEntrega.total || items.reduce((s, item) => s + item.precio * item.cant, 0));
-      const guardarVenta = runtime && runtime.frittzGuardarVentaTransferencia;
+      const guardarVenta = runtime && runtime.fluttWaterGuardarVentaTransferencia;
       if (typeof guardarVenta !== 'function') throw new Error('El módulo de ventas offline no está disponible; recarga la aplicación');
       const resultado = await guardarVenta({
         transferenciaId: rutaActiva.id,
@@ -528,7 +537,15 @@ function RutaReparto({
         id,
         nombre: it.nombre,
         unidad: it.unidad,
-        precio: prod ? prod.precio : 0,
+        precio: prod ? precioProducto(prod) : 0,
+        precioId: prod ? precioActivoProducto(prod).id : '',
+        precioNombre: prod ? precioActivoProducto(prod).nombre : '',
+        productoBaseId: prod?.productoBaseId || '',
+        tipoVenta: prod?.tipoVenta || 'pieza',
+        unidadInventario: prod?.unidadInventario || 'pieza',
+        contenidoPorUnidad: prod?.contenidoPorUnidad ?? null,
+        unidadContenido: prod?.unidadContenido || prod?.unidadMedida || prod?.unidad || 'pieza',
+        etiquetaPresentacion: prod ? etiquetaProducto(prod) : it.nombre,
         cant: 1,
         max: it.saldoLibre
       }];
@@ -536,7 +553,7 @@ function RutaReparto({
   };
   const updEntQty = (id, v) => {
     const raw = String(v ?? '');
-    if (!/^-?\d*$/.test(raw)) return;
+    if (!/^-?\d*(?:\.\d*)?$/.test(raw)) return;
     if (raw === '') {
       setEntCart(c => c.map(x => x.id === id ? { ...x, cant: '' } : x));
       return;
@@ -555,8 +572,8 @@ function RutaReparto({
   const canSaveEnt = clienteEnt?.nombre && entCart.length > 0;
   const guardarEntrega = async () => {
     if (!canSaveEnt || !rutaActiva) return;
-    if (entCart.some(item => !Number.isInteger(Number(item.cant)) || Number(item.cant) < 1 || Number(item.cant) > Number(item.max))) {
-      flash('⚠️ Cada producto debe tener una cantidad entera válida para esta transferencia');
+    if (entCart.some(item => Number(item.cant) < 1 || Number(item.cant) > Number(item.max) || (!productos.find(p => p.id === item.id)?.permiteDecimales && !Number.isInteger(Number(item.cant))))) {
+      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
     if (currentUser.role !== 'repartidor' || rutaActiva.repartidorId !== currentUser.uid) { flash('⚠️ Solo el repartidor asignado puede registrar ventas desde esta transferencia'); return; }
@@ -578,10 +595,18 @@ function RutaReparto({
         nombre: item.nombre,
         unidad: item.unidad || '',
         precio: Number(item.precio || 0),
+        precioId: item.precioId || '',
+        precioNombre: item.precioNombre || '',
+        productoBaseId: item.productoBaseId || '',
+        tipoVenta: item.tipoVenta || 'pieza',
+        unidadInventario: item.unidadInventario || 'pieza',
+        contenidoPorUnidad: item.contenidoPorUnidad ?? null,
+        unidadContenido: item.unidadContenido || item.unidad || 'pieza',
+        etiquetaPresentacion: item.etiquetaPresentacion || item.nombre || '',
         cant: Number(item.cant || 0)
       }));
       const total = items.reduce((s, x) => s + x.precio * x.cant, 0);
-      const guardarVenta = runtime && runtime.frittzGuardarVentaTransferencia;
+      const guardarVenta = runtime && runtime.fluttWaterGuardarVentaTransferencia;
       if (typeof guardarVenta !== 'function') throw new Error('El módulo de ventas offline no está disponible; recarga la aplicación');
       const resultado = await guardarVenta({
         transferenciaId: rutaActiva.id,
@@ -617,7 +642,7 @@ function RutaReparto({
       flash('⏳ Espera a que termine la operación actual');
       return;
     }
-    const pendientesFn = runtime && runtime.frittzVentasPendientesRuta;
+    const pendientesFn = runtime && runtime.fluttWaterVentasPendientesRuta;
     const pendientesOffline = typeof pendientesFn === 'function' ? await pendientesFn(rutaActiva.id) : { total: 0 };
     if (pendientesOffline.total > 0) {
       flash('⚠️ Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');

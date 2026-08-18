@@ -505,8 +505,8 @@ function RepartidoresPanel({
     return dbx.collection('_meta').doc('backups').onSnapshot(snap => setBackupMeta(snap.exists ? snap.data() : null), () => {});
   }, [currentUser?.role]);
   useEffect(() => {
-    if (typeof frittzSuscribirVentasOffline !== 'function') return undefined;
-    return frittzSuscribirVentasOffline(setOfflineVentaResumen);
+    if (typeof fluttWaterSuscribirVentasOffline !== 'function') return undefined;
+    return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
   const descargarZonaOffline = async () => {
     if (!mapInstance.current) return;
@@ -613,7 +613,7 @@ function RepartidoresPanel({
     });
   }, [rutas, mapReady]);
   const cerrarRuta = async r => {
-    const pendientesOffline = typeof frittzVentasPendientesRuta === 'function' ? await frittzVentasPendientesRuta(r.id) : { total: 0 };
+    const pendientesOffline = typeof fluttWaterVentasPendientesRuta === 'function' ? await fluttWaterVentasPendientesRuta(r.id) : { total: 0 };
     if (pendientesOffline.total > 0) {
       flash('⚠️ Hay ' + pendientesOffline.total + ' venta(s) offline pendiente(s) de sincronizar; conecta el dispositivo antes de cerrar');
       return;
@@ -762,13 +762,22 @@ function RepartidoresPanel({
       items: existente ? v.items.map(x => x.id === p.id ? { ...x, cant: (Number(x.cant) || 0) + 1 } : x) : [...v.items, {
         id: p.id,
         nombre: p.nombre,
+        precio: precioProducto(p),
+        precioId: precioActivoProducto(p).id,
+        precioNombre: precioActivoProducto(p).nombre,
+        productoBaseId: p.productoBaseId || '',
+        tipoVenta: p.tipoVenta || 'pieza',
+        unidadInventario: p.unidadInventario || 'pieza',
+        contenidoPorUnidad: p.contenidoPorUnidad ?? null,
+        unidadContenido: p.unidadContenido || p.unidadMedida || p.unidad || 'pieza',
+        etiquetaPresentacion: etiquetaProducto(p),
         cant: 1
       }]
     }));
   };
   const updQtyVenta = (id, val) => {
     const raw = String(val ?? '');
-    if (!/^-?\d*$/.test(raw)) return;
+    if (!/^-?\d*(?:\.\d*)?$/.test(raw)) return;
     if (raw === '') {
       setVentaRapida(v => ({
         ...v,
@@ -798,8 +807,8 @@ function RepartidoresPanel({
       flash('⚠️ Agrega al menos un producto');
       return;
     }
-    if (ventaRapida.items.some(item => !Number.isInteger(Number(item.cant)) || Number(item.cant) < 1)) {
-      flash('⚠️ Cada producto debe tener una cantidad entera mayor que cero');
+    if (ventaRapida.items.some(item => Number(item.cant) < 1 || (!productos.find(p => p.id === item.id)?.permiteDecimales && !Number.isInteger(Number(item.cant))))) {
+      flash('⚠️ Revisa las cantidades: las piezas y paquetes son enteros; los SKU a granel pueden usar decimales');
       return;
     }
     setVentaRapida(v => ({ ...v, saving: true }));
@@ -816,12 +825,20 @@ function RepartidoresPanel({
           id: it.id,
           nombre: it.nombre,
           unidad: producto?.unidad || '',
+          precioId: producto ? precioActivoProducto(producto).id : (it.precioId || ''),
+          precioNombre: producto ? precioActivoProducto(producto).nombre : (it.precioNombre || ''),
+          productoBaseId: producto?.productoBaseId || it.productoBaseId || '',
+          tipoVenta: producto?.tipoVenta || it.tipoVenta || 'pieza',
+          unidadInventario: producto?.unidadInventario || it.unidadInventario || 'pieza',
+          contenidoPorUnidad: producto?.contenidoPorUnidad ?? it.contenidoPorUnidad ?? null,
+          unidadContenido: producto?.unidadContenido || it.unidadContenido || producto?.unidad || 'pieza',
+          etiquetaPresentacion: producto ? etiquetaProducto(producto) : (it.etiquetaPresentacion || it.nombre || ''),
           cant: Number(it.cant || 0),
-          precio: Number(producto?.precio || it.precio || 0)
+          precio: producto ? precioProducto(producto) : Number(it.precio || 0)
         };
       });
       const total = itemsConPrecio.reduce((s, it) => s + it.precio * it.cant, 0);
-      const resultado = await frittzGuardarVentaTransferencia({
+      const resultado = await fluttWaterGuardarVentaTransferencia({
         transferenciaId: ventaRapida.rutaId,
         rutaId: ventaRapida.rutaId,
         repartidorUid: currentUser.uid,
@@ -1726,12 +1743,12 @@ function RepartidoresPanel({
     style: {
       fontSize: 12
     }
-  }, p.nombre), React.createElement("div", {
+  }, p.nombre, " · ", etiquetaProducto(p)), React.createElement("div", {
     style: {
       fontSize: 10,
       color: 'var(--accent)'
     }
-  }, fmtx(p.precio), " · Saldo libre: ", saldoDisponibleTransferencia(ventaRapida.rutaId, p.id))), React.createElement("button", {
+  }, fmtx(precioProducto(p)), " · Saldo libre: ", saldoDisponibleTransferencia(ventaRapida.rutaId, p.id))), React.createElement("button", {
     onClick: () => addProdVenta(p),
     style: {
       background: 'var(--info-bg)',

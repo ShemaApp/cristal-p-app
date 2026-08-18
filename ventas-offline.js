@@ -1,5 +1,5 @@
 /*
- * Ventas offline de transferencia — Frittz v46
+ * Ventas offline de transferencia — Flutt-Water v46
  *
  * Firestore conserva los datos consultados y encola escrituras simples, pero
  * no ejecuta runTransaction() sin red. Este módulo guarda la intención de
@@ -13,20 +13,32 @@
 (function (global) {
   'use strict';
 
-  const DB_NAME = 'frittz-offline-ventas-v1';
+  const DB_NAME = 'fluttWater-offline-ventas-v1';
+  const LEGACY_DB_NAME = 'frittz-offline-ventas-v1';
   const DB_VERSION = 1;
   const STORE = 'ventas_transferencia';
   const RETRY_STATES = ['pendiente', 'reintentando'];
   let dbOpenPromise = null;
+  let migrationPromise = null;
   let syncPromise = null;
   const listeners = new Set();
 
   const notify = async () => {
-    const resumen = await (global.frittzResumenVentasOffline ? global.frittzResumenVentasOffline() : Promise.resolve({ total: 0, pendientes: 0, incidencias: 0 })).catch(() => ({ total: 0, pendientes: 0, incidencias: 0 }));
+    const resumen = await (global.fluttWaterResumenVentasOffline ? global.fluttWaterResumenVentasOffline() : Promise.resolve({ total: 0, pendientes: 0, incidencias: 0 })).catch(() => ({ total: 0, pendientes: 0, incidencias: 0 }));
     listeners.forEach(fn => {
       try { fn(resumen); } catch (e) { console.warn('Listener de ventas offline:', e); }
     });
   };
+
+  const openNamedDb = name => new Promise((resolve, reject) => {
+    if (!('indexedDB' in global)) {
+      reject(new Error('Este dispositivo no ofrece almacenamiento local IndexedDB'));
+      return;
+    }
+    const request = global.indexedDB.open(name, DB_VERSION);
+    request.onerror = () => reject(request.error || new Error('No se pudo abrir la cola local'));
+    request.onsuccess = () => resolve(request.result);
+  });
 
   const openDb = () => {
     if (dbOpenPromise) return dbOpenPromise;
@@ -39,7 +51,7 @@
       request.onerror = () => reject(request.error || new Error('No se pudo abrir la cola local'));
       request.onupgradeneeded = event => {
         const localDb = event.target.result;
-        if (localDb.objectStoreNames.contains(STORE)) localDb.deleteObjectStore(STORE);
+        if (localDb.objectStoreNames.contains(STORE)) return;
         const store = localDb.createObjectStore(STORE, { keyPath: 'id' });
         store.createIndex('estado', 'estado', { unique: false });
         store.createIndex('transferenciaId', 'transferenciaId', { unique: false });
@@ -63,12 +75,47 @@
     });
   };
 
+  const migrateLegacyDb = async () => {
+    if (!('indexedDB' in global) || LEGACY_DB_NAME === DB_NAME) return;
+    let legacyDb = null;
+    try {
+      legacyDb = await openNamedDb(LEGACY_DB_NAME);
+      if (!legacyDb.objectStoreNames.contains(STORE)) {
+        legacyDb.close();
+        global.indexedDB.deleteDatabase(LEGACY_DB_NAME);
+        return;
+      }
+      const records = await new Promise((resolve, reject) => {
+        const tx = legacyDb.transaction(STORE, 'readonly');
+        const request = tx.objectStore(STORE).getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error || new Error('No se pudo migrar la cola offline'));
+      });
+      if (records.length) {
+        await withStore('readwrite', store => records.forEach(record => store.put(record)));
+      }
+      legacyDb.close();
+      global.indexedDB.deleteDatabase(LEGACY_DB_NAME);
+    } catch (e) {
+      try { legacyDb?.close(); } catch (closeError) {}
+      console.warn('No se pudo migrar la cola offline anterior:', e);
+    }
+  };
+
+  const ensureMigrated = () => {
+    if (!migrationPromise) migrationPromise = migrateLegacyDb();
+    return migrationPromise;
+  };
+
   const requestResult = request => new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Error al leer la cola local'));
   });
 
-  const allRecordsRaw = async () => withStore('readonly', store => requestResult(store.getAll()));
+  const allRecordsRaw = async () => {
+    await ensureMigrated();
+    return withStore('readonly', store => requestResult(store.getAll()));
+  };
   const currentUid = () => {
     try {
       return global.auth?.currentUser?.uid || global.firebase?.auth?.().currentUser?.uid || null;
@@ -82,10 +129,13 @@
 
   const getRecord = async id => withStore('readonly', store => requestResult(store.get(id)));
 
-  const putRecord = async record => withStore('readwrite', store => {
-    store.put(record);
-    return record;
-  });
+  const putRecord = async record => {
+    await ensureMigrated();
+    return withStore('readwrite', store => {
+      store.put(record);
+      return record;
+    });
+  };
 
   const deleteRecord = async id => withStore('readwrite', store => {
     store.delete(id);
@@ -103,6 +153,15 @@
     id: String(item.id),
     nombre: String(item.nombre || ''),
     unidad: String(item.unidad || ''),
+    precioId: String(item.precioId || ''),
+    precioNombre: String(item.precioNombre || ''),
+    productoBaseId: String(item.productoBaseId || ''),
+    tipoVenta: String(item.tipoVenta || 'pieza'),
+    unidadInventario: String(item.unidadInventario || item.unidad || 'pieza'),
+    contenidoPorUnidad: item.contenidoPorUnidad == null ? null : Number(item.contenidoPorUnidad),
+    unidadContenido: String(item.unidadContenido || ''),
+    etiquetaPresentacion: String(item.etiquetaPresentacion || item.nombre || ''),
+    permiteDecimales: item.permiteDecimales === true,
     cant: Math.max(0, Number(item.cant || 0)),
     precio: Number(item.precio || 0)
   })).filter(item => item.id && item.cant > 0);
@@ -152,12 +211,12 @@
     try { return db; } catch (e) { return null; }
   };
 
-  const esIncidencia = error => error && error.__frittzIncidencia === true;
+  const esIncidencia = error => error && error.__fluttWaterIncidencia === true;
 
   const errorIncidencia = (mensaje, detalle = {}) => {
     const error = new Error(mensaje);
-    error.__frittzIncidencia = true;
-    error.__frittzDetalle = detalle;
+    error.__fluttWaterIncidencia = true;
+    error.__fluttWaterDetalle = detalle;
     return error;
   };
 
@@ -313,7 +372,7 @@
     if (!firestore) throw error;
     const notaRef = firestore.collection('notas').doc(venta.notaId || venta.id);
     const fecha = new Date().toISOString();
-    const detalle = error.__frittzDetalle || { tipo: 'conciliacion_requiere_revision' };
+    const detalle = error.__fluttWaterDetalle || { tipo: 'conciliacion_requiere_revision' };
     await notaRef.set({
       fecha,
       fechaCapturaOffline: venta.creadoEn,
@@ -352,7 +411,7 @@
     await notify();
     // La sincronización automática se intenta de inmediato si la red volvió
     // entre la validación de la pantalla y el guardado local.
-    if (global.navigator?.onLine) setTimeout(() => global.frittzSincronizarVentasOffline && global.frittzSincronizarVentasOffline(), 0);
+    if (global.navigator?.onLine) setTimeout(() => global.fluttWaterSincronizarVentasOffline && global.fluttWaterSincronizarVentasOffline(), 0);
     return { estado: 'pendiente_local', ventaId: venta.id, notaId: venta.notaId, total: venta.total };
   };
 
@@ -442,12 +501,12 @@
     return () => listeners.delete(callback);
   };
 
-  global.frittzGuardarVentaTransferencia = guardar;
-  global.frittzEncolarVentaTransferencia = enqueue;
-  global.frittzSincronizarVentasOffline = sincronizar;
-  global.frittzVentasPendientesRuta = pendientesRuta;
-  global.frittzResumenVentasOffline = resumen;
-  global.frittzSuscribirVentasOffline = subscribe;
+  global.fluttWaterGuardarVentaTransferencia = guardar;
+  global.fluttWaterEncolarVentaTransferencia = enqueue;
+  global.fluttWaterSincronizarVentasOffline = sincronizar;
+  global.fluttWaterVentasPendientesRuta = pendientesRuta;
+  global.fluttWaterResumenVentasOffline = resumen;
+  global.fluttWaterSuscribirVentasOffline = subscribe;
 
   global.addEventListener('online', () => setTimeout(() => sincronizar(), 250));
   try {

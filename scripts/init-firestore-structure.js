@@ -126,11 +126,23 @@ for (const producto of productos.values()) {
   if (!producto.nombre || !producto.tipoProducto || !producto.unidadInventario) {
     throw new Error(`El producto ${producto.id} necesita nombre, tipoProducto y unidadInventario.`);
   }
+  if (producto.tipoVenta && !['granel', 'pieza', 'paquete', 'peso', 'unidad'].includes(producto.tipoVenta)) {
+    throw new Error(`El producto ${producto.id} tiene un tipoVenta no soportado.`);
+  }
+  if (producto.contenidoPorUnidad !== undefined && Number(producto.contenidoPorUnidad) < 0) {
+    throw new Error(`El contenidoPorUnidad del producto ${producto.id} no puede ser negativo.`);
+  }
+  if (producto.unidadContenido !== undefined && typeof producto.unidadContenido !== 'string') {
+    throw new Error(`La unidadContenido del producto ${producto.id} debe ser texto.`);
+  }
   if (producto.unidadInventario === 'litro' && Number(producto.contenidoLitros || 0) < 0) {
     throw new Error(`El contenidoLitros del producto ${producto.id} no puede ser negativo.`);
   }
   if (producto.productoVacioId && !productos.has(producto.productoVacioId)) {
     throw new Error(`El producto ${producto.id} referencia un envase vacío inexistente: ${producto.productoVacioId}`);
+  }
+  if (producto.productoContenidoId && !productos.has(producto.productoContenidoId)) {
+    throw new Error(`El paquete ${producto.id} referencia un SKU de contenido inexistente: ${producto.productoContenidoId}`);
   }
 }
 

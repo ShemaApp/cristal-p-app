@@ -39,13 +39,23 @@ function VentaAlmacen({
     } : x) : [...c, {
       id: p.id,
       nombre: p.nombre,
-      precio: p.precio,
+      precio: precioProducto(p),
+      precioId: precioActivoProducto(p).id,
+      precioNombre: precioActivoProducto(p).nombre,
+      productoBaseId: p.productoBaseId || '',
+      tipoVenta: p.tipoVenta || 'pieza',
+      unidadInventario: p.unidadInventario || 'pieza',
+      contenidoPorUnidad: p.contenidoPorUnidad ?? null,
+      unidadContenido: p.unidadContenido || p.unidadMedida || p.unidad || 'pieza',
+      etiquetaPresentacion: etiquetaProducto(p),
+      unidadMedida: p.unidadMedida || p.unidad || 'pieza',
+      tamanoPresentacion: p.tamanoPresentacion || 'PZ',
       cant: 1
     }];
   });
   const updQty = (id, v) => {
     const raw = String(v ?? '');
-    if (!/^-?\d*$/.test(raw)) return;
+    if (!/^-?\d*(?:\.\d*)?$/.test(raw)) return;
     if (raw !== '' && Number(raw) < 0) {
       setCart(c => c.filter(x => x.id !== id));
       return;
@@ -356,7 +366,7 @@ function VentaAlmacen({
       fontSize: 11,
       color: 'var(--accent-text)'
     }
-  }, fmt(p.precio), " / ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'))), React.createElement(BFill, {
+  }, fmt(precioProducto(p)), " / ", etiquetaProducto(p), " · ", PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (p.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'))), React.createElement(BFill, {
     onClick: () => addCart(p),
     style: {
       padding: '5px 12px',
@@ -507,11 +517,11 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   const cliFilt = clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(cliSearch.toLowerCase()) && !c.esPublicoGeneral);
   const addCart = p => setCart(actual => {
     const existe = actual.find(x => x.id === p.id);
-    return existe ? actual.map(x => x.id === p.id ? { ...x, cant: Number(x.cant || 0) + 1 } : x) : [...actual, { id: p.id, nombre: p.nombre, precio: Number(p.precio || 0), unidadMedida: p.unidadMedida || p.unidad || 'pieza', tamanoPresentacion: p.tamanoPresentacion || 'PZ', unidad: p.unidadMedida || p.unidad || 'pieza', cant: 1 }];
+    return existe ? actual.map(x => x.id === p.id ? { ...x, cant: Number(x.cant || 0) + 1 } : x) : [...actual, { id: p.id, nombre: p.nombre, precio: precioProducto(p), precioId: precioActivoProducto(p).id, precioNombre: precioActivoProducto(p).nombre, productoBaseId: p.productoBaseId || '', tipoVenta: p.tipoVenta || 'pieza', unidadInventario: p.unidadInventario || 'pieza', contenidoPorUnidad: p.contenidoPorUnidad ?? null, unidadContenido: p.unidadContenido || p.unidadMedida || p.unidad || 'pieza', etiquetaPresentacion: etiquetaProducto(p), unidadMedida: p.unidadMedida || p.unidad || 'pieza', tamanoPresentacion: p.tamanoPresentacion || 'PZ', unidad: p.unidadMedida || p.unidad || 'pieza', cant: 1 }];
   });
   const updQty = (id, cant) => {
     const raw = String(cant ?? '');
-    if (!/^-?\d*$/.test(raw)) return;
+    if (!/^-?\d*(?:\.\d*)?$/.test(raw)) return;
     if (raw !== '' && Number(raw) < 0) {
       setCart(actual => actual.filter(x => x.id !== id));
       return;

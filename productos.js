@@ -25,12 +25,42 @@ const PRODUCTO_PRESENTACIONES = [
   { id: '5KG', nombre: '5 kg' },
   { id: '10KG', nombre: '10 kg' }
 ];
+const PRODUCTO_TIPOS_VENTA = [
+  { id: 'pieza', nombre: 'Pieza' },
+  { id: 'granel', nombre: 'A granel' },
+  { id: 'paquete', nombre: 'Paquete' }
+];
+const PRODUCTO_UNIDADES_INVENTARIO = [
+  { id: 'pieza', nombre: 'Pieza (pz)' },
+  { id: 'kg', nombre: 'Kilogramo (kg)' },
+  { id: 'g', nombre: 'Gramo (g)' },
+  { id: 'L', nombre: 'Litro (L)' },
+  { id: 'mL', nombre: 'Mililitro (mL)' },
+  { id: 'paquete', nombre: 'Paquete' },
+  { id: 'caja', nombre: 'Caja' },
+  { id: 'saco', nombre: 'Saco' },
+  { id: 'bolsa', nombre: 'Bolsa' }
+];
 const unidadProductoNombre = id => PRODUCTO_UNIDADES_UNIVERSALES.find(x => x.id === id)?.nombre || id || 'Pieza (pz)';
 const presentacionProductoNombre = id => PRODUCTO_PRESENTACIONES.find(x => x.id === id)?.nombre || id || 'PZ · pieza';
 window.PRODUCTO_UNIDADES_UNIVERSALES = PRODUCTO_UNIDADES_UNIVERSALES;
 window.PRODUCTO_PRESENTACIONES = PRODUCTO_PRESENTACIONES;
 window.unidadProductoNombre = unidadProductoNombre;
 window.presentacionProductoNombre = presentacionProductoNombre;
+window.PRODUCTO_TIPOS_VENTA = PRODUCTO_TIPOS_VENTA;
+window.PRODUCTO_UNIDADES_INVENTARIO = PRODUCTO_UNIDADES_INVENTARIO;
+const precioActivoProducto = producto => {
+  const precios = Array.isArray(producto?.preciosVenta) ? producto.preciosVenta : [];
+  const activo = precios.find(p => p.activo !== false && Number(p.precio) >= 0);
+  if (activo) return { ...activo, precio: Number(activo.precio || 0) };
+  if (precios.length) return { id: producto?.precioActivoId || 'sin-precio-activo', nombre: 'Sin precio activo', precio: 0, activo: false };
+  return { id: producto?.precioActivoId || 'precio-legado', nombre: 'Precio actual', precio: Number(producto?.precio || 0), activo: true };
+};
+const precioProducto = producto => Number(precioActivoProducto(producto).precio || producto?.precio || 0);
+const etiquetaProducto = producto => producto?.etiquetaPresentacion || presentacionProductoNombre(producto?.tamanoPresentacion || 'PZ');
+window.precioActivoProducto = precioActivoProducto;
+window.precioProducto = precioProducto;
+window.etiquetaProducto = etiquetaProducto;
 
 function InventarioHistorial({
   onClose
@@ -85,14 +115,14 @@ function InventarioHistorial({
       fontWeight: 700,
       fontSize: 13
     }
-  }, h.productoNombre), React.createElement(Tag, {
+  }, h.productoNombre, h.etiquetaPresentacion ? ' · ' + h.etiquetaPresentacion : ''), React.createElement(Tag, {
     color: h.diferencia >= 0 ? 'var(--ok-text)' : 'var(--danger-text)'
   }, h.diferencia >= 0 ? '+' : '', h.diferencia)), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)'
     }
-  }, h.stockAnterior, " → ", h.stockNuevo, " unidades"), React.createElement("div", {
+  }, h.stockAnterior, " → ", h.stockNuevo, " ", h.unidadInventario || 'unidades'), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--ink-soft)',
@@ -115,6 +145,43 @@ function InventarioHistorial({
     }
   }, fDate(h.fecha))))));
 }
+function PrecioProductoModal({ producto, currentUser, onClose }) {
+  const iniciales = Array.isArray(producto?.preciosVenta) && producto.preciosVenta.length ? producto.preciosVenta : [{ id: producto?.precioActivoId || 'precio-legado', nombre: 'Precio actual', precio: Number(producto?.precio || 0), activo: true, vigenteDesde: null, vigenteHasta: null }];
+  const [precios, setPrecios] = useState(iniciales);
+  const [nombre, setNombre] = useState('');
+  const [precio, setPrecio] = useState('');
+  const [saving, setSaving] = useState(false);
+  const guardar = async (lista, activoId, compatPrecio) => {
+    setSaving(true);
+    try {
+      await db.collection('productos').doc(producto.id).update({ preciosVenta: lista, precioActivoId: activoId || '', precio: Number(compatPrecio || 0), actualizadoPorUid: currentUser.uid, actualizadoEn: new Date().toISOString() });
+      setPrecios(lista);
+    } catch (e) { alert('No se pudo actualizar precios: ' + e.message); }
+    setSaving(false);
+  };
+  const agregar = async () => {
+    const valor = Number(precio);
+    if (!nombre.trim() || !Number.isFinite(valor) || valor < 0) { alert('Captura nombre y un precio válido'); return; }
+    const nuevo = { id: `pv_${Date.now()}`, nombre: nombre.trim(), precio: valor, activo: true, vigenteDesde: new Date().toISOString(), vigenteHasta: null, creadoPorUid: currentUser.uid };
+    const lista = [...precios.map(p => ({ ...p, activo: false, vigenteHasta: p.activo === false ? p.vigenteHasta || null : new Date().toISOString() })), nuevo];
+    await guardar(lista, nuevo.id, valor);
+    setNombre(''); setPrecio('');
+  };
+  const alternar = async id => {
+    const actual = precios.find(p => p.id === id);
+    if (!actual) return;
+    const activar = actual.activo === false;
+    const lista = precios.map(p => ({ ...p, activo: activar ? p.id === id : false, vigenteHasta: p.id === id && !activar ? new Date().toISOString() : p.vigenteHasta }));
+    const elegido = lista.find(p => p.activo);
+    await guardar(lista, elegido?.id || '', elegido?.precio || 0);
+  };
+  return React.createElement(Modal, { title: '💵 Precios · ' + producto.nombre, onClose },
+    React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 10 } }, etiquetaProducto(producto), ' · El precio no cambia el stock y cada venta guarda una instantánea.'),
+    precios.map(p => React.createElement(Row, { key: p.id, style: { justifyContent: 'space-between', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--line)' } }, React.createElement('div', { style: { minWidth: 0 } }, React.createElement('div', { style: { fontWeight: 700, fontSize: 13 } }, p.nombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--accent-text)' } }, fmt(Number(p.precio || 0)), p.activo ? ' · ACTIVO' : ' · inactivo')), React.createElement(BOut, { onClick: () => alternar(p.id), disabled: saving }, p.activo ? 'Desactivar' : 'Activar'))),
+    React.createElement('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line)' } }, React.createElement(Lbl, null, 'Nuevo precio'), React.createElement(Row, { style: { gap: 8 } }, React.createElement(Inp, { value: nombre, onChange: e => setNombre(e.target.value), placeholder: 'Ej. Mayoreo', style: { flex: 1 } }), React.createElement(Inp, { type: 'number', min: 0, step: '0.01', value: precio, onChange: e => setPrecio(e.target.value), placeholder: '$', style: { width: 90 } })), React.createElement(BFill, { onClick: agregar, disabled: saving, style: { width: '100%', marginTop: 8 } }, '＋ Agregar y activar'))
+  );
+}
+
 function Productos({
   productos,
   currentUser,
@@ -132,10 +199,22 @@ function Productos({
   const [scanOpen, setScanOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  const [priceProduct, setPriceProduct] = useState(null);
   useEffect(() => {
     if (abrirForm) {
       setForm({
         nombre: '',
+        productoBaseId: '',
+        tipoProducto: 'terminado',
+        tipoVenta: 'pieza',
+        etiquetaPresentacion: '',
+        unidadInventario: 'pieza',
+        contenidoPorUnidad: '',
+        unidadContenido: 'pieza',
+        productoContenidoId: '',
+        requiereLlenado: false,
+        productoVacioId: '',
+        precioNombre: 'Precio público',
         precio: '',
         stock: '',
         unidadMedida: 'pieza',
@@ -196,9 +275,32 @@ function Productos({
     }
     setSaving(true);
     const nuevoStock = +form.stock || 0;
+    const anterior = form.id ? productos.find(p => p.id === form.id) : null;
+    const precioAnterior = precioActivoProducto(anterior || {});
+    const precioCambio = !form.id || Number(form.precio) !== Number(precioAnterior.precio) || String(form.precioNombre || 'Precio actual') !== String(precioAnterior.nombre || 'Precio actual');
+    const preciosPrevios = Array.isArray(anterior?.preciosVenta) && anterior.preciosVenta.length
+      ? anterior.preciosVenta
+      : (form.id ? [{ ...precioAnterior, activo: true }] : []);
+    const precioId = precioCambio || !preciosPrevios.length ? `pv_${Date.now()}` : (anterior?.precioActivoId || preciosPrevios.find(p => p.activo !== false)?.id || `pv_${Date.now()}`);
+    const preciosVenta = precioCambio || !preciosPrevios.length
+      ? [...preciosPrevios.map(p => ({ ...p, activo: false, vigenteHasta: p.activo === false ? p.vigenteHasta || null : new Date().toISOString() })), { id: precioId, nombre: form.precioNombre || 'Precio público', precio: +form.precio, activo: true, vigenteDesde: new Date().toISOString(), vigenteHasta: null, creadoPorUid: currentUser?.uid || '' }]
+      : preciosPrevios;
     const item = {
       nombre: form.nombre,
+      productoBaseId: String(form.productoBaseId || form.nombre || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      tipoProducto: form.tipoProducto || 'terminado',
+      tipoVenta: form.tipoVenta || 'pieza',
+      etiquetaPresentacion: form.etiquetaPresentacion || '',
+      unidadInventario: form.unidadInventario || 'pieza',
+      contenidoPorUnidad: form.contenidoPorUnidad === '' ? null : Number(form.contenidoPorUnidad || 0),
+      unidadContenido: form.unidadContenido || form.unidadMedida || 'pieza',
+      productoContenidoId: form.productoContenidoId || '',
+      requiereLlenado: !!form.requiereLlenado,
+      productoVacioId: form.productoVacioId || '',
+      permiteDecimales: form.tipoVenta === 'granel' || ['kg', 'g', 'L', 'mL'].includes(form.unidadInventario),
       precio: +form.precio,
+      precioActivoId: precioId,
+      preciosVenta,
       stock: nuevoStock,
       unidadMedida: form.unidadMedida,
       tamanoPresentacion: form.tamanoPresentacion,
@@ -222,7 +324,6 @@ function Productos({
         return;
       }
       if (form.id) {
-        const anterior = productos.find(p => p.id === form.id);
         const codigoAnterior = anterior ? codigoBarrasDeProducto(anterior) : '';
         await guardarProductoConIndiceCodigo(form.id, item, codigoAnterior);
         if (anterior) await logInventario(form.id, form.nombre, anterior.stock, nuevoStock, form.motivo);
@@ -259,6 +360,17 @@ function Productos({
   }, "📋 Historial"), puedeEditar && React.createElement(BFill, {
     onClick: () => setForm({
           nombre: '',
+          productoBaseId: '',
+          tipoProducto: 'terminado',
+          tipoVenta: 'pieza',
+          etiquetaPresentacion: '',
+          unidadInventario: 'pieza',
+          contenidoPorUnidad: '',
+          unidadContenido: 'pieza',
+          productoContenidoId: '',
+          requiereLlenado: false,
+          productoVacioId: '',
+          precioNombre: 'Precio público',
           precio: '',
           stock: '',
           unidadMedida: 'pieza',
@@ -367,7 +479,7 @@ function Productos({
         color: 'var(--accent-text)',
         fontSize: 14
       }
-    }, fmt(p.precio)), React.createElement("button", {
+    }, fmt(precioProducto(p))), React.createElement("button", {
       type: "button",
       title: `Acciones de ${p.nombre}`,
       'aria-label': `Abrir acciones de ${p.nombre}`,
@@ -399,7 +511,7 @@ function Productos({
       }
           }, React.createElement(Tag, {
       color: p.stock < 10 ? 'var(--danger-text)' : 'var(--ok-text)'
-    }, p.stock, " ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad))), p.codigoBarras && React.createElement("div", {
+          }, p.stock, " ", etiquetaProducto(p), " · ", PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (p.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(p.unidadMedida || p.unidad))), p.codigoBarras && React.createElement("div", {
       style: {
         fontSize: 10,
         color: 'var(--ink-faint)',
@@ -420,8 +532,19 @@ function Productos({
       onClick: () => {
         setForm({
           ...p,
-          precio: String(p.precio),
+          precio: String(precioProducto(p)),
+          precioNombre: precioActivoProducto(p).nombre || 'Precio actual',
           stock: String(p.stock),
+          productoBaseId: p.productoBaseId || '',
+          tipoProducto: p.tipoProducto || 'terminado',
+          tipoVenta: p.tipoVenta || 'pieza',
+          etiquetaPresentacion: p.etiquetaPresentacion || '',
+          unidadInventario: p.unidadInventario || 'pieza',
+          contenidoPorUnidad: p.contenidoPorUnidad === null || p.contenidoPorUnidad === undefined ? '' : String(p.contenidoPorUnidad),
+          unidadContenido: p.unidadContenido || p.unidadMedida || p.unidad || 'pieza',
+          productoContenidoId: p.productoContenidoId || '',
+          requiereLlenado: !!p.requiereLlenado,
+          productoVacioId: p.productoVacioId || '',
           unidadMedida: PRODUCTO_UNIDADES_UNIVERSALES.some(x => x.id === (p.unidadMedida || p.unidad)) ? (p.unidadMedida || p.unidad) : 'pieza',
           tamanoPresentacion: PRODUCTO_PRESENTACIONES.some(x => x.id === p.tamanoPresentacion) ? p.tamanoPresentacion : 'PZ',
           codigoBarras: p.codigoBarras || '',
@@ -432,7 +555,7 @@ function Productos({
       style: {
         flex: 1
       }
-    }, "✏️ Editar"),         React.createElement(BOut, {
+    }, "✏️ Editar"), puedeEditar && React.createElement(BOut, { onClick: () => { setPriceProduct(p); setExpandedId(null); }, style: { flex: 1 } }, '💵 Precios'),         React.createElement(BOut, {
           onClick: () => {
             onAbrirEtiquetas && onAbrirEtiquetas();
             setExpandedId(null);
@@ -496,7 +619,7 @@ function Productos({
       ...f,
       stock: e.target.value
     }))
-  }))), React.createElement(Row, { style: { gap: 10, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M universal'), React.createElement('select', { value: form.unidadMedida || 'pieza', onChange: e => setForm(f => ({ ...f, unidadMedida: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_UNIVERSALES.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre)))), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Tamaño / presentación'), React.createElement('select', { value: form.tamanoPresentacion || 'PZ', onChange: e => setForm(f => ({ ...f, tamanoPresentacion: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_PRESENTACIONES.map(p => React.createElement('option', { key: p.id, value: p.id }, p.nombre))))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', lineHeight: 1.35, marginBottom: 10 } }, 'La cantidad del medidor no vive en Productos; se configura en el medidor.'), React.createElement(Lbl, null, "Código de barras"), React.createElement(Row, {
+        }))), React.createElement(Row, { style: { gap: 10, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Producto base / familia'), React.createElement(Inp, { value: form.productoBaseId || '', onChange: e => setForm(f => ({ ...f, productoBaseId: e.target.value })), placeholder: 'Ej. hielo' })), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Tipo de venta'), React.createElement('select', { value: form.tipoVenta || 'pieza', onChange: e => setForm(f => ({ ...f, tipoVenta: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_TIPOS_VENTA.map(t => React.createElement('option', { key: t.id, value: t.id }, t.nombre))))), React.createElement(Row, { style: { gap: 10, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M inventario'), React.createElement('select', { value: form.unidadInventario || 'pieza', onChange: e => setForm(f => ({ ...f, unidadInventario: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_INVENTARIO.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre)))), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Contenido por unidad'), React.createElement(Inp, { type: 'number', min: '0', step: 'any', value: form.contenidoPorUnidad ?? '', onChange: e => setForm(f => ({ ...f, contenidoPorUnidad: e.target.value })), placeholder: 'Ej. 25' })), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M contenido'), React.createElement('select', { value: form.unidadContenido || 'pieza', onChange: e => setForm(f => ({ ...f, unidadContenido: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_UNIVERSALES.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))))), React.createElement('div', { style: { marginBottom: 10 } }, React.createElement(Lbl, null, 'Nombre de presentación'), React.createElement(Inp, { value: form.etiquetaPresentacion || '', onChange: e => setForm(f => ({ ...f, etiquetaPresentacion: e.target.value })), placeholder: 'Ej. Saco de 25 kg, bolsa de 10 kg, paquete de 12 piezas' })), form.tipoVenta === 'paquete' && React.createElement('div', { style: { marginBottom: 10 } }, React.createElement(Lbl, null, 'SKU contenido del paquete'), React.createElement('select', { value: form.productoContenidoId || '', onChange: e => setForm(f => ({ ...f, productoContenidoId: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, React.createElement('option', { value: '' }, 'Selecciona el SKU que contiene'), productos.filter(p => p.id !== form.id && p.activo !== false).map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.nombre} · ${etiquetaProducto(p)}`)))), React.createElement('label', { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, marginBottom: 10, color: 'var(--ink-soft)' } }, React.createElement('input', { type: 'checkbox', checked: !!form.requiereLlenado, onChange: e => setForm(f => ({ ...f, requiereLlenado: e.target.checked })) }), 'Requiere llenado / producción'), form.requiereLlenado && React.createElement('div', { style: { marginBottom: 10 } }, React.createElement(Lbl, null, 'Envase vacío consumido'), React.createElement('select', { value: form.productoVacioId || '', onChange: e => setForm(f => ({ ...f, productoVacioId: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, React.createElement('option', { value: '' }, 'Selecciona envase vacío'), productos.filter(p => p.id !== form.id && p.tipoProducto === 'envase_vacio').map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.nombre} · ${etiquetaProducto(p)}`)))), React.createElement(Row, { style: { gap: 10, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Nombre del precio'), React.createElement(Inp, { value: form.precioNombre || '', onChange: e => setForm(f => ({ ...f, precioNombre: e.target.value })), placeholder: 'Ej. Público, mayoreo, distribuidor' })), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M universal'), React.createElement('select', { value: form.unidadMedida || 'pieza', onChange: e => setForm(f => ({ ...f, unidadMedida: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_UNIVERSALES.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre)))), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Tamaño / presentación'), React.createElement('select', { value: form.tamanoPresentacion || 'PZ', onChange: e => setForm(f => ({ ...f, tamanoPresentacion: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_PRESENTACIONES.map(p => React.createElement('option', { key: p.id, value: p.id }, p.nombre))))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', lineHeight: 1.35, marginBottom: 10 } }, 'La cantidad del medidor no vive en Productos; se configura en el medidor.'), React.createElement(Lbl, null, "Código de barras"), React.createElement(Row, {
     style: {
       gap: 8,
       marginBottom: 10
@@ -539,7 +662,7 @@ function Productos({
       width: '100%'
     },
     disabled: saving
-  }, saving ? 'Guardando…' : '💾 Guardar')), scanOpen && React.createElement(BarcodeScanner, {
+  }, saving ? 'Guardando…' : '💾 Guardar')), priceProduct && React.createElement(PrecioProductoModal, { producto: priceProduct, currentUser, onClose: () => setPriceProduct(null) }), scanOpen && React.createElement(BarcodeScanner, {
     onDetected: code => {
       setForm(f => ({
         ...f,

@@ -147,9 +147,9 @@ function imprimirEtiquetasCodigoBarras(producto, codigo, cantidad, branding) {
   const total = Math.max(1, Math.min(100, Math.floor(Number(cantidad) || 1)));
   const svg = crearSvgCodigoBarras(codigo, 1.65, 54);
   const nombre = escaparHtmlBarcode(producto.nombre || 'Producto');
-  const unidad = escaparHtmlBarcode(unidadProductoNombre(producto.unidadMedida || producto.unidad || 'pieza'));
-  const presentacion = escaparHtmlBarcode(presentacionProductoNombre(producto.tamanoPresentacion || 'PZ'));
-  const precio = Number(producto.precio);
+  const unidad = escaparHtmlBarcode(PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (producto.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(producto.unidadMedida || producto.unidad || 'pieza'));
+  const presentacion = escaparHtmlBarcode(etiquetaProducto(producto));
+  const precio = precioProducto(producto);
   const precioTexto = Number.isFinite(precio) ? '$' + precio.toFixed(2) : '';
   const codigoHtml = escaparHtmlBarcode(codigo);
   const etiquetas = Array.from({ length: total }, () => '<section class="label"><div class="brand">' + marca + '</div><div class="name">' + nombre + '</div><div class="meta">' + escaparHtmlBarcode(precioTexto) + (precioTexto && unidad ? ' · ' : '') + presentacion + ' · ' + unidad + '</div>' + svg + '<div class="code">' + codigoHtml + '</div></section>').join('');
@@ -195,7 +195,7 @@ function BarcodePreview({ producto, codigo, branding }) {
     style: { fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 4 }
   }, producto?.nombre || 'Producto'), React.createElement('div', {
     style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 10 }
-  }, presentacionProductoNombre(producto?.tamanoPresentacion || 'PZ') + ' · ' + unidadProductoNombre(producto?.unidadMedida || producto?.unidad || 'pieza'), producto?.precio != null ? ' · $' + Number(producto.precio).toFixed(2) : ''), React.createElement('svg', {
+  }, etiquetaProducto(producto) + ' · ' + (PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (producto?.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(producto?.unidadMedida || producto?.unidad || 'pieza')) + ' · $' + precioProducto(producto).toFixed(2)), React.createElement('svg', {
     ref,
     role: 'img',
     'aria-label': 'Código de barras ' + codigo,
@@ -232,8 +232,15 @@ function CodigosBarras({ productos, currentUser, branding }) {
       const codigo = codigoInternoParaProducto(producto);
       await guardarProductoConIndiceCodigo(producto.id, {
         nombre: producto.nombre,
-        precio: Number(producto.precio) || 0,
+        precio: precioProducto(producto),
         stock: Number(producto.stock) || 0,
+        productoBaseId: producto.productoBaseId || '',
+        tipoVenta: producto.tipoVenta || 'pieza',
+        unidadInventario: producto.unidadInventario || 'pieza',
+        contenidoPorUnidad: producto.contenidoPorUnidad ?? null,
+        unidadContenido: producto.unidadContenido || producto.unidadMedida || producto.unidad || 'pieza',
+        etiquetaPresentacion: etiquetaProducto(producto),
+        precioActivoId: precioActivoProducto(producto).id,
         unidadMedida: producto.unidadMedida || producto.unidad || 'pieza',
         tamanoPresentacion: producto.tamanoPresentacion || 'PZ',
         unidad: producto.unidadMedida || producto.unidad || 'pieza',
@@ -280,7 +287,7 @@ function CodigosBarras({ productos, currentUser, branding }) {
         React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' } },
           React.createElement('div', { style: { minWidth: 0, flex: 1 } },
             React.createElement('div', { style: { fontWeight: 700, fontSize: 14, overflowWrap: 'anywhere' } }, p.nombre),
-            React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, presentacionProductoNombre(p.tamanoPresentacion || 'PZ') + ' · ' + unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza') + ' · $' + (Number(p.precio) || 0).toFixed(2)),
+            React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, etiquetaProducto(p) + ' · ' + (PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (p.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza')) + ' · $' + precioProducto(p).toFixed(2)),
             React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: codigo ? 'var(--accent-text)' : 'var(--warn-text)', marginTop: 5, overflowWrap: 'anywhere' } }, codigo ? '🏷️ ' + codigo + (interno ? ' · interno' : ' · externo') : 'Sin código enlazado')
           ),
           codigo ? React.createElement(Tag, { color: 'var(--ok-text)' }, 'Listo') : React.createElement(Tag, { color: 'var(--warn-text)' }, 'Pendiente')

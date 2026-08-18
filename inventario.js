@@ -1,3 +1,59 @@
+function FabricacionInventario({ productos, currentUser, flash }) {
+  const [productoId, setProductoId] = useState('');
+  const [cantidad, setCantidad] = useState('');
+  const [motivo, setMotivo] = useState('Fabricación para venta');
+  const [saving, setSaving] = useState(false);
+  const localInputStyle = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', fontSize: 13 };
+  const producto = productos.find(p => p.id === productoId);
+  const guardar = async () => {
+    const cantidadNum = Number(cantidad);
+    if (!producto) { flash('⚠️ Selecciona una presentación/SKU'); return; }
+    if (!Number.isFinite(cantidadNum) || cantidadNum <= 0) { flash('⚠️ La cantidad fabricada debe ser mayor que cero'); return; }
+    if (!producto.permiteDecimales && !Number.isInteger(cantidadNum)) { flash('⚠️ Este SKU solo admite unidades enteras'); return; }
+    setSaving(true);
+    try {
+      const ref = db.collection('productos').doc(producto.id);
+      const movimientoRef = db.collection('inventario_historial').doc();
+      const fecha = new Date().toISOString();
+      await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error('La presentación ya no existe');
+        const data = snap.data();
+        const anterior = Number(data.stock || 0);
+        tx.update(ref, { stock: anterior + cantidadNum, ultimaFabricacionFecha: fecha, ultimaFabricacionCantidad: cantidadNum });
+        tx.set(movimientoRef, {
+          tipoMovimiento: 'fabricacion',
+          productoId: producto.id,
+          productoNombre: producto.nombre,
+          etiquetaPresentacion: etiquetaProducto(producto),
+          unidadInventario: producto.unidadInventario || 'pieza',
+          stockAnterior: anterior,
+          stockNuevo: anterior + cantidadNum,
+          diferencia: cantidadNum,
+          cantidad: cantidadNum,
+          motivo: motivo || 'Fabricación para venta',
+          usuarioUid: currentUser.uid,
+          usuarioNombre: currentUser.nombre || '',
+          usuarioEmail: currentUser.email || '',
+          fecha
+        });
+      });
+      flash(`✅ Fabricación registrada: +${cantidadNum} ${etiquetaProducto(producto)}`);
+      setProductoId(''); setCantidad('');
+    } catch (e) { flash('❌ ' + e.message); }
+    setSaving(false);
+  };
+  return React.createElement(Card, null,
+    React.createElement('div', { style: { fontWeight: 700, marginBottom: 6 } }, '🏭 Fabricación / producción'),
+    React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginBottom: 10, lineHeight: 1.4 } }, 'Cada presentación se fabrica y se almacena por separado. Fabricar un saco de 25 kg no modifica las bolsas de 10 kg.'),
+    React.createElement('select', { value: productoId, onChange: e => setProductoId(e.target.value), style: { ...localInputStyle, marginBottom: 8 } }, React.createElement('option', { value: '' }, 'Selecciona presentación/SKU'), productos.filter(p => p.activo !== false).map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.nombre} · ${etiquetaProducto(p)} · stock ${p.stock || 0}`))),
+    producto && React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginBottom: 8 } }, `Existencia actual: ${producto.stock || 0} ${producto.unidadInventario || 'pieza'} · contenido: ${producto.contenidoPorUnidad ?? '—'} ${producto.unidadContenido || ''}`),
+    React.createElement('input', { type: 'number', min: '0', step: producto?.permiteDecimales ? 'any' : '1', value: cantidad, onChange: e => setCantidad(e.target.value), placeholder: 'Cantidad fabricada', style: { ...localInputStyle, marginBottom: 8 } }),
+    React.createElement('input', { value: motivo, onChange: e => setMotivo(e.target.value), placeholder: 'Motivo o lote de fabricación', style: { ...localInputStyle, marginBottom: 10 } }),
+    React.createElement(BFill, { onClick: guardar, disabled: saving, style: { width: '100%' } }, saving ? 'Guardando…' : '＋ Registrar fabricación')
+  );
+}
+
 function Inventario({
   productos,
   clientes,
@@ -175,7 +231,7 @@ function Inventario({
       gap: 6,
       marginBottom: 14
     }
-  }, [['conteo', '📋 Conteo físico'], ['devoluciones', '↩️ Devoluciones']].map(([v, l]) => React.createElement("button", {
+  }, [['conteo', '📋 Conteo físico'], ['fabricacion', '🏭 Fabricación'], ['devoluciones', '↩️ Devoluciones']].map(([v, l]) => React.createElement("button", {
     key: v,
     onClick: () => setSubTab(v),
     style: {
@@ -233,7 +289,7 @@ function Inventario({
         fontSize: 11,
         color: 'var(--ink-faint)'
       }
-    }, "Sistema: ", p.stock, " ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'), diff !== 0 && React.createElement("span", {
+    }, "Sistema: ", p.stock, " ", etiquetaProducto(p), " · ", PRODUCTO_UNIDADES_INVENTARIO.find(u => u.id === (p.unidadInventario || 'pieza'))?.nombre || unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'), diff !== 0 && React.createElement("span", {
       style: {
         color: diff > 0 ? 'var(--ok)' : 'var(--danger-text)',
         fontWeight: 700
@@ -292,7 +348,7 @@ function Inventario({
       cursor: 'pointer',
       opacity: conteoSaving ? 0.6 : 1
     }
-  }, conteoSaving ? 'Guardando…' : '💾 Guardar conteo (' + cambiosConteo.length + ')'))), subTab === 'devoluciones' && React.createElement(React.Fragment, null, React.createElement("div", {
+      }, conteoSaving ? 'Guardando…' : '💾 Guardar conteo (' + cambiosConteo.length + ')'))), subTab === 'fabricacion' && React.createElement(FabricacionInventario, { productos, currentUser, flash }), subTab === 'devoluciones' && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface)',
       borderRadius: 12,
@@ -345,7 +401,7 @@ function Inventario({
       cursor: 'pointer',
       fontSize: 13
     }
-  }, p.nombre)))), React.createElement("div", {
+  }, p.nombre, " · ", etiquetaProducto(p)))), React.createElement("div", {
     style: lblStyle
   }, "Cliente (opcional)"), devCliSel ? React.createElement("div", {
     style: {
@@ -504,5 +560,5 @@ function Inventario({
       color: 'var(--ink-faint)',
       marginTop: 2
     }
-  }, fDateTime(d.fecha))))));
+  }, fDateTime(d.fecha)))))));
 }
