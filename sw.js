@@ -5,7 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v15-base-brand-assets';
+const CACHE_NAME = 'flutt-water-v17-original-droplet';
 // Cache aparte para tiles de mapa offline: a propósito NO se borra cuando
 // sube la versión del shell (ver 'activate' más abajo) — si viviera en
 // CACHE_NAME, cada actualización de la app borraría el mapa descargado.
@@ -44,7 +44,7 @@ const SHELL_URLS = [
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
   './icons/logo-flutt-water-login-base.png',
-  './icons/logo-flutt-water-icon-base.png',
+  './icons/icon-original-droplet.png',
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
   'https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js',
