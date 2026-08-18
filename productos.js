@@ -414,6 +414,7 @@ function Productos({
     }
   }, React.createElement(Lbl, null, "Precio ($)"), React.createElement(Inp, {
     type: "number",
+    placeholder: "Ej. 38.00",
     value: form.precio,
     onChange: e => setForm(f => ({
       ...f,
@@ -425,6 +426,7 @@ function Productos({
     }
   }, React.createElement(Lbl, null, "Stock"), React.createElement(Inp, {
     type: "number",
+    placeholder: "Ej. 100",
     value: form.stock,
     onChange: e => setForm(f => ({
       ...f,

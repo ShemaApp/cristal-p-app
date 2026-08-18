@@ -243,7 +243,7 @@ function Inventario({
       min: "0",
       value: val === undefined ? '' : val,
       onChange: e => setConteo(p.id, e.target.value),
-      placeholder: String(p.stock),
+      placeholder: Number(p.stock) > 0 ? String(p.stock) : 'Ej. 1',
       style: {
         width: 64,
         textAlign: 'center',
@@ -397,6 +397,7 @@ function Inventario({
     type: "number",
     min: "1",
     value: devCantidad,
+    placeholder: 'Ej. 1',
     onChange: e => setDevCantidad(e.target.value),
     style: inputStyle
   }), React.createElement("div", {

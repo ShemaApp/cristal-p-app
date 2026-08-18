@@ -764,12 +764,16 @@ function RepartidoresPanel({
   };
   const updQtyVenta = (id, val) => {
     const raw = String(val ?? '');
-    if (!/^\d*$/.test(raw)) return;
+    if (!/^-?\d*$/.test(raw)) return;
     if (raw === '') {
       setVentaRapida(v => ({
         ...v,
         items: v.items.map(x => x.id === id ? { ...x, cant: '' } : x)
       }));
+      return;
+    }
+    if (raw !== '-' && Number(raw) < 0) {
+      setVentaRapida(v => ({ ...v, items: v.items.filter(x => x.id !== id) }));
       return;
     }
     const disponible = saldoDisponibleTransferencia(ventaRapida?.rutaId, id);
@@ -778,7 +782,7 @@ function RepartidoresPanel({
     if (cantidadSolicitada > disponible) flash('⚠️ La cantidad se ajustó al saldo disponible en la transferencia');
     setVentaRapida(v => ({
       ...v,
-      items: v.items.map(x => x.id === id ? { ...x, cant: cantidad } : x)
+      items: v.items.map(x => x.id === id ? { ...x, cant: raw === '-' ? raw : cantidad } : x)
     }));
   };
   const guardarVentaRapida = async () => {

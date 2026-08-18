@@ -312,7 +312,11 @@ function RutaReparto({
   const updQty = (id, v) => {
     const raw = String(v ?? '');
     // Permitir campo vacío durante la edición, pero mantener cantidades enteras.
-    if (!/^\d*$/.test(raw)) return;
+    if (!/^-?\d*$/.test(raw)) return;
+    if (raw !== '' && Number(raw) < 0) {
+      setCart(c => c.filter(x => x.id !== id));
+      return;
+    }
     setCart(c => c.map(x => x.id === id ? {
       ...x,
       cant: raw
@@ -490,15 +494,19 @@ function RutaReparto({
   };
   const updEntQty = (id, v) => {
     const raw = String(v ?? '');
-    if (!/^\d*$/.test(raw)) return;
+    if (!/^-?\d*$/.test(raw)) return;
     if (raw === '') {
       setEntCart(c => c.map(x => x.id === id ? { ...x, cant: '' } : x));
+      return;
+    }
+    if (raw !== '-' && Number(raw) < 0) {
+      setEntCart(c => c.filter(x => x.id !== id));
       return;
     }
     const cantidad = Math.min(Number(raw), Number(entCart.find(x => x.id === id)?.max || 0));
     setEntCart(c => c.map(x => x.id === id ? {
       ...x,
-      cant: cantidad
+      cant: raw === '-' ? raw : cantidad
     } : x));
   };
   const clienteEnt = cliMode === 'nuevo' ? nuevoC : cliSel;

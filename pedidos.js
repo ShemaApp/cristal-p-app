@@ -44,7 +44,11 @@ function VentaAlmacen({
   });
   const updQty = (id, v) => {
     const raw = String(v ?? '');
-    if (!/^\d*$/.test(raw)) return;
+    if (!/^-?\d*$/.test(raw)) return;
+    if (raw !== '' && Number(raw) < 0) {
+      setCart(c => c.filter(x => x.id !== id));
+      return;
+    }
     setCart(c => c.map(x => x.id === id ? {
       ...x,
       cant: raw
@@ -504,14 +508,22 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
   });
   const updQty = (id, cant) => {
     const raw = String(cant ?? '');
-    if (!/^\d*$/.test(raw)) return;
+    if (!/^-?\d*$/.test(raw)) return;
+    if (raw !== '' && Number(raw) < 0) {
+      setCart(actual => actual.filter(x => x.id !== id));
+      return;
+    }
     setCart(actual => actual.map(x => x.id === id ? { ...x, cant: raw } : x));
   };
-  const items = cart.filter(x => Number(x.cant) > 0).map(x => ({ ...x, cant: Number(x.cant) }));
-  const total = items.reduce((sum, x) => sum + Number(x.precio || 0) * x.cant, 0);
+  const items = cart.map(x => ({
+    ...x,
+    cant: x.cant === '' || x.cant === undefined ? '' : Number(x.cant)
+  }));
+  const itemsValidos = items.filter(x => Number(x.cant) > 0);
+  const total = itemsValidos.reduce((sum, x) => sum + Number(x.precio || 0) * x.cant, 0);
   const cliente = cliMode === 'nuevo' ? nuevoC : cliSel;
   const crearPedido = async estado => {
-    if (!cliente?.nombre?.trim() || !items.length) { flash('⚠️ Selecciona un cliente y al menos un producto'); return; }
+    if (!cliente?.nombre?.trim() || !itemsValidos.length) { flash('⚠️ Selecciona un cliente y al menos un producto con cantidad válida'); return; }
     if (estado === 'asignado_pendiente_transferencia' && !repartidorId && !puedeCrearTransferenciaPropia) { flash('⚠️ Elige al repartidor responsable antes de asignar'); return; }
     setSaving(true);
     try {
@@ -531,7 +543,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser }) {
           clienteNombre: cl.nombre,
           clienteTelefono: cl.telefono || '',
           clienteLocalidad: cl.localidad || '',
-          items,
+          items: itemsValidos,
           total,
           formaPagoPrevista: pagoPrevisto,
           estado,
