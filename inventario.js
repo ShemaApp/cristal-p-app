@@ -233,7 +233,7 @@ function Inventario({
         fontSize: 11,
         color: 'var(--ink-faint)'
       }
-    }, "Sistema: ", p.stock, " ", p.unidad, diff !== 0 && React.createElement("span", {
+    }, "Sistema: ", p.stock, " ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'), diff !== 0 && React.createElement("span", {
       style: {
         color: diff > 0 ? 'var(--ok)' : 'var(--danger-text)',
         fontWeight: 700

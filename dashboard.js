@@ -381,7 +381,7 @@ function Dashboard({
     }
   }, p.nombre), React.createElement(Tag, {
     color: "var(--danger-text)"
-  }, p.stock, " ", p.unidad)))), vhoy.length > 0 && React.createElement(Card, null, React.createElement("div", {
+  }, p.stock, " ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'))))), vhoy.length > 0 && React.createElement(Card, null, React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--ink-faint)',

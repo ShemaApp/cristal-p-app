@@ -356,7 +356,7 @@ function VentaAlmacen({
       fontSize: 11,
       color: 'var(--accent-text)'
     }
-  }, fmt(p.precio), " / ", p.unidad)), React.createElement(BFill, {
+  }, fmt(p.precio), " / ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad || 'pieza'))), React.createElement(BFill, {
     onClick: () => addCart(p),
     style: {
       padding: '5px 12px',
@@ -507,7 +507,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   const cliFilt = clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(cliSearch.toLowerCase()) && !c.esPublicoGeneral);
   const addCart = p => setCart(actual => {
     const existe = actual.find(x => x.id === p.id);
-    return existe ? actual.map(x => x.id === p.id ? { ...x, cant: Number(x.cant || 0) + 1 } : x) : [...actual, { id: p.id, nombre: p.nombre, precio: Number(p.precio || 0), unidad: p.unidad || '', cant: 1 }];
+    return existe ? actual.map(x => x.id === p.id ? { ...x, cant: Number(x.cant || 0) + 1 } : x) : [...actual, { id: p.id, nombre: p.nombre, precio: Number(p.precio || 0), unidadMedida: p.unidadMedida || p.unidad || 'pieza', tamanoPresentacion: p.tamanoPresentacion || 'PZ', unidad: p.unidadMedida || p.unidad || 'pieza', cant: 1 }];
   });
   const updQty = (id, cant) => {
     const raw = String(cant ?? '');

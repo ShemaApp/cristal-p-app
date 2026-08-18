@@ -97,8 +97,14 @@ for (const medidor of medidores.values()) {
   if (!['vehiculo', 'planta'].includes(medidor.tipo)) {
     throw new Error(`El medidor ${medidor.id} debe tener tipo "vehiculo" o "planta".`);
   }
-  if (medidor.factorLitrosPorUnidad === undefined || Number(medidor.factorLitrosPorUnidad) <= 0) {
-    throw new Error(`El medidor ${medidor.id} necesita factorLitrosPorUnidad mayor que cero.`);
+  if (!medidor.tipoFlujoMedidor || !medidor.unidadMedida || Number(medidor.cantidadPorDigito ?? medidor.factorLitrosPorUnidad) <= 0) {
+    throw new Error(`El medidor ${medidor.id} necesita tipoFlujoMedidor, unidadMedida y cantidadPorDigito mayor que cero.`);
+  }
+  if (Array.isArray(medidor.preciosMedidor) && medidor.preciosMedidor.length > 5) {
+    throw new Error(`El medidor ${medidor.id} no puede tener más de cinco precios.`);
+  }
+  if (medidor.tipoFlujoMedidor !== 'volumen_acumulado' && Array.isArray(medidor.preciosMedidor) && medidor.preciosMedidor.length > 0) {
+    throw new Error(`El medidor ${medidor.id} solo puede tener precios si su magnitud es volumen_acumulado.`);
   }
   if (medidor.propietarioTipo && medidor.propietarioId) {
     if (medidor.propietarioTipo === 'planta' && !plantas.has(medidor.propietarioId)) {

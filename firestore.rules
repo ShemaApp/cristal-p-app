@@ -48,6 +48,39 @@ service cloud.firestore {
         && data.telefono.size() <= 30
         && data.logoPath == 'icons/icon-192.png';
     }
+    function setupProyectoValido(data) {
+      return data.firebaseProjectId is string
+        && data.firebaseProjectId.size() > 0
+        && data.nombreEmpresa is string
+        && data.nombreEmpresa.size() > 0
+        && data.nombreEmpresa.size() <= 100
+        && data.tipoFlujoMedidor is string
+        && data.unidadMedidorPredeterminada is string
+        && data.cantidadPorDigitoPredeterminada is number
+        && data.cantidadPorDigitoPredeterminada > 0
+        && data.telefonoEmpresa is string
+        && data.telefonoEmpresa.size() <= 30
+        && data.whatsappModo == 'wa.me'
+        && data.administradoresIniciales is list
+        && data.administradoresIniciales.size() > 0
+        && data.administradoresIniciales.size() <= 20
+        && data.configuracionInicialCompletada == true;
+    }
+    function medidorConfigValida(data) {
+      return data.tipoFlujoMedidor is string
+        && data.unidadMedida is string
+        && data.cantidadPorDigito is number
+        && data.cantidadPorDigito > 0
+        && data.preciosMedidor is list
+        && data.preciosMedidor.size() <= 5;
+    }
+    function precioMedidorValido(data) {
+      return data.nombre is string
+        && data.nombre.size() > 0
+        && data.precioPorUnidad is number
+        && data.precioPorUnidad > 0
+        && data.unidadMedida is string;
+    }
     function clienteVisible(data) {
       return isAdmin() || (signedIn() && role() == 'repartidor'
         && ((data.repartidorIds is list && request.auth.uid in data.repartidorIds)
@@ -351,23 +384,26 @@ service cloud.firestore {
           && request.resource.data.vehiculoId == vehiculoId
           && request.resource.data.medidorId is string
           && request.resource.data.lecturaInicial >= 0
-          && request.resource.data.factorLitrosPorUnidad > 0;
+          && request.resource.data.cantidadPorDigito > 0
+          && request.resource.data.unidadMedida is string
+          && request.resource.data.tipoFlujoMedidor == 'volumen_acumulado';
         allow update: if signedIn()
           && (isAdmin() || (role() == 'repartidor' && resource.data.repartidorId == request.auth.uid))
           && (
             (resource.data.estado == 'activa'
               && request.resource.data.estado == 'cerrada'
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'estado', 'lecturaCierre', 'fechaCierre', 'litrosCalculados', 'cierreId'
+                'estado', 'lecturaCierre', 'fechaCierre', 'litrosCalculados', 'cantidadMedidaCalculada', 'cierreId'
               ])
               && request.resource.data.lecturaCierre >= resource.data.lecturaInicial)
             || (resource.data.estado == 'activa'
               && request.resource.data.estado == 'activa'
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'ultimaLectura', 'litrosVendidosAcumulados', 'ventasCount'
+                'ultimaLectura', 'litrosVendidosAcumulados', 'cantidadMedidaVendidaAcumulada', 'ventasCount'
               ])
               && request.resource.data.ultimaLectura >= resource.data.ultimaLectura
               && request.resource.data.litrosVendidosAcumulados >= resource.data.litrosVendidosAcumulados
+              && request.resource.data.cantidadMedidaVendidaAcumulada >= (('cantidadMedidaVendidaAcumulada' in resource.data) ? resource.data.cantidadMedidaVendidaAcumulada : 0)
               && request.resource.data.ventasCount == resource.data.ventasCount + 1)
           );
         allow delete: if false;
@@ -386,7 +422,8 @@ service cloud.firestore {
           allow create: if signedIn()
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
-            && request.resource.data.litrosRecargados > 0
+            && request.resource.data.cantidadMedida > 0
+            && request.resource.data.unidadMedida is string
             && (isAdmin() || request.resource.data.capturadoPorUid == request.auth.uid);
           allow update, delete: if false;
         }
@@ -398,7 +435,9 @@ service cloud.firestore {
             && request.resource.data.medidorId is string
             && request.resource.data.cierreCajaId is string
             && request.resource.data.lecturaFinal > request.resource.data.lecturaInicial
-            && request.resource.data.litros > 0
+            && request.resource.data.cantidadMedida > 0
+            && request.resource.data.unidadMedida is string
+            && request.resource.data.precioPorUnidad > 0
             && request.resource.data.subtotal >= 0
             && (isAdmin() || request.resource.data.capturadoPorUid == request.auth.uid);
           allow update, delete: if false;
@@ -409,6 +448,8 @@ service cloud.firestore {
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.lecturaCierre >= request.resource.data.lecturaInicial
+            && request.resource.data.cantidadMedida >= 0
+            && request.resource.data.unidadMedida is string
             && (isAdmin() || request.resource.data.cerradoPorUid == request.auth.uid);
           allow update, delete: if false;
         }
@@ -427,18 +468,18 @@ service cloud.firestore {
 
     match /medidores/{medidorId} {
       allow read: if signedIn() && (isAdmin() || role() == 'repartidor');
-      allow create, update: if isAdmin();
+      allow create, update: if isAdmin() && medidorConfigValida(request.resource.data);
       allow delete: if false;
     }
 
-    // ── tarifas de agua ──
+    // ── precios por unidad del medidor; la colección antigua queda solo para compatibilidad ──
     match /tarifas_agua/{tarifaId} {
       allow read: if signedIn();
       allow create: if isAdmin()
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() > 0
-        && request.resource.data.precioPorGarrafon > 0
-        && request.resource.data.litrosPorGarrafon == 19;
+        && ((request.resource.data.precioPorUnidad is number && request.resource.data.precioPorUnidad > 0 && request.resource.data.unidadMedida is string)
+          || (request.resource.data.precioPorGarrafon is number && request.resource.data.precioPorGarrafon > 0 && request.resource.data.litrosPorGarrafon > 0));
       allow update: if isAdmin();
       allow delete: if false;
     }
@@ -502,9 +543,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /_meta/system_setup {
+      // Solo se puede completar una vez desde la PWA por el primer admin.
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && !exists(/databases/$(database)/documents/_meta/system_setup)
+        && setupProyectoValido(request.resource.data);
+      allow update: if false;
+      allow delete: if false;
+    }
+
     match /_meta/{id} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() && id != 'branding' && id != 'system_setup';
     }
 
     // ── Todo lo demás: denegado por defecto ──

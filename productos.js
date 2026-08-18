@@ -1,3 +1,37 @@
+const PRODUCTO_UNIDADES_UNIVERSALES = [
+  { id: 'pieza', nombre: 'Pieza (pz)' },
+  { id: 'litros', nombre: 'Litros (L)' },
+  { id: 'mililitros', nombre: 'Mililitros (mL)' },
+  { id: 'kilos', nombre: 'Kilos (kg)' },
+  { id: 'gramos', nombre: 'Gramos (g)' },
+  { id: 'metros', nombre: 'Metros (m)' },
+  { id: 'metros_cubicos', nombre: 'Metros cúbicos (m³)' },
+  { id: 'galones', nombre: 'Galones (gal)' }
+];
+const PRODUCTO_PRESENTACIONES = [
+  { id: 'PZ', nombre: 'PZ · pieza' },
+  { id: 'XP', nombre: 'XP · extra pequeña' },
+  { id: 'P', nombre: 'P · pequeña' },
+  { id: 'M', nombre: 'M · mediana' },
+  { id: 'G', nombre: 'G · grande' },
+  { id: 'XG', nombre: 'XG · extra grande' },
+  { id: 'XL', nombre: 'XL · extra larga' },
+  { id: '250ML', nombre: '250 mL' },
+  { id: '500ML', nombre: '500 mL' },
+  { id: '1L', nombre: '1 L' },
+  { id: '1_5L', nombre: '1.5 L' },
+  { id: '4L', nombre: '4 L' },
+  { id: '1KG', nombre: '1 kg' },
+  { id: '5KG', nombre: '5 kg' },
+  { id: '10KG', nombre: '10 kg' }
+];
+const unidadProductoNombre = id => PRODUCTO_UNIDADES_UNIVERSALES.find(x => x.id === id)?.nombre || id || 'Pieza (pz)';
+const presentacionProductoNombre = id => PRODUCTO_PRESENTACIONES.find(x => x.id === id)?.nombre || id || 'PZ · pieza';
+window.PRODUCTO_UNIDADES_UNIVERSALES = PRODUCTO_UNIDADES_UNIVERSALES;
+window.PRODUCTO_PRESENTACIONES = PRODUCTO_PRESENTACIONES;
+window.unidadProductoNombre = unidadProductoNombre;
+window.presentacionProductoNombre = presentacionProductoNombre;
+
 function InventarioHistorial({
   onClose
 }) {
@@ -104,7 +138,8 @@ function Productos({
         nombre: '',
         precio: '',
         stock: '',
-        unidad: '',
+        unidadMedida: 'pieza',
+        tamanoPresentacion: 'PZ',
         codigoBarras: '',
         motivo: ''
       });
@@ -165,7 +200,10 @@ function Productos({
       nombre: form.nombre,
       precio: +form.precio,
       stock: nuevoStock,
-      unidad: form.unidad,
+      unidadMedida: form.unidadMedida,
+      tamanoPresentacion: form.tamanoPresentacion,
+      // Compatibilidad temporal con módulos y documentos antiguos.
+      unidad: form.unidadMedida,
       codigoBarras: codigo,
       codigoBarrasNormalizado: codigo,
       codigoBarrasTipo: codigo ? (codigo.indexOf('FLW-PROD-') === 0 ? 'interno_code128' : 'externo') : ''
@@ -220,11 +258,12 @@ function Productos({
     onClick: () => setHistOpen(true)
   }, "📋 Historial"), puedeEditar && React.createElement(BFill, {
     onClick: () => setForm({
-      nombre: '',
-      precio: '',
-      stock: '',
-      unidad: '',
-      codigoBarras: '',
+          nombre: '',
+          precio: '',
+          stock: '',
+          unidadMedida: 'pieza',
+          tamanoPresentacion: 'PZ',
+          codigoBarras: '',
       motivo: ''
     })
   }, "+ Nuevo"))), React.createElement(Inp, {
@@ -358,9 +397,9 @@ function Productos({
       style: {
         marginTop: 4
       }
-    }, React.createElement(Tag, {
+          }, React.createElement(Tag, {
       color: p.stock < 10 ? 'var(--danger-text)' : 'var(--ok-text)'
-    }, p.stock, " ", p.unidad)), p.codigoBarras && React.createElement("div", {
+    }, p.stock, " ", presentacionProductoNombre(p.tamanoPresentacion || 'PZ'), " · ", unidadProductoNombre(p.unidadMedida || p.unidad))), p.codigoBarras && React.createElement("div", {
       style: {
         fontSize: 10,
         color: 'var(--ink-faint)',
@@ -383,6 +422,8 @@ function Productos({
           ...p,
           precio: String(p.precio),
           stock: String(p.stock),
+          unidadMedida: PRODUCTO_UNIDADES_UNIVERSALES.some(x => x.id === (p.unidadMedida || p.unidad)) ? (p.unidadMedida || p.unidad) : 'pieza',
+          tamanoPresentacion: PRODUCTO_PRESENTACIONES.some(x => x.id === p.tamanoPresentacion) ? p.tamanoPresentacion : 'PZ',
           codigoBarras: p.codigoBarras || '',
           motivo: ''
         });
@@ -455,17 +496,7 @@ function Productos({
       ...f,
       stock: e.target.value
     }))
-  }))), React.createElement(Lbl, null, "Unidad"), React.createElement(Inp, {
-    value: form.unidad,
-    onChange: e => setForm(f => ({
-      ...f,
-      unidad: e.target.value
-    })),
-    placeholder: "garrafón, bolsa…",
-    style: {
-      marginBottom: 10
-    }
-  }), React.createElement(Lbl, null, "Código de barras"), React.createElement(Row, {
+  }))), React.createElement(Row, { style: { gap: 10, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M universal'), React.createElement('select', { value: form.unidadMedida || 'pieza', onChange: e => setForm(f => ({ ...f, unidadMedida: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_UNIVERSALES.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre)))), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Tamaño / presentación'), React.createElement('select', { value: form.tamanoPresentacion || 'PZ', onChange: e => setForm(f => ({ ...f, tamanoPresentacion: e.target.value })), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_PRESENTACIONES.map(p => React.createElement('option', { key: p.id, value: p.id }, p.nombre))))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', lineHeight: 1.35, marginBottom: 10 } }, 'La cantidad del medidor no vive en Productos; se configura en el medidor.'), React.createElement(Lbl, null, "Código de barras"), React.createElement(Row, {
     style: {
       gap: 8,
       marginBottom: 10

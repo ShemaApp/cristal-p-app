@@ -15,6 +15,36 @@ function App() {
   useEffect(() => {
     document.title = branding.nombreComercial || 'Flutt-Water';
   }, [branding.nombreComercial]);
+  useEffect(() => {
+    if (!currentUser?.uid || currentUser.role !== 'admin') return undefined;
+    let activo = true;
+    const setupRef = db.collection('_meta').doc('system_setup');
+    const brandingRef = db.collection('_meta').doc('branding');
+    const revisarSetup = async () => {
+      try {
+        const [setupSnap, brandingSnap] = await Promise.all([setupRef.get(), brandingRef.get()]);
+        if (!activo) return;
+        if (setupSnap.exists && setupSnap.data()?.configuracionInicialCompletada === true) return;
+        if (!setupSnap.exists && brandingSnap.exists) {
+          const brand = brandingSnap.data() || {};
+          await setupRef.set({
+            firebaseProjectId: setupProyectoId(), nombreEmpresa: String(brand.nombreComercial || 'Flutt-Water').slice(0, 100),
+            tipoFlujoMedidor: 'volumen_acumulado', unidadMedidorPredeterminada: 'L', cantidadPorDigitoPredeterminada: 10,
+            telefonoEmpresa: String(brand.telefono || '').slice(0, 30), administradoresIniciales: [{ uid: currentUser.uid, email: currentUser.email || '', nombre: currentUser.nombre || '' }],
+            whatsappModo: 'wa.me', whatsappDestinatarios: [], configuracionInicialCompletada: true, migradoDesdeBranding: true,
+            creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: firebase.firestore.FieldValue.serverTimestamp(), actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: false });
+          return;
+        }
+        historialTabs.current = [];
+        setTab('config');
+      } catch (e) {
+        if (activo) { historialTabs.current = []; setTab('config'); }
+      }
+    };
+    revisarSetup();
+    return () => { activo = false; };
+  }, [currentUser?.uid, currentUser?.role]);
   const [tab, setTab] = useState('home');
   const [navOpen, setNavOpen] = useState(false);
   const historialTabs = useRef([]);

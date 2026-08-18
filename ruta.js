@@ -249,7 +249,8 @@ function RutaReparto({
       nombre: '',
       precio: '',
       stock: '1',
-      unidad: '',
+      unidadMedida: 'pieza',
+      tamanoPresentacion: 'PZ',
       motivo: 'Alta por escaneo'
     });
     setProductoNoEncontrado('');
@@ -284,7 +285,9 @@ function RutaReparto({
         nombre: altaProducto.nombre.trim(),
         precio: Number(altaProducto.precio),
         stock: Math.max(0, Number(altaProducto.stock || 0)),
-        unidad: altaProducto.unidad.trim(),
+        unidadMedida: altaProducto.unidadMedida || 'pieza',
+        tamanoPresentacion: altaProducto.tamanoPresentacion || 'PZ',
+        unidad: altaProducto.unidadMedida || 'pieza',
         codigoBarras: codigo,
         codigoBarrasNormalizado: codigo,
         codigoBarrasTipo: codigo.indexOf('FLW-PROD-') === 0 ? 'interno_code128' : 'externo'
@@ -1227,12 +1230,7 @@ function RutaReparto({
     value: altaProducto.stock,
     onChange: e => setAltaProducto(p => ({ ...p, stock: e.target.value })),
     style: { marginBottom: 10 }
-  }))), React.createElement(Lbl, null, 'Unidad'), React.createElement(Inp, {
-    value: altaProducto.unidad,
-    onChange: e => setAltaProducto(p => ({ ...p, unidad: e.target.value })),
-    placeholder: 'pieza, caja, garrafón…',
-    style: { marginBottom: 10 }
-  }), React.createElement(Lbl, null, 'Motivo de alta'), React.createElement(Inp, {
+    }))), React.createElement(Row, { style: { gap: 8, marginBottom: 10, alignItems: 'flex-end' } }, React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'U/M universal'), React.createElement('select', { value: altaProducto.unidadMedida || 'pieza', onChange: e => setAltaProducto(p => ({ ...p, unidadMedida: e.target.value })), style: { width: '100%', padding: 8, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_UNIDADES_UNIVERSALES.map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre)))), React.createElement('div', { style: { flex: 1, minWidth: 0 } }, React.createElement(Lbl, null, 'Tamaño / presentación'), React.createElement('select', { value: altaProducto.tamanoPresentacion || 'PZ', onChange: e => setAltaProducto(p => ({ ...p, tamanoPresentacion: e.target.value })), style: { width: '100%', padding: 8, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, PRODUCTO_PRESENTACIONES.map(p => React.createElement('option', { key: p.id, value: p.id }, p.nombre))))), React.createElement(Lbl, null, 'Motivo de alta'), React.createElement(Inp, {
     value: altaProducto.motivo,
     onChange: e => setAltaProducto(p => ({ ...p, motivo: e.target.value })),
     style: { marginBottom: 14 }

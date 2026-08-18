@@ -413,7 +413,8 @@ function Reportes({
         'Producto ID': producto.id || '',
         'Código de barras': producto.codigoBarras || '',
         Producto: producto.nombre || '',
-        Unidad: producto.unidad || '',
+        Unidad: unidadProductoNombre(producto.unidadMedida || producto.unidad || 'pieza'),
+        'Tamaño / presentación': presentacionProductoNombre(producto.tamanoPresentacion || 'PZ'),
         'Precio actual': numeroExcel(producto.precio),
         'Stock actual': numeroExcel(producto.stock),
         Activo: producto.activo === false ? 'No' : 'Sí'

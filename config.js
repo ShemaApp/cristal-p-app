@@ -9,8 +9,13 @@ function Configuracion({
   const [sub, setSub] = useState('perfil');
   const [users, setUsersList] = useState([]);
   const [brandForm, setBrandForm] = useState(() => normalizarBranding(branding));
+  const [projectSetup, setProjectSetup] = useState(() => normalizarSetupProyecto());
+  const [setupLoading, setSetupLoading] = useState(true);
+  const [setupWizard, setSetupWizard] = useState(false);
+  const [setupForm, setSetupForm] = useState(() => normalizarSetupProyecto());
   const [form, setForm] = useState(null);
   const [vehicleForm, setVehicleForm] = useState(null);
+  const precioVacio = () => ({ id: '', nombre: '', precioPorUnidad: '', activo: true });
   const [vehicles, setVehicles] = useState([]);
   const [pw, setPw] = useState({
     old: '',
@@ -24,9 +29,26 @@ function Configuracion({
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const isAdmin = currentUser.role === 'admin';
   useEffect(() => {
     setBrandForm(normalizarBranding(branding));
   }, [branding?.nombreComercial, branding?.subtitulo, branding?.lema, branding?.telefono, branding?.logoPath]);
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    const ref = db.collection('_meta').doc('system_setup');
+    const unsub = ref.onSnapshot(snap => {
+      const next = normalizarSetupProyecto(snap.exists ? snap.data() : {});
+      setProjectSetup(next);
+      setSetupForm(current => current.configuracionInicialCompletada ? current : { ...next, administradoresIniciales: [{ uid: currentUser.uid, email: currentUser.email || '', nombre: currentUser.nombre || '' }] });
+      setSetupLoading(false);
+      if (isAdmin && (!snap.exists || next.configuracionInicialCompletada !== true)) setSetupWizard(true);
+      else if (next.configuracionInicialCompletada === true) setSetupWizard(false);
+    }, () => {
+      setSetupLoading(false);
+      if (isAdmin) setSetupWizard(true);
+    });
+    return unsub;
+  }, [currentUser?.uid, isAdmin]);
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
   const startPress = id => {
@@ -46,7 +68,6 @@ function Configuracion({
     }
     if (expandedId === id) setExpandedId(null);
   };
-  const isAdmin = currentUser.role === 'admin';
   const roleColor = r => r === 'admin' ? 'var(--admin)' : r === 'repartidor' ? 'var(--warn-text)' : 'var(--info-text)';
   const flash = (m, isErr = false) => {
     isErr ? setErr(m) : setMsg(m);
@@ -105,28 +126,53 @@ function Configuracion({
     if (!isAdmin || !vehicleForm?.nombre?.trim() || !vehicleForm?.placa?.trim() || !vehicleForm?.numeroSerie?.trim()) {
       flash('Completa nombre, placa y número de serie del medidor', true); return;
     }
-    const factor = Number(vehicleForm.factorLitrosPorUnidad);
-    if (!Number.isFinite(factor) || factor <= 0) {
-      flash('El factor de litros por unidad debe ser mayor que cero', true); return;
-    }
     try {
+      const tipoFlujo = vehicleForm.tipoFlujoMedidor || 'volumen_acumulado';
+      const unidadMedida = vehicleForm.unidadMedida || 'L';
+      const cantidadPorDigito = Number(vehicleForm.cantidadPorDigito);
+      if (!Number.isFinite(cantidadPorDigito) || cantidadPorDigito <= 0) {
+        flash('La cantidad por dígito debe ser mayor que cero', true); return;
+      }
+      const precios = esMagnitudVendible(tipoFlujo) ? normalizarPreciosMedidor(vehicleForm.precios, unidadMedida) : [];
+      if (esMagnitudVendible(tipoFlujo) && precios.length === 0) { flash('Captura al menos un precio válido para este medidor', true); return; }
       const vehicleRef = db.collection('vehiculos').doc();
       const meterRef = db.collection('medidores').doc();
       const fecha = firebase.firestore.FieldValue.serverTimestamp();
       const base = {
         nombre: vehicleForm.nombre.trim(), placa: vehicleForm.placa.trim().toUpperCase(), activo: true,
-        medidorId: meterRef.id, numeroSerieMedidor: vehicleForm.numeroSerie.trim(), factorLitrosPorUnidad: factor,
+        medidorId: meterRef.id, numeroSerieMedidor: vehicleForm.numeroSerie.trim(), tipoFlujoMedidor: tipoFlujo, unidadMedida, cantidadPorDigito,
+        factorLitrosPorUnidad: unidadMedida === 'L' ? cantidadPorDigito : 0, preciosMedidor: precios,
         rutaBaseId: '', creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: fecha
       };
       const batch = db.batch();
       batch.set(vehicleRef, base);
       batch.set(meterRef, {
         tipo: 'vehiculo', vehiculoId: vehicleRef.id, numeroSerie: vehicleForm.numeroSerie.trim(),
-        factorLitrosPorUnidad: factor, unidadLectura: 'unidad', permiteDecimales: true, activo: true, creadoEn: fecha
+        tipoFlujoMedidor: tipoFlujo, unidadMedida, cantidadPorDigito, factorLitrosPorUnidad: unidadMedida === 'L' ? cantidadPorDigito : 0,
+        unidadLectura: 'digito', permiteDecimales: true, preciosMedidor: precios, activo: true, creadoEn: fecha
       });
       await batch.commit();
       setVehicleForm(null); flash('✅ Vehículo y medidor autorizados fueron registrados');
     } catch (e) { flash('No se pudo registrar el vehículo: ' + e.message, true); }
+  };
+  const saveProjectSetup = async () => {
+    if (!isAdmin || projectSetup.configuracionInicialCompletada === true) return;
+    const next = normalizarSetupProyecto({ ...setupForm, firebaseProjectId: setupProyectoId(), configuracionInicialCompletada: true, administradoresIniciales: [{ uid: currentUser.uid, email: currentUser.email || '', nombre: currentUser.nombre || '' }] });
+    if (!next.nombreEmpresa || !next.telefonoEmpresa || !next.unidadMedidorPredeterminada || !next.cantidadPorDigitoPredeterminada) {
+      flash('Completa empresa, teléfono y configuración inicial del medidor', true); return;
+    }
+    if (!esMagnitudVendible(next.tipoFlujoMedidor)) {
+      flash('La configuración inicial debe usar un medidor de volumen para calcular ventas', true); return;
+    }
+    try {
+      const batch = db.batch();
+      const setupRef = db.collection('_meta').doc('system_setup');
+      const brandingRef = db.collection('_meta').doc('branding');
+      batch.set(setupRef, { ...next, creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: firebase.firestore.FieldValue.serverTimestamp(), actualizadoEn: firebase.firestore.FieldValue.serverTimestamp() }, { merge: false });
+      batch.set(brandingRef, { nombreComercial: next.nombreEmpresa, subtitulo: 'Operación y distribución', lema: '', telefono: next.telefonoEmpresa, logoPath: 'icons/icon-192.png', actualizadoPorUid: currentUser.uid, actualizadoPorNombre: currentUser.nombre || '', actualizadoEn: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      await batch.commit();
+      setProjectSetup(next); setSetupForm(next); setSetupWizard(false); flash('✅ Configuración inicial del proyecto completada');
+    } catch (e) { flash('No se pudo completar la configuración inicial: ' + e.message, true); }
   };
   const saveBranding = async () => {
     if (!isAdmin) {
@@ -395,7 +441,7 @@ function Configuracion({
       cursor: 'pointer',
       marginTop: 18
     }
-  }, "Cancelar"))), sub === 'vehiculos' && isAdmin && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, marginBottom: 10 } }, React.createElement('div', null, React.createElement('strong', null, 'Vehículos autorizados'), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, 'Cada unidad conserva su medidor fijo y factor de conversión.')), React.createElement(BFill, { onClick: () => setVehicleForm({ nombre: '', placa: '', numeroSerie: '', factorLitrosPorUnidad: '10' }) }, '＋ Alta'))), vehicles.length === 0 ? React.createElement('div', { style: { color: 'var(--ink-faint)', fontSize: 12 } }, 'No hay vehículos registrados.') : vehicles.map(v => React.createElement(Card, { key: v.id }, React.createElement(Row, { style: { justifyContent: 'space-between' } }, React.createElement('div', null, React.createElement('strong', null, v.nombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 } }, `${v.placa || 'Sin placa'} · Medidor ${v.numeroSerieMedidor || 'Sin serie'}`)), React.createElement(Tag, { color: v.activo === false ? 'var(--danger-text)' : 'var(--ok-text)' }, v.activo === false ? 'INACTIVO' : 'ACTIVO')), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 6 } }, `1 unidad del medidor = ${Number(v.factorLitrosPorUnidad || 10)} L`)))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, "Cancelar"))), sub === 'vehiculos' && isAdmin && React.createElement(React.Fragment, null, React.createElement(Card, null, React.createElement(Row, { style: { justifyContent: 'space-between', gap: 8, marginBottom: 10 } }, React.createElement('div', null, React.createElement('strong', null, 'Vehículos autorizados'), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 } }, 'Cada unidad conserva su medidor fijo y factor de conversión.')), React.createElement(BFill, { onClick: () => setVehicleForm({ nombre: '', placa: '', numeroSerie: '', tipoFlujoMedidor: 'volumen_acumulado', unidadMedida: 'L', cantidadPorDigito: '10', precios: [precioVacio()] }) }, '＋ Alta'))), vehicles.length === 0 ? React.createElement('div', { style: { color: 'var(--ink-faint)', fontSize: 12 } }, 'No hay vehículos registrados.') : vehicles.map(v => React.createElement(Card, { key: v.id }, React.createElement(Row, { style: { justifyContent: 'space-between' } }, React.createElement('div', null, React.createElement('strong', null, v.nombre), React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 } }, `${v.placa || 'Sin placa'} · Medidor ${v.numeroSerieMedidor || 'Sin serie'}`)), React.createElement(Tag, { color: v.activo === false ? 'var(--danger-text)' : 'var(--ok-text)' }, v.activo === false ? 'INACTIVO' : 'ACTIVO')), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: 6 } }, `1 dígito del medidor = ${Number(v.cantidadPorDigito || v.factorLitrosPorUnidad || 1)} ${simboloUnidadMedidor(v.unidadMedida || 'L')}`)))), sub === 'usuarios' && isAdmin && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       background: 'var(--surface-2)',
       borderRadius: 8,
@@ -494,7 +540,7 @@ function Configuracion({
     }, "🗑 Eliminar"))));
   })), sub === 'permisos' && isAdmin && React.createElement(Permisos, {
     currentUser: currentUser
-  }), vehicleForm && React.createElement(Modal, { title: 'Alta de vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Solo administración puede registrar unidades. El repartidor únicamente selecciona vehículos existentes.'), React.createElement(Lbl, null, 'Nombre de vehículo'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Número de serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Litros por unidad de lectura'), React.createElement(Inp, { type: 'number', step: '0.01', style: { marginTop: 8 }, value: vehicleForm.factorLitrosPorUnidad, onChange: e => setVehicleForm({ ...vehicleForm, factorLitrosPorUnidad: e.target.value }) }), React.createElement(BFill, { onClick: saveVehicle, style: { width: '100%', marginTop: 14 } }, 'Guardar vehículo autorizado')), form && React.createElement(Modal, {
+  }), setupWizard && isAdmin && React.createElement(Modal, { title: '🚀 Configuración inicial del proyecto', onClose: () => {} }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: 14 } }, 'Este proyecto Firebase todavía no tiene configuración global. Se ejecuta una sola vez por proyecto, no una vez por teléfono. Los repartidores y usuarios no verán este asistente si el proyecto ya está configurado.'), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', marginBottom: 12, overflowWrap: 'anywhere' } }, 'Proyecto detectado: ', setupProyectoId() || 'no disponible'), React.createElement(Lbl, null, 'Nombre de la empresa'), React.createElement(Inp, { value: setupForm.nombreEmpresa || '', maxLength: 100, placeholder: 'FluttWater Purificadora Hidequel', onChange: e => setSetupForm({ ...setupForm, nombreEmpresa: e.target.value }), style: { marginBottom: 10 } }), React.createElement(Lbl, null, 'Tipo de flujo del medidor'), React.createElement('select', { value: setupForm.tipoFlujoMedidor, onChange: e => { const tipo = e.target.value; const unidad = unidadesMedidorPara(tipo)[0]?.id || 'L'; setSetupForm({ ...setupForm, tipoFlujoMedidor: tipo, unidadMedidorPredeterminada: unidad }); }, style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6, marginBottom: 10 } }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', marginTop: -5, marginBottom: 10 } }, MEDIDOR_MAGNITUDES.find(m => m.id === setupForm.tipoFlujoMedidor)?.descripcion), React.createElement(Lbl, null, 'Unidad de lectura'), React.createElement('select', { value: setupForm.unidadMedidorPredeterminada, onChange: e => setSetupForm({ ...setupForm, unidadMedidorPredeterminada: e.target.value }), style: { width: '100%', padding: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6, marginBottom: 10 } }, unidadesMedidorPara(setupForm.tipoFlujoMedidor).map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Cantidad por dígito'), React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', value: setupForm.cantidadPorDigitoPredeterminada, onChange: e => setSetupForm({ ...setupForm, cantidadPorDigitoPredeterminada: e.target.value }), placeholder: 'Ej. 10', style: { marginBottom: 10 } }), React.createElement(Lbl, null, 'Teléfono de la empresa'), React.createElement(Inp, { type: 'tel', maxLength: 30, value: setupForm.telefonoEmpresa || '', placeholder: '637 137 5399', onChange: e => setSetupForm({ ...setupForm, telefonoEmpresa: e.target.value }), style: { marginBottom: 8 } }), React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-faint)', lineHeight: 1.4, marginBottom: 14 } }, 'WhatsApp Business queda pendiente. Los mensajes continuarán usando enlaces wa.me desde el teléfono operativo.'), React.createElement(BFill, { onClick: saveProjectSetup, style: { width: '100%' }, disabled: setupLoading }, setupLoading ? 'Cargando proyecto…' : 'Guardar y bloquear configuración')), vehicleForm && React.createElement(Modal, { title: 'Alta de vehículo y medidor', onClose: () => setVehicleForm(null) }, React.createElement('div', { style: { fontSize: 12, color: 'var(--ink-soft)', marginBottom: 10 } }, 'Solo administración puede registrar unidades. El repartidor únicamente selecciona vehículos existentes.'), React.createElement(Lbl, null, 'Nombre de vehículo'), React.createElement(Inp, { value: vehicleForm.nombre, onChange: e => setVehicleForm({ ...vehicleForm, nombre: e.target.value }), placeholder: 'Pipa 01' }), React.createElement(Lbl, null, 'Placa'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.placa, onChange: e => setVehicleForm({ ...vehicleForm, placa: e.target.value }) }), React.createElement(Lbl, null, 'Número de serie del medidor'), React.createElement(Inp, { style: { marginTop: 8 }, value: vehicleForm.numeroSerie, onChange: e => setVehicleForm({ ...vehicleForm, numeroSerie: e.target.value }) }), React.createElement(Lbl, null, 'Tipo de magnitud del medidor'), React.createElement('select', { value: vehicleForm.tipoFlujoMedidor || 'volumen_acumulado', onChange: e => { const tipo = e.target.value; setVehicleForm({ ...vehicleForm, tipoFlujoMedidor: tipo, unidadMedida: unidadesMedidorPara(tipo)[0]?.id || 'L', precios: tipo === 'volumen_acumulado' ? (vehicleForm.precios?.length ? vehicleForm.precios : [precioVacio()]) : [] }); }, style: { width: '100%', padding: 9, marginTop: 3, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, MEDIDOR_MAGNITUDES.map(m => React.createElement('option', { key: m.id, value: m.id }, m.nombre))), React.createElement(Lbl, null, 'Unidad de lectura'), React.createElement('select', { value: vehicleForm.unidadMedida || 'L', onChange: e => setVehicleForm({ ...vehicleForm, unidadMedida: e.target.value }), style: { width: '100%', padding: 9, marginTop: 8, background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 6 } }, unidadesMedidorPara(vehicleForm.tipoFlujoMedidor || 'volumen_acumulado').map(u => React.createElement('option', { key: u.id, value: u.id }, u.nombre))), React.createElement(Lbl, null, 'Cantidad por dígito'), React.createElement(Inp, { type: 'number', min: 0.000001, step: '0.000001', style: { marginTop: 8 }, value: vehicleForm.cantidadPorDigito, onChange: e => setVehicleForm({ ...vehicleForm, cantidadPorDigito: e.target.value }), placeholder: 'Ej. 10' }), vehicleForm.tipoFlujoMedidor === 'volumen_acumulado' && React.createElement(React.Fragment, null, React.createElement('div', { style: { fontSize: 11, color: 'var(--ink-soft)', marginTop: 10, marginBottom: 6 } }, 'Precios por unidad de medida vendida (máximo 5). Al vender, se elige uno y se multiplica por la cantidad medida.'), (vehicleForm.precios || []).map((p, index) => React.createElement(Row, { key: index, style: { gap: 6, marginBottom: 6, alignItems: 'center' } }, React.createElement(Inp, { value: p.nombre, placeholder: 'Precio ' + (index + 1), onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, nombre: e.target.value } : x) }), style: { flex: 1, margin: 0 } }), React.createElement(Inp, { type: 'number', min: 0, step: '0.01', value: p.precioPorUnidad, placeholder: '$/unidad', onChange: e => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.map((x, i) => i === index ? { ...x, precioPorUnidad: e.target.value } : x) }), style: { width: 100, margin: 0 } }), (vehicleForm.precios.length > 1) && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: vehicleForm.precios.filter((_, i) => i !== index) }), style: { padding: '7px 9px' } }, '×'))), vehicleForm.precios.length < 5 && React.createElement(BOut, { onClick: () => setVehicleForm({ ...vehicleForm, precios: [...(vehicleForm.precios || []), precioVacio()] }), style: { width: '100%', marginTop: 2 } }, '＋ Añadir precio')), vehicleForm.tipoFlujoMedidor !== 'volumen_acumulado' && React.createElement('div', { style: { fontSize: 11, color: 'var(--warn-text)', marginTop: 10, lineHeight: 1.4 } }, 'Este tipo de medidor se registra como sensor técnico. Para vender por cantidad, selecciona Volumen acumulado.'), React.createElement(BFill, { onClick: saveVehicle, style: { width: '100%', marginTop: 14 } }, 'Guardar vehículo autorizado')), form && React.createElement(Modal, {
     title: 'Editar Usuario',
     onClose: () => {
       setForm(null);

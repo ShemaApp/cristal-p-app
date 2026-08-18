@@ -474,3 +474,11 @@ No se debe ejecutar `firebase deploy --only firestore:rules` con el anexo de Pla
 [1]: [Firebase — Transactions and batched writes](https://firebase.google.com/docs/firestore/manage-data/transactions)  
 [2]: [Firebase — Role-based access control](https://firebase.google.com/docs/firestore/solutions/role-based-access)  
 [3]: [Firebase — Manage Cloud Firestore indexes](https://firebase.google.com/docs/firestore/query-data/indexing)
+
+## 19. Actualización: configuración por proyecto y medidores universales
+
+La instalación detecta la configuración mediante `_meta/system_setup`, que pertenece al proyecto Firebase actual. Si el documento existe con `configuracionInicialCompletada == true`, no se ejecuta ningún asistente por dispositivo. Si falta, el primer administrador autenticado completa el asistente una única vez; las reglas Firestore bloquean update y delete desde la PWA. El proyecto actual puede migrarse automáticamente desde `_meta/branding`.
+
+Los documentos `medidores/{medidorId}` y `vehiculos/{vehiculoId}` usan `tipoFlujoMedidor`, `unidadMedida`, `cantidadPorDigito` y `preciosMedidor` —máximo cinco elementos—. Solo `volumen_acumulado` habilita ventas por lectura; `caudal_instantaneo` y `presion` quedan disponibles para futuros sensores técnicos. Las ventas guardan `cantidadMedida`, `unidadMedida`, `cantidadPorDigito`, `precioPorUnidad` y `subtotal`; los campos históricos de litros se conservan únicamente cuando la unidad es `L`.
+
+La colección `tarifas_agua` se mantiene solo para lectura de compatibilidad de instalaciones antiguas. Los precios nuevos se administran en el medidor y no dependen de una medida fija de garrafón.
