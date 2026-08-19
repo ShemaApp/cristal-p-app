@@ -45,13 +45,20 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
 
   useEffect(() => {
     if (!currentUser?.uid) return undefined;
-    const unsub = db.collection('vehiculos').where('activo', '==', true).onSnapshot(snap => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
+    const rol = currentUser.role === 'usuario' ? 'vendedor' : currentUser.role;
+    const baseRef = db.collection('vehiculos');
+    const query = rol === 'admin'
+      ? baseRef.where('activo', '==', true)
+      : rol === 'repartidor'
+        ? baseRef.where('repartidorIds', 'array-contains', currentUser.uid)
+        : baseRef.where('tipoUnidad', '==', 'planta').where('operadorUid', '==', currentUser.uid);
+    const unsub = query.onSnapshot(snap => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(v => v.activo !== false && (rol !== 'vendedor' || v.tipoUnidad === 'planta')).sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
       setVehiculos(list);
       if (!selectedVehicleId && list[0]) setSelectedVehicleId(list[0].id);
     }, () => flash(' No se pudieron cargar los vehículos'));
     return unsub;
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, currentUser?.role]);
 
   useEffect(() => {
     if (!currentUser?.uid) return undefined;
@@ -131,6 +138,12 @@ function VehiculosOperativo({ clientes = [], currentUser = {} }) {
         rutaId: rutaRef.id, rutaIds: firebase.firestore.FieldValue.arrayUnion(rutaRef.id),
         repartidorId: routeForm.repartidorId || '', repartidorIds: routeForm.repartidorId ? firebase.firestore.FieldValue.arrayUnion(routeForm.repartidorId) : []
       }));
+      if (routeForm.vehiculoBaseId && routeForm.repartidorId) {
+        batch.update(db.collection('vehiculos').doc(routeForm.vehiculoBaseId), {
+          tipoUnidad: 'vehiculo',
+          repartidorIds: firebase.firestore.FieldValue.arrayUnion(routeForm.repartidorId)
+        });
+      }
       await batch.commit();
       setRouteForm(null); setRouteClients([]); flash(' Ruta y clientes configurables guardados');
     } catch (e) { flash(' No se pudo guardar la ruta: ' + e.message); }

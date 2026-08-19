@@ -127,8 +127,9 @@ function VentaAlmacen({
         tipoVenta: modoVentaPlanta ? 'planta_publico_general' : 'directa_administrador',
         productoIds: cartValido.map(item => item.id),
         medioOperacion: modoVentaPlanta ? 'planta' : 'vehiculo_administrador',
-        responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
-        capturadoPorUid: currentUser.uid,
+            responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
+            ambito: modoVentaPlanta ? 'planta' : 'administracion',
+            capturadoPorUid: currentUser.uid,
         capturadoPorNombre: currentUser.nombre || ''
       };
       await db.runTransaction(async tx => {
@@ -147,6 +148,7 @@ function VentaAlmacen({
             telefono: cl.telefono,
             domicilio: '',
             activo: true,
+            ambito: esPublicoGeneral ? 'planta' : 'reparto',
             esPublicoGeneral,
             creadoPorUid: currentUser.uid
           });
@@ -160,6 +162,9 @@ function VentaAlmacen({
             fecha,
             total,
             saldo: total,
+            estado: 'vigente',
+            ambito: modoVentaPlanta ? 'planta' : 'administracion',
+            cobradorUids: [currentUser.uid],
             abonos: [],
             capturadoPorUid: currentUser.uid
           });

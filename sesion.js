@@ -34,6 +34,24 @@ const ACCIONES_DEFAULT_ROL = {
 // Compatibilidad temporal: perfiles antiguos con role="usuario" se comportan
 // como vendedor, sin volver a exponer módulos administrativos.
 const rolEfectivo = u => u?.role === 'usuario' ? 'vendedor' : (u?.role || 'vendedor');
+const CONTRATO_OPERATIVO = {
+  admin: {
+    unidadTipo: 'global', puedeOperarMedidor: true, puedeUsarCaja: true,
+    puedeCobrarAbonos: true, puedeUsarRutas: true, puedeUsarTransferencias: true,
+    puedeVerReportes: true
+  },
+  vendedor: {
+    unidadTipo: 'planta', puedeOperarMedidor: true, puedeUsarCaja: true,
+    puedeCobrarAbonos: true, puedeUsarRutas: false, puedeUsarTransferencias: false,
+    puedeVerReportes: false
+  },
+  repartidor: {
+    unidadTipo: 'vehiculo', puedeOperarMedidor: true, puedeUsarCaja: true,
+    puedeCobrarAbonos: true, puedeUsarRutas: true, puedeUsarTransferencias: true,
+    puedeVerReportes: false
+  }
+};
+const contratoOperativo = u => CONTRATO_OPERATIVO[rolEfectivo(u)] || null;
 const permisoAcciones = u => {
   const rol = rolEfectivo(u);
   if (rol === 'admin') return { ...ACCIONES_DEFAULT_ROL.admin };
@@ -332,75 +350,95 @@ function useSesion() {
       ...p,
       [col]: snap.docs.filter(d => d.metadata.hasPendingWrites).length
     }));
-    const rutasQuery = currentUser.role === 'repartidor'
+    const rol = rolEfectivo(currentUser);
+    const esAdmin = rol === 'admin';
+    const esVendedor = rol === 'vendedor';
+    const esRepartidor = rol === 'repartidor';
+    const rutasQuery = esRepartidor
       ? db.collection('rutas').where('repartidorId', '==', currentUser.uid)
-      : currentUser.role === 'admin'
+      : esAdmin
         ? db.collection('rutas').orderBy('fecha', 'desc').limit(100)
         : null;
-    const pedidosQuery = currentUser.role === 'repartidor'
+    const pedidosQuery = esRepartidor
       ? db.collection('pedidos').where('repartidorId', '==', currentUser.uid)
-      : db.collection('pedidos').orderBy('fechaCreacion', 'desc').limit(500);
-    const clientesQuery = currentUser.role === 'repartidor'
-      ? db.collection('clientes').where('repartidorIds', 'array-contains', currentUser.uid)
-      : db.collection('clientes');
-    const notasQuery = currentUser.role === 'repartidor'
-      ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid)
-      : db.collection('notas').orderBy('fecha', 'desc').limit(500);
-    const creditosQuery = currentUser.role === 'repartidor'
-      ? db.collection('creditos').where('capturadoPorUid', '==', currentUser.uid)
-      : db.collection('creditos');
-    const unsubs = [db.collection('productos').onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      setProductos(snap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })));
-      pend('productos', snap);
-    }, errorHandler), clientesQuery.onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      setClientes(snap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })));
-      pend('clientes', snap);
-    }, errorHandler), notasQuery.onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      setNotas(snap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })));
-      pend('notas', snap);
-    }, errorHandler), creditosQuery.onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      setCreditos(snap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })));
-      pend('creditos', snap);
-    }, errorHandler), pedidosQuery.onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      lista.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
-      setPedidos(lista);
-      pend('pedidos', snap);
-    }, errorHandler), ...(rutasQuery ? [rutasQuery.onSnapshot({
-      includeMetadataChanges: true
-    }, snap => {
-      const transferencias = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      transferencias.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
-      setRutas(transferencias.slice(0, 100));
-      pend('rutas', snap);
-    }, errorHandler)] : [() => setRutas([])])];
+      : esAdmin
+        ? db.collection('pedidos').orderBy('fechaCreacion', 'desc').limit(500)
+        : null;
+    const clientesQueries = esRepartidor
+      ? [db.collection('clientes').where('repartidorIds', 'array-contains', currentUser.uid)]
+      : esAdmin
+        ? [db.collection('clientes')]
+        : esVendedor
+          ? [
+            db.collection('clientes').where('ambito', '==', 'planta').limit(200),
+            db.collection('clientes').where(firebase.firestore.FieldPath.documentId(), '==', 'publico_general')
+          ]
+          : [];
+    const notasQuery = esRepartidor
+      ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid).orderBy('fecha', 'desc').limit(500)
+      : esAdmin
+        ? db.collection('notas').orderBy('fecha', 'desc').limit(500)
+        : esVendedor
+          ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid).orderBy('fecha', 'desc').limit(500)
+          : null;
+    const creditosQueries = esAdmin
+      ? [db.collection('creditos')]
+      : [
+        db.collection('creditos').where('cobradorUids', 'array-contains', currentUser.uid).limit(200),
+        db.collection('creditos').where('capturadoPorUid', '==', currentUser.uid).limit(200)
+      ];
+    const suscribir = (query, onNext) => {
+      if (!query) {
+        onNext({ docs: [] });
+        return () => {};
+      }
+      return query.onSnapshot({ includeMetadataChanges: true }, onNext, errorHandler);
+    };
+    const suscribirMultiples = (queries, onNext) => {
+      const docsPorConsulta = new Map();
+      const unsubs = queries.map((query, index) => query.onSnapshot({ includeMetadataChanges: true }, snap => {
+        docsPorConsulta.set(index, snap.docs);
+        const unicos = new Map();
+        docsPorConsulta.forEach(docs => docs.forEach(doc => unicos.set(doc.id, doc)));
+        onNext({ docs: Array.from(unicos.values()) });
+      }, errorHandler));
+      return () => unsubs.forEach(unsub => unsub());
+    };
+    const unsubs = [
+      db.collection('productos').onSnapshot({ includeMetadataChanges: true }, snap => {
+        setProductos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        pend('productos', snap);
+      }, errorHandler),
+      suscribirMultiples(clientesQueries, snap => {
+        setClientes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        pend('clientes', snap);
+      }),
+      suscribir(notasQuery, snap => {
+        setNotas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        pend('notas', snap);
+      }),
+      suscribirMultiples(creditosQueries, snap => {
+        setCreditos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        pend('creditos', snap);
+      }),
+      suscribir(pedidosQuery, snap => {
+        const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        lista.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
+        setPedidos(lista);
+        pend('pedidos', snap);
+      }),
+      suscribir(rutasQuery, snap => {
+        const transferencias = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        transferencias.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+        setRutas(transferencias.slice(0, 100));
+        pend('rutas', snap);
+      })
+    ];
     return () => unsubs.forEach(u => u());
   }, [currentUser]);
 
   return {
-    currentUser, authChecked, firestoreError, profilePending, pendingEmail,
+    currentUser, contratoOperativo: contratoOperativo(currentUser), authChecked, firestoreError, profilePending, pendingEmail,
     locked, setLocked,
     isOnline,
     productos, clientes, notas, creditos, rutas, pedidos,

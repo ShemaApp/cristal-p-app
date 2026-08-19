@@ -38,9 +38,9 @@ La aplicación no debe entregar una colección de interruptores independientes p
 | Venta de reparto | Supervisar y conciliar | No permitido | Crear venta `rapida_repartidor` | Requiere transferencia/jornada activa propia y cliente QR. |
 | Clientes | Alta, edición, asignación, desactivación aprobada | Consulta; excepción técnica para `publico_general` | Consulta, QR y alta en campo | No borrar; repartidor no edita nombre, teléfono, localidad, QR ni estado. |
 | Rutas/carteras | Crear, asignar y supervisar | No | Operar solo asignadas | Ruta es cartera/grupo; jornada puede repetirse durante el día. |
-| Vehículos/medidores | Alta, asignación y parámetros | No | Consulta del vehículo asignado | El medidor pertenece al vehículo y no al producto. |
-| Créditos | Gestión global | Registrar cobros autorizados | Registrar cobros de su cartera | Abonos y créditos no se borran; deben conservar capturador. |
-| Caja y cierres | Consolidar y supervisar | Propia | Propia | Cierres inmutables; incidencias se registran aparte. |
+| Vehículos/medidores | Alta, asignación y parámetros | Consulta de unidad de planta asignada | Consulta del vehículo asignado | El núcleo de medidor es compartido; `tipoUnidad` separa `planta` y `vehiculo`. |
+| Créditos | Gestión global | Registrar abonos autorizados | Registrar abonos de cartera autorizada | El abono se crea pendiente en `creditos/{id}/abonos`; admin concilia y el crédito se marca liquidado sin borrar historial. |
+| Caja y cierres | Consolidar y supervisar | Propia | Propia | El efectivo de abonos se separa de ventas del medidor y queda pendiente de validación hasta el cierre administrativo. |
 | Reportes y CSV | Sí | No | No | Se elimina información GPS de filas, columnas y subpestañas. |
 | Usuarios y configuración | Exclusivo | No | No | Alta desde consola o flujo administrativo autorizado; sin registro público. |
 
@@ -52,11 +52,11 @@ El administrador puede acceder a todas las pantallas y administrar la configurac
 
 ### Vendedor
 
-El vendedor opera la planta. Su acción principal es **Venta de planta**, cuyo cliente es siempre **Público general**. Puede consultar clientes de planta y registrar cobros, pero no administra la lista general, no cambia fichas, no usa QR, no consulta inventario administrativo, no crea productos y no descarga reportes. La venta debe guardar `responsableTipo: vendedor`, `medioOperacion: planta` y `tipoVenta: planta_publico_general`.
+El vendedor opera una unidad estacionaria de planta asociada a un medidor. Su acción principal es **Venta de planta**, cuyo cliente es siempre **Público general**. Puede consultar clientes de planta y registrar abonos autorizados, pero no administra la lista general, no cambia fichas, no usa QR, no consulta inventario administrativo, no crea productos y no descarga reportes. La venta debe guardar `responsableTipo: vendedor`, `medioOperacion: planta`, `tipoVenta: planta_publico_general` y `unidadOperativaTipo: planta` cuando intervenga el medidor.
 
 ### Repartidor
 
-El repartidor opera una cartera y una jornada. Puede abrir la venta mediante QR, registrar clientes nuevos autorizados, capturar ventas y cobros propios, consultar su vehículo y solicitar el cierre de su jornada. No consulta clientes de otras carteras, no edita fichas existentes, no ajusta inventario, no administra productos, no ve reportes y no utiliza GPS o mapas.
+El repartidor opera una cartera, un vehículo con medidor y una jornada. Puede abrir la venta mediante QR, registrar clientes nuevos autorizados, capturar ventas y abonos de cartera, consultar su vehículo y solicitar el cierre de su jornada. No consulta clientes de otras carteras, no edita fichas existentes, no ajusta inventario, no administra productos, no ve reportes y no utiliza GPS o mapas.
 
 ## Identificadores y reglas de navegación
 

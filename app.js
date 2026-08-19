@@ -1,6 +1,6 @@
 function App() {
   const {
-    currentUser, authChecked, firestoreError, profilePending, pendingEmail,
+    currentUser, contratoOperativo, authChecked, firestoreError, profilePending, pendingEmail,
     locked, setLocked,
     isOnline,
     productos, clientes, notas, creditos, rutas, pedidos,
@@ -94,6 +94,7 @@ function App() {
   };
   const ctx = {
     productos,
+    contratoOperativo,
     branding,
     clientes,
     notas,

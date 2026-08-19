@@ -36,12 +36,12 @@ La interfaz puede mostrar solamente los componentes de operación del repartidor
 | Clientes asignados | Sí | Sí, en campo | Solo asignación permitida | No | El alta debe incluir QR, teléfono y pertenencia a una ruta autorizada. La ficha existente es de solo lectura para nombre, teléfono, localidad, QR y estado. |
 | Venta QR / nota | Propias | Sí | No | No | Requiere jornada o transferencia activa del repartidor autenticado y cliente resuelto por QR. |
 | Pedidos propios | Sí | Sí, si se asignan al propio repartidor | Solo transiciones operativas autorizadas | No | No puede reasignar, borrar ni editar pedidos históricos. |
-| Créditos y abonos de cartera | Sí, según alcance | Abonos permitidos | Según flujo de abono | No | Los movimientos históricos son inmutables y quedan ligados al capturador. |
+| Créditos y abonos de cartera | Sí, según `cobradorUids` | Crear abono pendiente | Solo admin valida y actualiza saldo | No | El abono queda en `creditos/{id}/abonos`; la aprobación concilia el efectivo sin borrar el historial. |
 | Rutas o transferencias propias | Sí | Operación propia cuando corresponda | Venta, solicitud de cierre y campos operativos permitidos | No | Nunca puede consultar o modificar la jornada de otro repartidor. |
 | Productos | Lectura funcional dentro de la venta | No | Descuento transaccional de transferencia | No | La carga o descuento debe estar respaldado por una operación válida; no hay ajustes manuales. |
 | Devoluciones | Sí según operación | Sí, propia | No, salvo autorización administrativa | No | Debe quedar asociada a la operación y al usuario autenticado. |
-| Vehículo y medidor | Consulta | No | No | No | El vehículo y su medidor fijo son configurados por administración. |
-| Caja y cierres | Propios | Sí | Solo cierre de jornada abierta | No | Un cierre capturado no se corrige; se genera una incidencia o un nuevo registro autorizado. |
+| Vehículo y medidor | Consulta de unidad asignada | No | No | No | La relación se resuelve por `repartidorIds`, `tipoUnidad: vehiculo` y el medidor fijo de la unidad. |
+| Caja y cierres | Propios | Sí | Solo cierre de jornada abierta | No | Ventas del medidor y abonos se separan; el abono queda pendiente hasta la conciliación administrativa. Un cierre capturado no se corrige. |
 
 ## Flujo de identificación QR y venta
 
@@ -61,13 +61,13 @@ La desactivación requiere devolución de envases y base prestados. La solicitud
 
 La lectura inicial se captura al abrir la jornada y se compara con el cierre anterior del mismo vehículo o medidor. Una diferencia dentro del margen configurado puede continuar; una diferencia mayor no bloquea automáticamente el inicio, pero exige motivo. Las lecturas y cierres son inmutables. El medidor es propiedad operativa del vehículo, no del catálogo de productos y no se modifica desde la venta.
 
-Las ventas offline pueden almacenarse localmente y sincronizarse cuando exista conexión. Al sincronizar, la aplicación debe conservar el orden de la operación, detectar faltantes de inventario y marcar incidencias para el cierre. El modo offline no autoriza editar ni borrar una venta ya capturada.
+Las ventas offline pueden almacenarse localmente y sincronizarse cuando exista conexión. Al sincronizar, la aplicación debe conservar el orden de la operación, detectar faltantes de inventario y marcar incidencias para el cierre. Los créditos offline deben incluir `ambito: reparto` y `cobradorUids` con el UID del repartidor. El modo offline no autoriza editar ni borrar una venta ya capturada.
 
 ## Seguridad y privacidad
 
 El frontend fuerza las pestañas mediante `rolEfectivo()` y `permisoTabs()`, pero la frontera real se implementa en [`firestore.rules`](../firestore.rules). Las consultas deben filtrar por el UID del repartidor o por las rutas explícitamente asignadas. Las reglas y consultas no deben utilizar GPS, `ubicacionActual`, mapas Leaflet, teselas OpenStreetMap ni validaciones por distancia.
 
-Las únicas acciones especiales del rol son la cámara QR y la operación de su propia cartera. CSV, reportes, administración de productos, altas de vehículos, configuración inicial, usuarios, branding, asignación de rutas y aprobación de desactivaciones pertenecen a administración.
+Las únicas acciones especiales del rol son la cámara QR y la operación de su propia cartera. Puede registrar abonos, pero no aprobarlos: la validación del efectivo corresponde a administración al cierre. CSV, reportes, administración de productos, altas de vehículos, configuración inicial, usuarios, branding, asignación de rutas y aprobación de desactivaciones pertenecen a administración.
 
 ## Referencias internas
 

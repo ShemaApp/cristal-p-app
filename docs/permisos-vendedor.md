@@ -36,11 +36,11 @@ La pantalla de configuración no debe convertirse en un panel administrativo par
 | Ticket público de planta (`notas`) | Propios | Sí | No | No | Cliente fijo **Público general**, `origen: planta_publico_general`, `medioOperacion: planta` y pago sin crédito. |
 | Stock de productos | Indirecta | No | Solo descuento atómico | No | El descuento debe ocurrir en la misma transacción que crea el ticket y debe señalar el SKU, cantidad, vendedor y ticket. |
 | Clientes | Consulta | No | No | No | La excepción técnica únicamente permite crear o asegurar el documento `clientes/publico_general` requerido por el ticket. |
-| Créditos y abonos | Sí | Abonos permitidos | Según flujo de abono | No | El vendedor puede cobrar créditos; los registros históricos no se eliminan. |
-| Caja propia | Según módulo | Operaciones propias | Cierre según flujo | No | Los cierres y movimientos históricos son inmutables. |
+| Créditos y abonos | Sí, según `cobradorUids` | Crear abono pendiente | Solo admin valida y actualiza saldo | No | El abono queda en `creditos/{id}/abonos`; al aprobarse, el crédito puede marcarse liquidado sin borrar historial. |
+| Caja propia | Según módulo | Operaciones propias | Cierre según flujo | No | Ventas del medidor y abonos se muestran separados; el efectivo de abonos queda pendiente de conciliación administrativa. |
 | Productos, precios, inventario administrativo y barcodes | No como módulo | No | No | No | Administración exclusiva. |
 
-La cantidad de cada línea conserva las reglas universales del SKU: piezas y paquetes deben ser enteros; los productos configurados como granel pueden usar decimales. El vendedor no modifica la lógica del medidor ni el catálogo; la lógica de litros vive en el vehículo o medidor correspondiente y, en el futuro, en la configuración propia de planta.
+La cantidad de cada línea conserva las reglas universales del SKU: piezas y paquetes deben ser enteros; los productos configurados como granel pueden usar decimales. El vendedor no modifica el catálogo; cuando se habilite su operación de medidor, usará la unidad de planta asociada y no una unidad de reparto. La lógica de litros vive en el medidor, no en el producto.
 
 ## Flujo autorizado de venta pública
 
@@ -54,7 +54,7 @@ El vendedor no utiliza cámara ni QR. La identificación QR queda reservada al r
 
 El frontend usa `rolEfectivo()` para convertir el alias `usuario` en `vendedor`, fuerza las pestañas autorizadas y mantiene desactivadas las acciones de GPS y CSV. Las reglas de Firestore deben validar igualmente el rol y el origen de la operación; ocultar una pestaña no es una frontera de seguridad suficiente.
 
-El vendedor puede leer únicamente la información necesaria para sus tareas según las reglas de cada colección. Los tickets propios son consultables, pero no editables ni eliminables. Las operaciones de planta deben conservar `capturadoPorUid`, `capturadoPorNombre`, `responsableTipo: vendedor`, `tipoVenta: planta_publico_general` y `clienteId: publico_general` para permitir auditoría y conciliación de caja.
+El vendedor puede leer únicamente la información necesaria para sus tareas según las reglas de cada colección. Los tickets propios son consultables, pero no editables ni eliminables. Las operaciones de planta deben conservar `capturadoPorUid`, `capturadoPorNombre`, `responsableTipo: vendedor`, `tipoVenta: planta_publico_general`, `clienteId: publico_general` y, cuando aplique, `unidadOperativaTipo: planta`. Cada cobro se registra como abono pendiente; administración valida el dinero al cierre y después el crédito deja de aparecer entre pendientes, sin eliminar el historial.
 
 ## Referencias internas
 

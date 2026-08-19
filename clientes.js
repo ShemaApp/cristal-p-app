@@ -443,6 +443,8 @@ function Clientes({
   currentUser
 }) {
   const esAdmin = currentUser?.role === 'admin';
+  const esVendedor = currentUser?.role === 'vendedor' || currentUser?.role === 'usuario';
+  const esRepartidor = currentUser?.role === 'repartidor';
   const puedeEditar = esAdmin;
   const puedeCrear = esAdmin || currentUser?.role === 'repartidor';
   const [rutasAsignadas, setRutasAsignadas] = useState([]);
@@ -482,13 +484,13 @@ function Clientes({
   const [rutaAdminForm, setRutaAdminForm] = useState(null);
   const [agregarClienteForm, setAgregarClienteForm] = useState(null);
   useEffect(() => {
-    if (!currentUser?.uid) return undefined;
+    if (!currentUser?.uid || (!esAdmin && !esRepartidor)) return undefined;
     const ref = db.collection('rutas_catalogo');
     const query = esAdmin ? ref.where('activa', '==', true) : ref.where('repartidorId', '==', currentUser.uid);
     return query.onSnapshot(snap => setRutasAsignadas(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.activa !== false)), () => setRutasAsignadas([]));
-  }, [currentUser?.uid, esAdmin]);
+  }, [currentUser?.uid, esAdmin, esRepartidor]);
   useEffect(() => {
-    if (!currentUser?.uid || esAdmin) return undefined;
+    if (!currentUser?.uid || !esRepartidor) return undefined;
     const ref = db.collection('carteras_repartidores').doc(currentUser.uid).collection('clientes');
     return ref.onSnapshot(snap => {
       const mapa = {};
@@ -496,12 +498,12 @@ function Clientes({
       setCarteraAsignaciones(mapa);
       setCarteraClienteIds(new Set(Object.keys(mapa)));
     }, () => { setCarteraAsignaciones({}); setCarteraClienteIds(new Set()); });
-  }, [currentUser?.uid, esAdmin]);
+  }, [currentUser?.uid, esRepartidor]);
   useEffect(() => {
-    if (!currentUser?.uid || esAdmin) return undefined;
+    if (!currentUser?.uid || !esRepartidor) return undefined;
     const ref = db.collection('clientes').where('asignacionEstado', '==', 'disponible').limit(200);
     return ref.onSnapshot(snap => setClientesDisponibles(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setClientesDisponibles([]));
-  }, [currentUser?.uid, esAdmin]);
+  }, [currentUser?.uid, esRepartidor]);
   useEffect(() => {
     if (!currentUser?.uid) return undefined;
     const unsubs = [];
@@ -510,13 +512,13 @@ function Clientes({
     return () => unsubs.forEach(u => u());
   }, [currentUser?.uid, esAdmin]);
   useEffect(() => {
-    if (!currentUser?.uid) return undefined;
+    if (!currentUser?.uid || (!esAdmin && !esRepartidor)) return undefined;
     const ref = db.collection('solicitudes_desactivacion_clientes');
     const query = esAdmin ? ref.where('estado', '==', 'pendiente') : ref.where('repartidorId', '==', currentUser.uid);
     return query.onSnapshot(snap => setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setSolicitudes([]));
   }, [currentUser?.uid, esAdmin]);
   const rutasPermitidas = new Set(rutasAsignadas.flatMap(r => r.clienteIds || []));
-  const clientesVisibles = esAdmin ? clientes : clientes.filter(c => carteraClienteIds.has(c.id) || rutasPermitidas.has(c.id) || (c.creadoPorUid === currentUser.uid && c.repartidorId === currentUser.uid));
+  const clientesVisibles = esAdmin || esVendedor ? clientes : clientes.filter(c => carteraClienteIds.has(c.id) || rutasPermitidas.has(c.id) || (c.creadoPorUid === currentUser.uid && c.repartidorId === currentUser.uid));
   const cmap = creditos.reduce((m, c) => {
     const saldo = Number(c.saldo || 0);
     if (Number.isFinite(saldo) && saldo > 0) m[c.clienteId] = (m[c.clienteId] || 0) + saldo;

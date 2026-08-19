@@ -10,6 +10,7 @@ function Gerencia({ currentUser, notas, creditos }) {
     const [expandedId, setExpandedId] = useState(null);
     const [cierreOpen, setCierreOpen] = useState(false);
     const [cierreSaving, setCierreSaving] = useState(false);
+    const [abonosOperacion, setAbonosOperacion] = useState({});
     const pressTimer = useRef(null);
     const longPressed = useRef(false);
     const startPress = id => {
@@ -47,6 +48,21 @@ function Gerencia({ currentUser, notas, creditos }) {
         const unsub = query.onSnapshot(snap => setCierres(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => setCierres([]));
         return unsub;
     }, [isAdmin, currentUser.uid]);
+    useEffect(() => {
+        const unsubs = [];
+        (creditos || []).forEach(c => {
+            const abonosRef = db.collection('creditos').doc(c.id).collection('abonos');
+            const query = isAdmin
+                ? abonosRef.where('estado', '==', 'pendiente')
+                : abonosRef.where('capturadoPorUid', '==', currentUser.uid);
+            const unsub = query.onSnapshot(snap => setAbonosOperacion(prev => ({
+                    ...prev,
+                    [c.id]: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                })), () => setAbonosOperacion(prev => ({ ...prev, [c.id]: [] })));
+            unsubs.push(unsub);
+        });
+        return () => unsubs.forEach(unsub => unsub());
+    }, [creditos, currentUser.uid]);
     const guardar = async () => {
         if (!form.pagadoA || !form.monto || +form.monto <= 0) {
             alert('Completa "Pagado a" y un monto válido');
@@ -80,13 +96,16 @@ function Gerencia({ currentUser, notas, creditos }) {
     const misGastos = gastos ? gastos.filter(g => g.capturadoPorUid === currentUser.uid) : [];
     const misNotasHoy = (notas || []).filter(n => n.capturadoPorUid === currentUser.uid && mismoDia(n.fecha, hoyISO));
     const ventaEfectivoHoy = misNotasHoy.filter(n => esVentaEfectivo(n.formaPago)).reduce((s, n) => s + n.total, 0);
-    // Abonos: viven como arreglo embebido dentro de cada documento de creditos,
-    // así que se aplanan primero y luego se filtran igual que cualquier otro
-    // movimiento del día (por quién lo capturó y por fecha).
-    const misAbonosHoy = (creditos || [])
-        .flatMap(c => (c.abonos || []).map(a => ({ ...a, clienteNombre: c.clienteNombre })))
+    // Los abonos nuevos permanecen pendientes hasta que administración los
+    // valide. Los abonos embebidos antiguos se consideran históricos aprobados.
+    const abonosHistoricos = (creditos || [])
+        .flatMap(c => (c.abonos || []).map(a => ({ ...a, estado: a.estado || 'aprobado', clienteNombre: c.clienteNombre })));
+    const abonosSubcoleccion = Object.values(abonosOperacion).flat();
+    const misAbonosHoy = [...abonosHistoricos, ...abonosSubcoleccion]
         .filter(a => a.capturadoPorUid === currentUser.uid && mismoDia(a.fecha, hoyISO));
-    const abonoEfectivoHoy = misAbonosHoy.filter(a => a.formaPago === 'efectivo').reduce((s, a) => s + a.monto, 0);
+    const abonoEfectivoPendienteHoy = misAbonosHoy.filter(a => a.formaPago === 'efectivo' && a.estado === 'pendiente').reduce((s, a) => s + Number(a.monto || 0), 0);
+    const abonoEfectivoAprobadoHoy = misAbonosHoy.filter(a => a.formaPago === 'efectivo' && a.estado === 'aprobado').reduce((s, a) => s + Number(a.monto || 0), 0);
+    const abonoEfectivoHoy = abonoEfectivoPendienteHoy + abonoEfectivoAprobadoHoy;
     const misGastosHoy = misGastos.filter(g => mismoDia(g.fecha, hoyISO));
     const gastoEfectivoHoy = misGastosHoy.filter(g => g.formaPago === 'efectivo').reduce((s, g) => s + g.monto, 0);
     const gastosTarjetaHoy = misGastosHoy.filter(g => g.formaPago === 'tarjeta');
@@ -95,7 +114,7 @@ function Gerencia({ currentUser, notas, creditos }) {
     // quedan fuera de "ventaEfectivoHoy" por construcción (solo se suman las
     // notas con formaPago==='efectivo'), así que restarlos aparte sería
     // restarlos dos veces — por eso no aparecen como resta explícita aquí.
-    const formulaBaseHoy = ventaEfectivoHoy + abonoEfectivoHoy;
+    const formulaBaseHoy = ventaEfectivoHoy + abonoEfectivoAprobadoHoy + abonoEfectivoPendienteHoy;
     // Ajuste adicional (no pedido por modelo.md, pero es lo que de verdad
     // debe traer de vuelta la persona): descontar lo que ya gastó en efectivo.
     const efectivoEsperadoHoy = formulaBaseHoy - gastoEfectivoHoy;
@@ -172,8 +191,11 @@ function Gerencia({ currentUser, notas, creditos }) {
                 React.createElement("span", { style: { fontSize: 13 } }, "Venta en efectivo"),
                 React.createElement("span", { style: { fontWeight: 700, color: 'var(--ok-text)' } }, fmt(ventaEfectivoHoy))),
             React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 4 } },
-                React.createElement("span", { style: { fontSize: 13 } }, "Abonos en efectivo"),
-                React.createElement("span", { style: { fontWeight: 700, color: 'var(--ok-text)' } }, fmt(abonoEfectivoHoy))),
+                React.createElement("span", { style: { fontSize: 13 } }, "Abonos aprobados"),
+                React.createElement("span", { style: { fontWeight: 700, color: 'var(--ok-text)' } }, fmt(abonoEfectivoAprobadoHoy))),
+            React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 4 } },
+                React.createElement("span", { style: { fontSize: 13, color: 'var(--warn-text)' } }, "Abonos pendientes de validar"),
+                React.createElement("span", { style: { fontWeight: 700, color: 'var(--warn-text)' } }, fmt(abonoEfectivoPendienteHoy))),
             React.createElement(Row, { style: { justifyContent: 'space-between', marginBottom: 8, paddingTop: 6, borderTop: '1px dashed var(--line)' } },
                 React.createElement("span", { style: { fontSize: 12, color: 'var(--ink-faint)' } }, "= F\u00F3rmula base (modelo.md)"),
                 React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' } }, fmt(formulaBaseHoy))),

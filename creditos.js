@@ -2,8 +2,11 @@ function Creditos({
   creditos,
   currentUser
 }) {
-  const puedeEditar = currentUser?.role === 'admin' || permisoEdita(currentUser).creditos;
+  const rol = currentUser?.role === 'usuario' ? 'vendedor' : currentUser?.role;
+  const puedeRegistrar = ['admin', 'vendedor', 'repartidor'].includes(rol);
+  const puedeAprobar = rol === 'admin';
   const [abonoId, setAbonoId] = useState(null);
+  const [abonosPendientes, setAbonosPendientes] = useState({});
   const [monto, setMonto] = useState('');
   const [formaPagoAbono, setFormaPagoAbono] = useState('efectivo');
   const [savingAbono, setSavingAbono] = useState(false);
@@ -12,30 +15,75 @@ function Creditos({
   const [corrigiendo, setCorrigiendo] = useState(false);
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
-  const pend = creditos.filter(c => c.saldo > 0);
+  const pend = creditos.filter(c => c.saldo > 0 && c.estado !== 'liquidado');
   const totalPend = pend.reduce((s, c) => s + c.saldo, 0);
+  useEffect(() => {
+    const unsubs = [];
+    (creditos || []).forEach(c => {
+      const unsub = db.collection('creditos').doc(c.id).collection('abonos')
+        .where('estado', '==', 'pendiente')
+        .onSnapshot(snap => setAbonosPendientes(prev => ({
+          ...prev,
+          [c.id]: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        })), () => setAbonosPendientes(prev => ({ ...prev, [c.id]: [] })));
+      unsubs.push(unsub);
+    });
+    return () => unsubs.forEach(unsub => unsub());
+  }, [creditos]);
+  const aprobarAbono = async (credito, abono) => {
+    if (!puedeAprobar) return;
+    const montoAprobado = Math.min(Number(abono.monto || 0), Number(credito.saldo || 0));
+    if (!montoAprobado) return;
+    const creditoRef = db.collection('creditos').doc(credito.id);
+    const abonoRef = creditoRef.collection('abonos').doc(abono.id);
+    try {
+      await db.runTransaction(async tx => {
+        const [creditoSnap, abonoSnap] = await Promise.all([tx.get(creditoRef), tx.get(abonoRef)]);
+        if (!creditoSnap.exists || !abonoSnap.exists || abonoSnap.data().estado !== 'pendiente') {
+          throw new Error('El abono ya fue conciliado o no existe');
+        }
+        const saldoActual = Number(creditoSnap.data().saldo || 0);
+        const saldoNuevo = Math.max(0, saldoActual - montoAprobado);
+        tx.update(creditoRef, {
+          saldo: saldoNuevo,
+          estado: saldoNuevo === 0 ? 'liquidado' : 'vigente',
+          ultimoAbonoAprobadoId: abono.id,
+          fechaLiquidacion: saldoNuevo === 0 ? new Date().toISOString() : ''
+        });
+        tx.update(abonoRef, {
+          estado: 'aprobado',
+          aprobadoPorUid: currentUser.uid,
+          aprobadoPorNombre: currentUser.nombre || '',
+          fechaAprobacion: new Date().toISOString()
+        });
+      });
+    } catch (e) {
+      alert('No se pudo aprobar el abono: ' + e.message);
+    }
+  };
   const abonar = async c => {
-    if (savingAbono) return;
+    if (savingAbono || !puedeRegistrar) return;
     let m = parseFloat(monto);
     if (!m || m <= 0) return;
-    m = Math.min(m, c.saldo);
+    m = Math.min(m, Number(c.saldo || 0));
+    if (!m) return;
     setSavingAbono(true);
     try {
-      await db.collection('creditos').doc(c.id).update({
-        saldo: firebase.firestore.FieldValue.increment(-m),
-        abonos: firebase.firestore.FieldValue.arrayUnion({
-          fecha: new Date().toISOString(),
-          monto: m,
-          formaPago: formaPagoAbono,
-          capturadoPorUid: currentUser.uid,
-          capturadoPorNombre: currentUser.nombre
-        })
+      await db.collection('creditos').doc(c.id).collection('abonos').add({
+        fecha: new Date().toISOString(),
+        monto: m,
+        formaPago: formaPagoAbono,
+        estado: 'pendiente',
+        capturadoPorUid: currentUser.uid,
+        capturadoPorNombre: currentUser.nombre || '',
+        clienteId: c.clienteId,
+        clienteNombre: c.clienteNombre || ''
       });
       setMonto('');
       setFormaPagoAbono('efectivo');
       setAbonoId(null);
     } catch (e) {
-      alert('Error al registrar abono: ' + e.message);
+      alert('Error al registrar abono pendiente: ' + e.message);
     }
     setSavingAbono(false);
   };
@@ -183,7 +231,7 @@ function Creditos({
       height: 6,
       width: `${Math.round((c.total - c.saldo) / c.total * 100)}%`
     }
-  })), c.abonos.length > 0 && React.createElement("div", {
+  })), (c.abonos || []).length > 0 && React.createElement("div", {
     style: {
       marginBottom: 10,
       paddingTop: 6,
@@ -196,13 +244,13 @@ function Creditos({
       marginBottom: 4,
       fontWeight: 700
     }
-  }, "ABONOS"), puedeEditar && React.createElement("div", {
+  }, "ABONOS"), React.createElement("div", {
     style: {
       fontSize: 10,
       color: 'var(--ink-faint)',
       marginBottom: 6
     }
-  }, "Usa el botón de opciones de cada abono para corregirlo o eliminarlo."), c.abonos.map((a, i) => {
+  }, "Los abonos aprobados forman parte del historial y no se eliminan."), (c.abonos || []).map((a, i) => {
     const key = c.id + '_' + i;
     const expanded = expandedAbono === key;
     const editing = editAbono && editAbono.creditoId === c.id && editAbono.index === i;
@@ -212,19 +260,19 @@ function Creditos({
         marginBottom: 3
       }
     }, React.createElement("div", {
-      onMouseDown: () => puedeEditar && startPress(key),
+      onMouseDown: undefined,
       onMouseUp: cancelPress,
       onMouseLeave: cancelPress,
-      onTouchStart: () => puedeEditar && startPress(key),
+      onTouchStart: undefined,
       onTouchEnd: cancelPress,
       onTouchMove: cancelPress,
-      onClick: () => puedeEditar && onAbonoTap(key),
+      onClick: undefined,
       style: {
         display: 'flex',
         justifyContent: 'space-between',
         fontSize: 12,
         padding: '2px 0',
-        cursor: puedeEditar ? 'pointer' : 'default',
+        cursor: 'default',
         userSelect: 'none',
         WebkitTapHighlightColor: 'transparent'
       }
@@ -247,7 +295,7 @@ function Creditos({
         color: 'var(--ok-text)',
         fontWeight: 700
       }
-    }, "+", fmt(a.monto)), puedeEditar && React.createElement(OpcionesMenu, { label: 'Acciones del abono', items: [{ key: 'corregir', icon: 'edit', label: 'Corregir', onClick: () => { setEditAbono({ creditoId: c.id, index: i, monto: String(a.monto) }); setExpandedAbono(key); } }, { divider: true }, { key: 'eliminar', icon: 'trash', label: 'Eliminar', danger: true, onClick: () => eliminarAbono(c, i) }] }))), puedeEditar && React.createElement("div", {
+    }, "+", fmt(a.monto)), null)), false && React.createElement("div", {
       style: {
         maxHeight: expanded ? editing ? 46 : 40 : 0,
         overflow: 'hidden',
@@ -316,7 +364,12 @@ function Creditos({
         fontSize: 11
       }
     }, " Eliminar"))));
-  })), puedeEditar && (abonoId === c.id ? React.createElement("div", null, React.createElement(Row, {
+  })), abonosPendientes[c.id]?.length > 0 && React.createElement("div", { style: { marginBottom: 10, paddingTop: 6, borderTop: '1px solid var(--line)' } },
+    React.createElement("div", { style: { fontSize: 11, color: 'var(--warn-text)', fontWeight: 700, marginBottom: 5 } }, "ABONOS PENDIENTES DE CONCILIACIÓN"),
+    abonosPendientes[c.id].map(a => React.createElement(Row, { key: a.id, style: { justifyContent: 'space-between', gap: 8, fontSize: 12, marginBottom: 4 } },
+      React.createElement("span", null, fDate(a.fecha), " · ", fmt(a.monto), " · ", a.formaPago || 'efectivo'),
+      puedeAprobar && React.createElement(BOut, { onClick: () => aprobarAbono(c, a), style: { padding: '5px 8px', fontSize: 10 } }, "Aceptar")
+    ))), puedeRegistrar && (abonoId === c.id ? React.createElement("div", null, React.createElement(Row, {
     style: {
       gap: 6,
       marginBottom: 6

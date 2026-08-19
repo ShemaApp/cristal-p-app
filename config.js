@@ -152,6 +152,7 @@ function Configuracion({
       const fecha = firebase.firestore.FieldValue.serverTimestamp();
       const base = {
         nombre: vehicleForm.nombre.trim(), placa: vehicleForm.placa.trim().toUpperCase(), activo: true,
+        tipoUnidad: 'vehiculo', repartidorIds: [], operadorUid: '',
         medidorId: meterRef.id, numeroSerieMedidor: vehicleForm.numeroSerie.trim(), tipoFlujoMedidor: tipoFlujo, unidadMedida, cantidadPorDigito,
         factorLitrosPorUnidad: unidadMedida === 'L' ? cantidadPorDigito : 0, preciosMedidor: precios,
         rutaBaseId: '', creadoPorUid: currentUser.uid, creadoPorNombre: currentUser.nombre || '', creadoEn: fecha

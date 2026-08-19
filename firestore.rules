@@ -31,9 +31,36 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn() && role() == 'admin';
     }
-    function isStaff() {
+    function isVendedor() {
       // usuario se conserva únicamente como alias heredado de vendedor.
-      return signedIn() && (role() == 'admin' || role() == 'vendedor' || role() == 'usuario');
+      return signedIn() && (role() == 'vendedor' || role() == 'usuario');
+    }
+    function isRepartidor() {
+      return signedIn() && role() == 'repartidor';
+    }
+    function puedeOperarMedidor() {
+      return isAdmin() || isVendedor() || isRepartidor();
+    }
+    function puedeUsarCaja() {
+      return isAdmin() || isVendedor() || isRepartidor();
+    }
+    function puedeCobrarCredito(data) {
+      return isAdmin()
+        || (signedIn() && ((data.cobradorUids is list && request.auth.uid in data.cobradorUids)
+          || data.capturadoPorUid == request.auth.uid));
+    }
+    function jornadaPropia(data) {
+      return isAdmin()
+        || (isRepartidor() && data.repartidorId == request.auth.uid)
+        || (isVendedor() && data.operadorUid == request.auth.uid);
+    }
+    function jornadaVisible(vehiculoId, jornadaId) {
+      return isAdmin()
+        || jornadaPropia(get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data);
+    }
+    function cajaPropia(data) {
+      return (isRepartidor() && data.repartidorId == request.auth.uid)
+        || (isVendedor() && data.operadorUid == request.auth.uid);
     }
     function brandingValida(data) {
       return data.nombreComercial is string
@@ -81,7 +108,7 @@ service cloud.firestore {
         && data.unidadMedida is string;
     }
     function clienteVisible(data) {
-      return isAdmin() || (signedIn() && role() == 'repartidor'
+      return isAdmin() || (isRepartidor()
         && ((data.repartidorIds is list && request.auth.uid in data.repartidorIds)
           || data.asignacionEstado == 'disponible'));
     }
@@ -132,7 +159,7 @@ service cloud.firestore {
       // en su ticket público de planta y deja una referencia inmutable de venta.
       allow update: if (permisoEdicion('productos')
           && indiceCodigoProductoValido(request.resource.data, id))
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'stock', 'ultimaTransferenciaId',
             'ultimaTransferenciaRepartidorUid',
@@ -148,7 +175,7 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.estado == 'activa'
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items.keys().hasAny([id])
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.ultimaTransferenciaId)).data.items[id].cantCargada == request.resource.data.ultimaTransferenciaCantidad)
-        || (signedIn() && (role() == 'vendedor' || role() == 'usuario')
+        || (isVendedor()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'stock', 'ultimaVentaPublicaId', 'ultimaVentaPublicaVendedorUid',
             'ultimaVentaPublicaProductoId', 'ultimaVentaPublicaCantidad'
@@ -189,32 +216,33 @@ service cloud.firestore {
     // descuenta stock mediante la excepción transaccional de productos.
     match /inventario_historial/{id} {
       allow read: if isAdmin();
-      allow create: if signedIn()
-        && role() != 'repartidor'
+      allow create: if isAdmin()
         && request.resource.data.usuarioUid == request.auth.uid;
       allow update, delete: if false;
     }
 
     // ── clientes ──
     match /clientes/{id} {
-      allow read: if clienteVisible(resource.data);
+      allow read: if clienteVisible(resource.data)
+        || (isVendedor() && (id == 'publico_general' || resource.data.ambito == 'planta'));
       allow create: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && request.resource.data.creadoPorUid == request.auth.uid
           && request.resource.data.repartidorIds is list
           && request.auth.uid in request.resource.data.repartidorIds
           && request.resource.data.rutaId is string
           && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid)
-        || (signedIn() && (role() == 'vendedor' || role() == 'usuario')
+        || (isVendedor()
           && id == 'publico_general'
           && request.resource.data.nombre == 'Público general'
           && request.resource.data.telefono is string
           && request.resource.data.domicilio is string
           && request.resource.data.activo == true
           && request.resource.data.esPublicoGeneral == true
+          && request.resource.data.ambito == 'planta'
           && request.resource.data.creadoPorUid == request.auth.uid);
       allow update: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && resource.data.asignacionEstado == 'disponible'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['asignacionEstado', 'repartidorId', 'repartidorIds', 'rutaId', 'rutaIds'])
           && request.resource.data.asignacionEstado == 'asignado'
@@ -232,7 +260,7 @@ service cloud.firestore {
         && (
           (request.resource.data.origen == 'almacen' && permisoEdicion('productos'))
           || (request.resource.data.origen == 'planta_publico_general'
-            && (role() == 'vendedor' || role() == 'usuario' || isAdmin())
+            && (isVendedor() || isAdmin())
             && request.resource.data.tipoVenta == 'planta_publico_general'
             && request.resource.data.medioOperacion == 'planta'
             && request.resource.data.responsableTipo == 'vendedor'
@@ -252,31 +280,56 @@ service cloud.firestore {
 
     // ── creditos ──
     match /creditos/{id} {
-      allow read: if signedIn();
-      allow create: if permisoEdicion('creditos')
-        || (signedIn() && role() == 'repartidor' && request.resource.data.capturadoPorUid == request.auth.uid);
-      allow update: if permisoEdicion('creditos');
+      allow read: if puedeCobrarCredito(resource.data);
+      allow create: if isAdmin()
+        || ((isVendedor() || isRepartidor())
+          && request.resource.data.capturadoPorUid == request.auth.uid
+          && request.resource.data.cobradorUids is list
+          && request.auth.uid in request.resource.data.cobradorUids);
+      // El saldo y el estado solo cambian al aprobar un abono pendiente.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'saldo', 'estado', 'ultimoAbonoAprobadoId', 'fechaLiquidacion'
+        ]);
       allow delete: if false;
+
+      match /abonos/{abonoId} {
+        allow read: if puedeCobrarCredito(get(/databases/$(database)/documents/creditos/$(id)).data);
+        allow create: if puedeCobrarCredito(get(/databases/$(database)/documents/creditos/$(id)).data)
+          && request.resource.data.capturadoPorUid == request.auth.uid
+          && request.resource.data.monto is number
+          && request.resource.data.monto > 0
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.formaPago in ['efectivo', 'transferencia'];
+        allow update: if isAdmin()
+          && resource.data.estado == 'pendiente'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estado', 'aprobadoPorUid', 'aprobadoPorNombre', 'fechaAprobacion', 'motivoRechazo'
+          ])
+          && request.resource.data.estado in ['aprobado', 'rechazado']
+          && (request.resource.data.estado == 'aprobado'
+            || (request.resource.data.motivoRechazo is string && request.resource.data.motivoRechazo.size() > 0));
+        allow delete: if false;
+      }
     }
 
     // ── pedidos ──
     match /pedidos/{id} {
-      allow read: if isStaff()
-        || (signedIn() && role() == 'repartidor'
-          && resource.data.repartidorId == request.auth.uid);
+      allow read: if isAdmin()
+        || (isRepartidor() && resource.data.repartidorId == request.auth.uid);
 
       // Oficina crea borradores. Administración asigna pedidos a terceros.
       // El repartidor crea únicamente pedidos asignados a sí mismo.
       allow create: if (
-          (isStaff() && request.resource.data.creadoPorUid == request.auth.uid)
-          || (signedIn() && role() == 'repartidor'
+          (isAdmin() && request.resource.data.creadoPorUid == request.auth.uid)
+          || (isRepartidor()
             && request.resource.data.creadoPorUid == request.auth.uid
             && request.resource.data.repartidorId == request.auth.uid
             && request.resource.data.estado == 'asignado_pendiente_transferencia')
         );
 
       allow update: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && resource.data.repartidorId == request.auth.uid
           && request.resource.data.repartidorId == request.auth.uid
           && resource.data.estado == 'asignado_pendiente_transferencia'
@@ -289,7 +342,7 @@ service cloud.firestore {
           && request.resource.data.confirmadaPorUid == request.auth.uid
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.repartidorId == request.auth.uid
           && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.estado == 'activa')
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && resource.data.repartidorId == request.auth.uid
           && request.resource.data.repartidorId == request.auth.uid
           && resource.data.estado == 'transferencia_confirmada'
@@ -308,9 +361,9 @@ service cloud.firestore {
     // crear solo una transferencia propia y operar únicamente sus documentos.
     match /rutas/{id} {
       allow read: if isAdmin()
-        || (signedIn() && role() == 'repartidor' && resource.data.repartidorId == request.auth.uid);
+        || (isRepartidor() && resource.data.repartidorId == request.auth.uid);
       allow create: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && request.resource.data.repartidorId == request.auth.uid
           && request.resource.data.asignadaPorUid == request.auth.uid
           && request.resource.data.tipo == 'transferencia_almacen'
@@ -318,7 +371,7 @@ service cloud.firestore {
           && request.resource.data.estado == 'activa'
           && request.resource.data.items.size() > 0);
       allow update: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && resource.data.repartidorId == request.auth.uid
           && request.resource.data.repartidorId == request.auth.uid
           && (
@@ -343,7 +396,7 @@ service cloud.firestore {
     match /devoluciones/{id} {
       allow read: if signedIn();
       allow create: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && request.resource.data.capturadoPorUid == request.auth.uid);
       allow update, delete: if isAdmin();
     }
@@ -376,10 +429,13 @@ service cloud.firestore {
     }
 
     match /cajas_jornada/{cajaId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.repartidorId == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.repartidorId == request.auth.uid
+      allow read: if isAdmin() || (puedeUsarCaja() && cajaPropia(resource.data));
+      allow create: if puedeUsarCaja()
+        && ((isRepartidor() && request.resource.data.repartidorId == request.auth.uid)
+          || (isVendedor() && request.resource.data.operadorUid == request.auth.uid))
         && request.resource.data.estado == 'abierta';
-      allow update: if signedIn() && resource.data.repartidorId == request.auth.uid
+      allow update: if puedeUsarCaja()
+        && cajaPropia(resource.data)
         && resource.data.estado == 'abierta'
         && request.resource.data.estado == 'cerrada';
       allow delete: if false;
@@ -387,10 +443,12 @@ service cloud.firestore {
 
     // ── vehículos y medidores fijos ──
     match /vehiculos/{vehiculoId} {
-      allow read: if signedIn() && (isAdmin() || role() == 'repartidor');
+      allow read: if isAdmin()
+        || (isRepartidor() && resource.data.repartidorIds is list && request.auth.uid in resource.data.repartidorIds)
+        || (isVendedor() && resource.data.tipoUnidad == 'planta' && resource.data.operadorUid == request.auth.uid);
       allow create: if isAdmin();
       allow update: if isAdmin()
-        || (signedIn() && role() == 'repartidor'
+        || (isRepartidor()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'jornadaActivaId', 'medidorUltimaLectura', 'actualizadoEn'
           ])
@@ -407,9 +465,12 @@ service cloud.firestore {
       allow delete: if false;
 
       match /jornadas/{jornadaId} {
-        allow read: if signedIn() && (isAdmin() || resource.data.repartidorId == request.auth.uid);
+        allow read: if jornadaPropia(resource.data);
         allow create: if signedIn()
-          && (isAdmin() || (role() == 'repartidor' && request.resource.data.repartidorId == request.auth.uid))
+          && (isAdmin()
+            || (isRepartidor() && request.resource.data.repartidorId == request.auth.uid)
+            || (isVendedor() && request.resource.data.operadorUid == request.auth.uid
+              && request.resource.data.unidadOperativaTipo == 'planta'))
           && request.resource.data.vehiculoId == vehiculoId
           && request.resource.data.medidorId is string
           && request.resource.data.lecturaInicial >= 0
@@ -417,7 +478,7 @@ service cloud.firestore {
           && request.resource.data.unidadMedida is string
           && request.resource.data.tipoFlujoMedidor == 'volumen_acumulado';
         allow update: if signedIn()
-          && (isAdmin() || (role() == 'repartidor' && resource.data.repartidorId == request.auth.uid))
+          && (isAdmin() || (isRepartidor() && resource.data.repartidorId == request.auth.uid))
           && (
             (resource.data.estado == 'activa'
               && request.resource.data.estado == 'cerrada'
@@ -438,8 +499,8 @@ service cloud.firestore {
         allow delete: if false;
 
         match /lecturas/{lecturaId} {
-          allow read: if signedIn();
-          allow create: if signedIn()
+          allow read: if jornadaVisible(vehiculoId, jornadaId);
+          allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.lectura >= 0
@@ -447,8 +508,8 @@ service cloud.firestore {
           allow update, delete: if false;
         }
         match /recargas/{recargaId} {
-          allow read: if signedIn();
-          allow create: if signedIn()
+          allow read: if jornadaVisible(vehiculoId, jornadaId);
+          allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.cantidadMedida > 0
@@ -457,8 +518,8 @@ service cloud.firestore {
           allow update, delete: if false;
         }
         match /ventas/{ventaId} {
-          allow read: if signedIn();
-          allow create: if signedIn()
+          allow read: if jornadaVisible(vehiculoId, jornadaId);
+          allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.medidorId is string
@@ -472,8 +533,8 @@ service cloud.firestore {
           allow update, delete: if false;
         }
         match /cierres/{cierreId} {
-          allow read: if signedIn();
-          allow create: if signedIn()
+          allow read: if jornadaVisible(vehiculoId, jornadaId);
+          allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.lecturaCierre >= request.resource.data.lecturaInicial
@@ -483,8 +544,8 @@ service cloud.firestore {
           allow update, delete: if false;
         }
         match /incidencias/{incidenciaId} {
-          allow read: if signedIn();
-          allow create: if signedIn()
+          allow read: if jornadaVisible(vehiculoId, jornadaId);
+          allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.motivo is string
@@ -496,7 +557,9 @@ service cloud.firestore {
     }
 
     match /medidores/{medidorId} {
-      allow read: if signedIn() && (isAdmin() || role() == 'repartidor');
+      allow read: if isAdmin()
+        || (isRepartidor() && resource.data.vehiculoId is string)
+        || (isVendedor() && resource.data.tipo == 'planta' && resource.data.operadorUid == request.auth.uid);
       allow create, update: if isAdmin() && medidorConfigValida(request.resource.data);
       allow delete: if false;
     }
@@ -536,7 +599,7 @@ service cloud.firestore {
 
     match /carteras_repartidores/{repartidorId}/clientes/{clienteId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == repartidorId);
-      allow create: if signedIn() && request.auth.uid == repartidorId && role() == 'repartidor'
+      allow create: if signedIn() && request.auth.uid == repartidorId && isRepartidor()
         && request.resource.data.clienteId == clienteId
         && request.resource.data.repartidorId == repartidorId
         && request.resource.data.rutaId is string
@@ -546,7 +609,7 @@ service cloud.firestore {
 
     match /solicitudes_desactivacion_clientes/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.repartidorId == request.auth.uid);
-      allow create: if signedIn() && role() == 'repartidor'
+      allow create: if isRepartidor()
         && request.resource.data.repartidorId == request.auth.uid
         && request.resource.data.estado == 'pendiente'
         && request.resource.data.envaseDevuelto == true
