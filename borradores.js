@@ -84,10 +84,6 @@ function hayBorradoresLocales(uid) {
   return false;
 }
 
-function confirmarNavegacionConBorradores(uid) {
-  if (!hayBorradoresLocales(uid)) return true;
-  return window.confirm('Hay trabajo pendiente guardado como borrador. ¿Quieres regresar? Podrás recuperarlo al volver a abrir el formulario.');
-}
 
 function useBorradorLocal(formulario, valor, { uid, habilitado = true, etiqueta = '' } = {}) {
   const { useCallback, useEffect, useRef, useState } = React;
@@ -167,7 +163,6 @@ window.guardarBorradorLocal = guardarBorradorLocal;
 window.eliminarBorradorLocal = eliminarBorradorLocal;
 window.confirmarSalidaBorrador = confirmarSalidaBorrador;
 window.hayBorradoresLocales = hayBorradoresLocales;
-window.confirmarNavegacionConBorradores = confirmarNavegacionConBorradores;
 window.useBorradorLocal = useBorradorLocal;
 window.BorradorRecuperable = BorradorRecuperable;
 window.BorradorGuardado = BorradorGuardado;

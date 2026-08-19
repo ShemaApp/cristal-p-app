@@ -22,6 +22,6 @@ La persistencia se ejecuta después de una pausa breve mientras existen cambios 
 
 ## Recuperación y descarte
 
-Al abrir un formulario con un borrador disponible, la interfaz muestra las opciones **Continuar borrador** y **Descartar**. El botón **Cancelar** pregunta antes de descartar cambios; el regreso global y el cierre de sesión advierten si existe cualquier borrador del usuario. Un guardado exitoso en Firestore elimina el borrador local. Los botones de consulta o cierre sin cambios no muestran confirmaciones innecesarias.
+Al abrir un formulario con un borrador disponible, la interfaz muestra las opciones **Continuar borrador** y **Descartar**. El botón **Cancelar** pregunta antes de descartar cambios dentro del formulario. El regreso global, el cambio de pantalla y el cierre de sesión no muestran una alerta general: el borrador se conserva silenciosamente y podrá recuperarse al volver a abrir su formulario. Un guardado exitoso en Firestore elimina el borrador local. Los botones de consulta o cierre sin cambios no muestran confirmaciones innecesarias.
 
 No se guardan contraseñas, PIN, tokens, credenciales ni secretos. Firestore continúa siendo la fuente definitiva; el borrador solo representa trabajo local no confirmado.
