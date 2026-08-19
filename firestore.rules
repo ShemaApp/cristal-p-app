@@ -46,7 +46,8 @@ service cloud.firestore {
     }
     function puedeCobrarCredito(data) {
       return isAdmin()
-        || (signedIn() && ((data.cobradorUids is list && request.auth.uid in data.cobradorUids)
+        || isVendedor()
+        || (isRepartidor() && signedIn() && ((data.cobradorUids is list && request.auth.uid in data.cobradorUids)
           || data.capturadoPorUid == request.auth.uid));
     }
     function jornadaPropia(data) {
@@ -106,11 +107,6 @@ service cloud.firestore {
         && data.precioPorUnidad is number
         && data.precioPorUnidad > 0
         && data.unidadMedida is string;
-    }
-    function clienteVisible(data) {
-      return isAdmin() || (isRepartidor()
-        && ((data.repartidorIds is list && request.auth.uid in data.repartidorIds)
-          || data.asignacionEstado == 'disponible'));
     }
     function datosUsuario() {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
@@ -223,15 +219,19 @@ service cloud.firestore {
 
     // ── clientes ──
     match /clientes/{id} {
-      allow read: if clienteVisible(resource.data)
-        || (isVendedor() && (id == 'publico_general' || resource.data.ambito == 'planta'));
+      // Catálogo general: todos los roles autenticados pueden localizar clientes.
+      // La cartera del repartidor solo cambia el orden/prioridad en la interfaz.
+      allow read: if signedIn();
       allow create: if isAdmin()
         || (isRepartidor()
           && request.resource.data.creadoPorUid == request.auth.uid
           && request.resource.data.repartidorIds is list
-          && request.auth.uid in request.resource.data.repartidorIds
           && request.resource.data.rutaId is string
-          && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid)
+          && (
+            (request.resource.data.rutaId == '' && request.resource.data.repartidorIds.size() == 0)
+            || (request.auth.uid in request.resource.data.repartidorIds
+              && get(/databases/$(database)/documents/rutas_catalogo/$(request.resource.data.rutaId)).data.repartidorId == request.auth.uid)
+          ))
         || (isVendedor()
           && id == 'publico_general'
           && request.resource.data.nombre == 'Público general'

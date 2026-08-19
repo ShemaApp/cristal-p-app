@@ -59,7 +59,7 @@ function App() {
   const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
   const rolApp = rolEfectivo(currentUser);
   const etiquetasPorRol = {
-    vendedor: { home: 'Planta', nota: 'Venta de planta', clientes: 'Clientes de planta', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
+    vendedor: { home: 'Planta', nota: 'Venta de planta', clientes: 'Clientes generales', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
     repartidor: { home: 'Mi jornada', nota: 'Ventas y pedidos', clientes: 'Mi cartera', creditos: 'Cobro de mi cartera', ruta: 'Jornada', vehiculos: 'Mi vehículo', repartidores: 'Venta QR', gerencia: 'Mi caja' }
   };
   const permTabs = permisoTabs(currentUser);

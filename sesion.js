@@ -364,16 +364,11 @@ function useSesion() {
       : esAdmin
         ? db.collection('pedidos').orderBy('fechaCreacion', 'desc').limit(500)
         : null;
-    const clientesQueries = esRepartidor
-      ? [db.collection('clientes').where('repartidorIds', 'array-contains', currentUser.uid)]
-      : esAdmin
-        ? [db.collection('clientes')]
-        : esVendedor
-          ? [
-            db.collection('clientes').where('ambito', '==', 'planta').limit(200),
-            db.collection('clientes').where(firebase.firestore.FieldPath.documentId(), '==', 'publico_general')
-          ]
-          : [];
+    // El catálogo de clientes es general. La prioridad de cartera se resuelve
+    // en Clientes mediante repartidorIds/rutaIds, pero nunca bloquea la venta.
+    const clientesQueries = (esAdmin || esVendedor || esRepartidor)
+      ? [db.collection('clientes')]
+      : [];
     const notasQuery = esRepartidor
       ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid).orderBy('fecha', 'desc').limit(500)
       : esAdmin
@@ -381,7 +376,9 @@ function useSesion() {
         : esVendedor
           ? db.collection('notas').where('capturadoPorUid', '==', currentUser.uid).orderBy('fecha', 'desc').limit(500)
           : null;
-    const creditosQueries = esAdmin
+    // Administración y vendedor pueden conciliar/cobrar cualquier crédito
+    // del catálogo general; el repartidor conserva únicamente los suyos.
+    const creditosQueries = (esAdmin || esVendedor)
       ? [db.collection('creditos')]
       : [
         db.collection('creditos').where('cobradorUids', 'array-contains', currentUser.uid).limit(200),

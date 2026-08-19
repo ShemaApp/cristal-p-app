@@ -5,7 +5,7 @@
 
 // Cambia esta versión en cada publicación para invalidar el shell anterior.
 const CACHE_PREFIX = 'flutt-water-';
-const CACHE_NAME = 'flutt-water-v26-draft-navigation';
+const CACHE_NAME = 'flutt-water-v27-general-client-catalog';
 
 // Ajusta la ruta de tu HTML principal si tu index no se llama exactamente así.
 const SHELL_URLS = [

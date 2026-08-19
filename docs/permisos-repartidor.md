@@ -6,7 +6,7 @@
 
 ## Propósito operativo
 
-El repartidor trabaja con una cartera de clientes asignada por administración y con jornadas flexibles. En este modelo, **ruta** conserva el significado operativo de grupo o cartera de clientes y **jornada** representa el periodo de trabajo o una transferencia activa del día. Puede existir más de una jornada en el mismo día cuando el repartidor termina una salida y posteriormente inicia otra.
+El repartidor trabaja con una zona prioritaria o cartera de clientes definida por administración, pero consulta el catálogo general y puede vender libremente a cualquier cliente. La asignación solo determina el orden de atención y no bloquea una venta. En este modelo, **ruta** conserva el significado operativo de grupo o cartera de clientes y **jornada** representa el periodo de trabajo o una transferencia activa del día. Puede existir más de una jornada en el mismo día cuando el repartidor termina una salida y posteriormente inicia otra.
 
 El repartidor puede utilizar un vehículo disponible. El medidor pertenece al vehículo y conserva su identidad aunque cambie el repartidor. Las lecturas inicial y final, las ventas y el cierre de caja se relacionan con la jornada, el vehículo, el medidor y el usuario que captura la operación.
 
@@ -16,7 +16,7 @@ El repartidor puede utilizar un vehículo disponible. El medidor pertenece al ve
 |---|---|---:|---|
 | `home` | **Mi jornada** | Sí | Resumen personal, pendientes offline y accesos rápidos operativos. |
 | `nota` | **Ventas y pedidos** | Sí | Consultar pedidos propios y registrar ventas vinculadas a una jornada o transferencia activa. |
-| `clientes` | **Mi cartera** | Sí | Consultar clientes asignados, buscar por filtro y usar identificación QR. |
+| `clientes` | **Mi cartera** | Sí | Consultar el catálogo general, mostrar primero su zona prioritaria, buscar por filtro y usar identificación QR. |
 | `creditos` | **Cobro de mi cartera** | Sí | Consultar y registrar abonos de créditos permitidos dentro de su cartera. |
 | `ruta` | **Jornada** | Sí | Iniciar, consultar y cerrar sus jornadas o transferencias asignadas; registrar lecturas y ventas operativas. |
 | `vehiculos` | **Mi vehículo** | Sí | Consultar el vehículo asignado y sus datos operativos necesarios; no administrar el catálogo de vehículos. |
@@ -27,16 +27,16 @@ El repartidor puede utilizar un vehículo disponible. El medidor pertenece al ve
 | `inventario` | Inventario | No | No ajusta existencias ni consulta el inventario global. |
 | `reportes` | Reportes | No | No consulta reportes globales ni descarga CSV. |
 
-La interfaz puede mostrar solamente los componentes de operación del repartidor. No debe mostrar controles administrativos, clientes de otros repartidores, transferencias de terceros, inventario global, reportes ni configuración de usuarios.
+La interfaz puede mostrar solamente los componentes de operación del repartidor. No debe mostrar controles administrativos, transferencias de terceros, inventario global, reportes ni configuración de usuarios. El catálogo general sí es visible; la cartera propia se presenta primero como prioridad visual.
 
 ## Acciones y permisos CRUD
 
 | Recurso | Lectura | Creación | Actualización | Eliminación | Condición principal |
 |---|---:|---:|---:|---:|---|
-| Clientes asignados | Sí | Sí, en campo | Solo asignación permitida | No | El alta debe incluir QR, teléfono y pertenencia a una ruta autorizada. La ficha existente es de solo lectura para nombre, teléfono, localidad, QR y estado. |
+| Clientes del catálogo general | Sí | Sí, en campo | Solo asignación permitida | No | El alta debe incluir QR y teléfono; puede crearse sin zona. Un cliente existente puede agregarse a la zona propia, pero la asignación no es requisito para vender. La ficha existente es de solo lectura para nombre, teléfono, localidad, QR y estado. |
 | Venta QR / nota | Propias | Sí | No | No | Requiere jornada o transferencia activa del repartidor autenticado y cliente resuelto por QR. |
 | Pedidos propios | Sí | Sí, si se asignan al propio repartidor | Solo transiciones operativas autorizadas | No | No puede reasignar, borrar ni editar pedidos históricos. |
-| Créditos y abonos de cartera | Sí, según `cobradorUids` | Crear abono pendiente | Solo admin valida y actualiza saldo | No | El abono queda en `creditos/{id}/abonos`; la aprobación concilia el efectivo sin borrar el historial. |
+| Créditos y abonos propios | Solo créditos donde figura en `cobradorUids` o `capturadoPorUid` | Crear abono pendiente | Solo admin valida y actualiza saldo | No | El abono queda en `creditos/{id}/abonos`; la aprobación concilia el efectivo sin borrar el historial. |
 | Rutas o transferencias propias | Sí | Operación propia cuando corresponda | Venta, solicitud de cierre y campos operativos permitidos | No | Nunca puede consultar o modificar la jornada de otro repartidor. |
 | Productos | Lectura funcional dentro de la venta | No | Descuento transaccional de transferencia | No | La carga o descuento debe estar respaldado por una operación válida; no hay ajustes manuales. |
 | Devoluciones | Sí según operación | Sí, propia | No, salvo autorización administrativa | No | Debe quedar asociada a la operación y al usuario autenticado. |
@@ -45,7 +45,7 @@ La interfaz puede mostrar solamente los componentes de operación del repartidor
 
 ## Flujo de identificación QR y venta
 
-El repartidor abre **Venta QR** y escanea el código del cliente. El QR solo resuelve una identidad almacenada en Firebase; no representa coordenadas, no inicia seguimiento y no valida una distancia. Si el cliente no existe, el repartidor puede crear uno nuevo durante el trabajo de campo siempre que la operación incluya la información requerida y quede asociado a su cartera autorizada.
+El repartidor abre **Venta QR** y escanea el código del cliente. El QR solo resuelve una identidad almacenada en Firebase; no representa coordenadas, no inicia seguimiento y no valida una distancia. Si el cliente no existe, el repartidor puede crear uno nuevo durante el trabajo de campo con la información requerida, incluso sin zona. Si ya existe, puede agregarlo a su zona prioritaria. En ambos casos la venta sigue siendo libre y la zona no funciona como bloqueo.
 
 Después de resolver el cliente, el repartidor selecciona productos y cantidades. Las piezas y paquetes se capturan como enteros; los SKU a granel admiten decimales. La venta se registra con `tipoVenta: rapida_repartidor`, el identificador de jornada o transferencia, el UID y nombre del repartidor y la identificación `qr`. La nota es inmutable y su modificación o eliminación está prohibida.
 
@@ -53,7 +53,7 @@ Después de resolver el cliente, el repartidor selecciona productos y cantidades
 
 ## Cartera y cambios de cliente
 
-El repartidor puede buscar y agregar a su ruta un cliente existente de la lista general cuando la operación lo permita. Puede crear un cliente nuevo en campo y asociarle un QR. No puede cambiar el nombre, teléfono, localidad, QR o estado de un cliente existente ni convertir una visita en una modificación silenciosa de la ficha general.
+El repartidor puede buscar cualquier cliente de la lista general y agregarlo a su zona prioritaria cuando corresponda. Puede crear un cliente nuevo en campo y asociarle un QR; la ruta o zona no es obligatoria para registrar ni vender. No puede cambiar el nombre, teléfono, localidad, QR o estado de un cliente existente ni convertir una visita en una modificación silenciosa de la ficha general.
 
 La desactivación requiere devolución de envases y base prestados. La solicitud debe quedar pendiente de autorización administrativa; si administración rechaza la solicitud, el motivo es obligatorio. El repartidor no puede eliminar físicamente el registro del cliente ni omitir la evidencia de devolución.
 

@@ -16,8 +16,8 @@ La aplicación identifica este rol por el perfil autenticado almacenado en `usua
 |---|---|---:|---|
 | `home` | **Planta** | Sí | Resumen operativo y acceso rápido al ticket público de planta. |
 | `nota` | **Venta de planta** | Sí | Registrar tickets públicos de mostrador. |
-| `clientes` | **Clientes de planta** | Sí | Consultar clientes y localizar información necesaria para cobros; no editar la ficha general. |
-| `creditos` | **Cobro de créditos** | Sí | Consultar créditos y registrar abonos permitidos. |
+| `clientes` | **Clientes generales** | Sí | Consultar el catálogo general completo y localizar información necesaria para cobros; no editar fichas. |
+| `creditos` | **Cobro de créditos** | Sí | Consultar cualquier crédito del catálogo general y registrar abonos pendientes para conciliación administrativa. |
 | `gerencia` | **Mi caja** | Sí | Consultar y registrar movimientos de caja propios según el flujo operativo disponible. |
 | `productos` | Productos | No | El vendedor selecciona SKU dentro del ticket, pero no administra el catálogo. |
 | `inventario` | Inventario | No | El descuento ocurre automáticamente al guardar el ticket; no hay ajuste manual. |
@@ -35,8 +35,8 @@ La pantalla de configuración no debe convertirse en un panel administrativo par
 |---|---:|---:|---:|---:|---|
 | Ticket público de planta (`notas`) | Propios | Sí | No | No | Cliente fijo **Público general**, `origen: planta_publico_general`, `medioOperacion: planta` y pago sin crédito. |
 | Stock de productos | Indirecta | No | Solo descuento atómico | No | El descuento debe ocurrir en la misma transacción que crea el ticket y debe señalar el SKU, cantidad, vendedor y ticket. |
-| Clientes | Consulta | No | No | No | La excepción técnica únicamente permite crear o asegurar el documento `clientes/publico_general` requerido por el ticket. |
-| Créditos y abonos | Sí, según `cobradorUids` | Crear abono pendiente | Solo admin valida y actualiza saldo | No | El abono queda en `creditos/{id}/abonos`; al aprobarse, el crédito puede marcarse liquidado sin borrar historial. |
+| Clientes | Catálogo general completo | No | No | No | Puede leer cualquier cliente autenticado; solo puede crear o asegurar `clientes/publico_general` para el ticket público. |
+| Créditos y abonos | Todos los créditos | Crear abono pendiente en cualquier crédito | Solo admin valida y actualiza saldo | No | El vendedor puede cobrar a cualquier cliente; el abono queda en `creditos/{id}/abonos` y se aprueba sin borrar historial. |
 | Caja propia | Según módulo | Operaciones propias | Cierre según flujo | No | Ventas del medidor y abonos se muestran separados; el efectivo de abonos queda pendiente de conciliación administrativa. |
 | Productos, precios, inventario administrativo y barcodes | No como módulo | No | No | No | Administración exclusiva. |
 
@@ -54,7 +54,7 @@ El vendedor no utiliza cámara ni QR. La identificación QR queda reservada al r
 
 El frontend usa `rolEfectivo()` para convertir el alias `usuario` en `vendedor`, fuerza las pestañas autorizadas y mantiene desactivadas las acciones de GPS y CSV. Las reglas de Firestore deben validar igualmente el rol y el origen de la operación; ocultar una pestaña no es una frontera de seguridad suficiente.
 
-El vendedor puede leer únicamente la información necesaria para sus tareas según las reglas de cada colección. Los tickets propios son consultables, pero no editables ni eliminables. Las operaciones de planta deben conservar `capturadoPorUid`, `capturadoPorNombre`, `responsableTipo: vendedor`, `tipoVenta: planta_publico_general`, `clienteId: publico_general` y, cuando aplique, `unidadOperativaTipo: planta`. Cada cobro se registra como abono pendiente; administración valida el dinero al cierre y después el crédito deja de aparecer entre pendientes, sin eliminar el historial.
+El vendedor puede leer el catálogo general de clientes y todos los créditos porque atiende pagos en planta de cualquier cliente; las demás colecciones conservan el alcance propio de su operación. Los tickets propios son consultables, pero no editables ni eliminables. Las operaciones de planta deben conservar `capturadoPorUid`, `capturadoPorNombre`, `responsableTipo: vendedor`, `tipoVenta: planta_publico_general`, `clienteId: publico_general` y, cuando aplique, `unidadOperativaTipo: planta`. Cada cobro se registra como abono pendiente; administración valida el dinero al cierre y después el crédito deja de aparecer entre pendientes, sin eliminar el historial.
 
 ## Referencias internas
 
