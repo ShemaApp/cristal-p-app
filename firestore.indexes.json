@@ -215,6 +215,15 @@
       ]
     },
     {
+      "collectionGroup": "llenados_planta",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "plantaId", "order": "ASCENDING" },
+        { "fieldPath": "capturadoPorUid", "order": "ASCENDING" },
+        { "fieldPath": "creadoEn", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "envases_prestados",
       "queryScope": "COLLECTION",
       "fields": [

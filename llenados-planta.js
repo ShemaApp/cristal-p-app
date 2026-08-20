@@ -7,6 +7,7 @@ function LlenadosPlanta({ productos = [], currentUser, unidadesPlanta = [] }) {
   const [llenados, setLlenados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [borrador, setBorrador] = useState({ lecturaInicial: '', lecturaFinal: '', lineas: [{ envaseVacioId: '', productoTerminadoId: '', cantidad: '1' }] });
+  const requestIdRef = useRef(null);
   const unidad = unidadesPlanta.find(u => u.id === unidadId) || null;
   const activos = productos.filter(p => p.activo !== false);
   const vacios = activos.filter(p => p.tipoProducto === 'envase_vacio');
@@ -18,9 +19,16 @@ function LlenadosPlanta({ productos = [], currentUser, unidadesPlanta = [] }) {
     if (!unidadId && unidadesPlanta[0]?.id) setUnidadId(unidadesPlanta[0].id);
   }, [unidadesPlanta, unidadId]);
   useEffect(() => {
+    if (!unidad) return;
+    const lecturaActual = unidad.medidorUltimaLectura ?? unidad.lecturaActual ?? '';
+    setBorrador(b => b.lecturaInicial === '' && lecturaActual !== '' ? { ...b, lecturaInicial: String(lecturaActual) } : b);
+  }, [unidad?.id, unidad?.medidorUltimaLectura, unidad?.lecturaActual]);
+  useEffect(() => {
     if (!unidadId || !currentUser?.uid) { setLlenados([]); return undefined; }
     setCargando(true);
-    return db.collection('llenados_planta').where('plantaId', '==', unidadId).orderBy('creadoEn', 'desc').limit(50).onSnapshot(snap => {
+    let query = db.collection('llenados_planta').where('plantaId', '==', unidadId);
+    if (currentUser.role !== 'admin') query = query.where('capturadoPorUid', '==', currentUser.uid);
+    return query.orderBy('creadoEn', 'desc').limit(50).onSnapshot(snap => {
       setLlenados(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setCargando(false);
     }, () => { setLlenados([]); setCargando(false); });
@@ -53,10 +61,81 @@ function LlenadosPlanta({ productos = [], currentUser, unidadesPlanta = [] }) {
     setMensaje(''); setPaso(p => Math.min(4, p + 1));
   };
   const retroceder = () => { setMensaje(''); setPaso(p => Math.max(1, p - 1)); };
-  const confirmarVista = () => {
-    if (!balanceValido) return setMensaje('El llenado no puede confirmarse: revisa litros, lecturas o stock.');
+  const confirmarVista = async () => {
+    if (!balanceValido || !unidad) return setMensaje('El llenado no puede confirmarse: revisa litros, lecturas o stock.');
     setGuardando(true);
-    setTimeout(() => { setGuardando(false); setMensaje('Interfaz validada. La transacción atómica se conectará en la siguiente subetapa.'); }, 350);
+    setMensaje('');
+    const requestId = requestIdRef.current || FluttWaterPlanta.crearIdempotencyKey(unidad.id, `llenado_${Date.now()}`);
+    requestIdRef.current = requestId;
+    const fecha = new Date().toISOString();
+    const plantaRef = db.collection('vehiculos').doc(unidad.id);
+    const llenadoRef = db.collection('llenados_planta').doc(requestId);
+    const operacionRef = db.collection('operaciones_planta').doc(requestId);
+    const aguaRef = db.collection('movimientos_agua').doc(`agua_${requestId}`);
+    try {
+      await db.runTransaction(async tx => {
+        const plantaSnap = await tx.get(plantaRef);
+        if (!plantaSnap.exists) throw new Error('La planta ya no existe.');
+        const plantaActual = plantaSnap.data() || {};
+        if (plantaActual.tipoUnidad !== 'planta' || (currentUser.role !== 'admin' && plantaActual.operadorUid !== currentUser.uid)) throw new Error('No tienes acceso a esta planta.');
+        const lecturaActual = Number(plantaActual.medidorUltimaLectura ?? plantaActual.lecturaActual ?? 0);
+        if (Math.abs(lecturaActual - inicial) > 0.000001) throw new Error(`La lectura inicial cambió. La planta registra ${lecturaActual}.`);
+        const refs = [];
+        const vistos = {};
+        lineas.forEach((linea, index) => {
+          const vacioRef = db.collection('productos').doc(linea.envaseVacioId);
+          const llenoRef = db.collection('productos').doc(linea.productoTerminadoId);
+          refs.push({ vacioRef, llenoRef, linea, index });
+          vistos[linea.envaseVacioId] = true;
+          vistos[linea.productoTerminadoId] = true;
+        });
+        const productoSnaps = {};
+        for (const id of Object.keys(vistos)) productoSnaps[id] = await tx.get(db.collection('productos').doc(id));
+        for (const item of refs) {
+          const vacio = productoSnaps[item.linea.envaseVacioId];
+          const lleno = productoSnaps[item.linea.productoTerminadoId];
+          if (!vacio.exists || !lleno.exists) throw new Error('Una presentación ya no existe.');
+          const stockVacio = Number(vacio.data().stock || 0);
+          if (stockVacio < item.linea.cantidad) throw new Error(`Stock insuficiente en ${vacio.data().nombre || 'envase vacío'}.`);
+        }
+        const existente = await tx.get(llenadoRef);
+        if (existente.exists) return;
+        const productoIds = Object.keys(vistos);
+        const operacion = { tipo: 'llenado_produccion', estado: 'confirmada', plantaId: unidad.id, unidadOperativaId: unidad.id, unidadOperativaTipo: 'planta', productoIds, medidorId: plantaActual.medidorId || unidad.medidorId || unidad.numeroSerieMedidor || null, jornadaId: null, lecturaAnterior: inicial, lecturaNueva: final, cantidadMedida: salidaMedida, litrosAplicados: litrosLineas, unidadMedida, lineas: lineas.map(l => ({ envaseVacioId: l.envaseVacioId, productoTerminadoId: l.productoTerminadoId, cantidad: l.cantidad, litrosPorUnidad: l.litrosPorUnidad, litros: l.litros })), requestId, idempotencyKey: requestId, capturadoPorUid: currentUser.uid, capturadoPorNombre: currentUser.nombre || '', creadoEn: fecha, inmutable: true };
+        tx.set(llenadoRef, operacion);
+        tx.set(operacionRef, operacion);
+        tx.set(aguaRef, { tipo: 'salida_produccion', medidorId: operacion.medidorId, unidadOperativaId: unidad.id, unidadOperativaTipo: 'planta', jornadaId: null, lecturaAnterior: inicial, lecturaNueva: final, cantidad: -Math.abs(salidaMedida), unidad: unidadMedida, origenTipo: 'operacion_planta', origenId: requestId, usuarioUid: currentUser.uid, fechaHora: fecha, requestId, idempotencyKey: requestId, inmutable: true });
+        tx.update(plantaRef, { medidorUltimaLectura: final, actualizadoEn: fecha, ultimaProduccionId: requestId });
+        const acumulados = {};
+        for (const item of refs) {
+          const vacioId = item.linea.envaseVacioId;
+          const llenoId = item.linea.productoTerminadoId;
+          acumulados[vacioId] = { id: vacioId, tipo: 'salida', cantidad: (acumulados[vacioId]?.cantidad || 0) + item.linea.cantidad };
+          acumulados[llenoId] = { id: llenoId, tipo: 'entrada', cantidad: (acumulados[llenoId]?.cantidad || 0) + item.linea.cantidad };
+          const vacioData = productoSnaps[vacioId].data();
+          const llenoData = productoSnaps[llenoId].data();
+          const vacioMovimientoId = `vacio_${requestId}_${vacioId}_${item.index}`;
+          const llenoMovimientoId = `lleno_${requestId}_${llenoId}_${item.index}`;
+          tx.set(db.collection('movimientos_inventario').doc(vacioMovimientoId), { tipo: 'salida_produccion', productoId: vacioId, productoNombre: vacioData.nombre || '', cantidad: item.linea.cantidad, unidad: vacioData.unidadInventario || 'pieza', origenTipo: 'operacion_planta', origenId: requestId, unidadOperativaId: unidad.id, unidadOperativaTipo: 'planta', jornadaId: null, usuarioUid: currentUser.uid, capturadoPorUid: currentUser.uid, fechaHora: fecha, requestId, idempotencyKey: `${requestId}:vacio:${item.index}`, inmutable: true });
+          tx.set(db.collection('movimientos_inventario').doc(llenoMovimientoId), { tipo: 'entrada_produccion', productoId: llenoId, productoNombre: llenoData.nombre || '', cantidad: item.linea.cantidad, unidad: llenoData.unidadInventario || 'pieza', origenTipo: 'operacion_planta', origenId: requestId, unidadOperativaId: unidad.id, unidadOperativaTipo: 'planta', jornadaId: null, usuarioUid: currentUser.uid, capturadoPorUid: currentUser.uid, fechaHora: fecha, requestId, idempotencyKey: `${requestId}:lleno:${item.index}`, inmutable: true });
+        }
+        Object.values(acumulados).forEach(cambio => {
+          const data = productoSnaps[cambio.id].data();
+          const stockAnterior = Number(data.stock || 0);
+          const stockNuevo = cambio.tipo === 'salida' ? stockAnterior - cambio.cantidad : stockAnterior + cambio.cantidad;
+          tx.update(db.collection('productos').doc(cambio.id), { stock: stockNuevo, actualizadoEn: fecha, ultimaProduccionId: requestId, ultimaProduccionTipo: cambio.tipo, ultimaProduccionCantidad: cambio.cantidad, ultimaProduccionVendedorUid: currentUser.uid });
+        });
+      });
+      setMensaje('Llenado confirmado. Se registraron agua, vacíos y productos llenos.');
+      setModo('historial');
+      setPaso(1);
+      setBorrador({ lecturaInicial: String(final), lecturaFinal: '', lineas: [{ envaseVacioId: '', productoTerminadoId: '', cantidad: '1' }] });
+      requestIdRef.current = null;
+    } catch (error) {
+      setMensaje(`No se confirmó el llenado: ${error.message}`);
+    } finally {
+      setGuardando(false);
+    }
   };
   const selectStyle = { width: '100%', padding: 9, marginBottom: 7, boxSizing: 'border-box' };
   const inputStyle = { width: '100%', padding: 10, boxSizing: 'border-box', marginBottom: 9 };

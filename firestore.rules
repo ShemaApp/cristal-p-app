@@ -185,7 +185,24 @@ service cloud.firestore {
           && request.resource.data.ultimaVentaPublicaId is string
           && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.capturadoPorUid == request.auth.uid
           && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.origen == 'planta_publico_general'
-          && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.productoIds.hasAny([id]));
+          && getAfter(/databases/$(database)/documents/notas/$(request.resource.data.ultimaVentaPublicaId)).data.productoIds.hasAny([id]))
+        || (isVendedor()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'stock', 'actualizadoEn', 'ultimaProduccionId', 'ultimaProduccionTipo',
+            'ultimaProduccionCantidad', 'ultimaProduccionVendedorUid'
+          ])
+          && request.resource.data.ultimaProduccionVendedorUid == request.auth.uid
+          && request.resource.data.ultimaProduccionId is string
+          && request.resource.data.ultimaProduccionTipo in ['entrada', 'salida']
+          && request.resource.data.ultimaProduccionCantidad is number
+          && request.resource.data.ultimaProduccionCantidad > 0
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.tipo == 'llenado_produccion'
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.capturadoPorUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.productoIds.hasAny([id])
+          && ((request.resource.data.ultimaProduccionTipo == 'salida'
+            && request.resource.data.stock == resource.data.stock - request.resource.data.ultimaProduccionCantidad)
+            || (request.resource.data.ultimaProduccionTipo == 'entrada'
+            && request.resource.data.stock == resource.data.stock + request.resource.data.ultimaProduccionCantidad)));
       allow delete: if isAdmin();
     }
 
@@ -297,6 +314,42 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── historial y movimientos de llenado de planta ──
+    match /llenados_planta/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.tipo == 'llenado_produccion'
+        && request.resource.data.estado == 'confirmada'
+        && request.resource.data.capturadoPorUid == request.auth.uid
+        && request.resource.data.plantaId is string
+        && request.resource.data.unidadOperativaTipo == 'planta'
+        && request.resource.data.lecturaNueva > request.resource.data.lecturaAnterior
+        && request.resource.data.cantidadMedida > 0
+        && request.resource.data.litrosAplicados == request.resource.data.cantidadMedida
+        && request.resource.data.requestId == id
+        && request.resource.data.idempotencyKey == id
+        && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.plantaId)).data.tipoUnidad == 'planta'
+        && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.plantaId)).data.operadorUid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /movimientos_agua/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.usuarioUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.tipo == 'salida_produccion'
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad < 0
+        && request.resource.data.unidadOperativaTipo == 'planta'
+        && request.resource.data.unidadOperativaId is string
+        && request.resource.data.usuarioUid == request.auth.uid
+        && request.resource.data.requestId is string
+        && request.resource.data.idempotencyKey is string
+        && request.resource.data.lecturaNueva > request.resource.data.lecturaAnterior
+        && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.origenId)).data.tipo == 'llenado_produccion'
+        && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.origenId)).data.capturadoPorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── movimientos derivados de planta ──
     // Se crean dentro de la misma transacción que la nota y el descuento de stock.
     // Son inmutables y deben conservar el mismo requestId de la operación original.
@@ -304,21 +357,20 @@ service cloud.firestore {
       allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
       allow create: if (isAdmin() || isVendedor())
         && request.resource.data.capturadoPorUid == request.auth.uid
-        && request.resource.data.tipo == 'venta_producto_planta'
+        && request.resource.data.tipo in ['venta_producto_planta', 'llenado_produccion']
         && request.resource.data.estado == 'confirmada'
         && request.resource.data.unidadOperativaTipo == 'planta'
         && request.resource.data.unidadOperativaId is string
         && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
         && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
-        && request.resource.data.requestId == request.resource.data.idempotencyKey;
+                && request.resource.data.requestId == request.resource.data.idempotencyKey;
       allow update, delete: if false;
     }
-
     match /movimientos_inventario/{id} {
       allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
       allow create: if (isAdmin() || isVendedor())
         && request.resource.data.capturadoPorUid == request.auth.uid
-        && request.resource.data.tipo == 'salida_venta'
+        && request.resource.data.tipo in ['salida_venta', 'salida_produccion', 'entrada_produccion']
         && request.resource.data.cantidad is number
         && request.resource.data.cantidad > 0
         && request.resource.data.unidadOperativaTipo == 'planta'
@@ -542,7 +594,19 @@ service cloud.firestore {
               && resource.data.jornadaActivaId is string
               && resource.data.jornadaActivaId != ''
               && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(resource.data.jornadaActivaId)).data.estado == 'cerrada')
-          ));
+          ))
+        || (isVendedor()
+          && resource.data.tipoUnidad == 'planta'
+          && resource.data.operadorUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'medidorUltimaLectura', 'actualizadoEn', 'ultimaProduccionId'
+          ])
+          && request.resource.data.ultimaProduccionId is string
+          && request.resource.data.medidorUltimaLectura is number
+          && request.resource.data.medidorUltimaLectura > resource.data.medidorUltimaLectura
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.tipo == 'llenado_produccion'
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.capturadoPorUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/operaciones_planta/$(request.resource.data.ultimaProduccionId)).data.unidadOperativaId == vehiculoId);
       allow delete: if false;
 
       match /jornadas/{jornadaId} {
