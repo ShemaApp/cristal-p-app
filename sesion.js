@@ -47,7 +47,7 @@ const CONTRATO_OPERATIVO = {
   },
   repartidor: {
     unidadTipo: 'vehiculo', puedeOperarMedidor: true, puedeUsarCaja: true,
-    puedeCobrarAbonos: true, puedeUsarRutas: true, puedeUsarTransferencias: true,
+    puedeCobrarAbonos: true, puedeUsarRutas: false, puedeUsarTransferencias: false,
     puedeVerReportes: false
   }
 };
@@ -84,6 +84,7 @@ const TABS_DEFAULT_ROL = {
     productos: false,
     barcodes: false,
     nota: true,
+    llenados: true,
     clientes: true,
     creditos: true,
     ruta: false,
@@ -99,9 +100,9 @@ const TABS_DEFAULT_ROL = {
     nota: true,
     clientes: true,
     creditos: true,
-    ruta: true,
+    ruta: false,
     vehiculos: true,
-    repartidores: true,
+    repartidores: false,
     inventario: false,
     reportes: false,
     gerencia: true
@@ -142,6 +143,7 @@ const permisoTabs = u => {
     tabs.inventario = false;
     tabs.reportes = false;
     tabs.nota = true;
+    tabs.llenados = true;
     tabs.clientes = true;
     tabs.creditos = true;
     tabs.gerencia = true;
@@ -153,11 +155,12 @@ const permisoTabs = u => {
     tabs.inventario = false;
     tabs.reportes = false;
     tabs.nota = true;
+    tabs.llenados = false;
     tabs.clientes = true;
     tabs.creditos = true;
-    tabs.ruta = true;
+    tabs.ruta = false;
     tabs.vehiculos = true;
-    tabs.repartidores = true;
+    tabs.repartidores = false;
     tabs.gerencia = true;
   }
   return tabs;

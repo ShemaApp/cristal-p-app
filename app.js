@@ -68,10 +68,10 @@ function App() {
       .onSnapshot(snap => setUnidadesPlanta(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.activo !== false)), () => setUnidadesPlanta([]));
     return unsub;
   }, [currentUser?.uid, currentUser?.role]);
-  const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Distribución física'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
+  const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['llenados', 'water', 'Llenados'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Distribución física'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
   const rolApp = rolEfectivo(currentUser);
   const etiquetasPorRol = {
-    vendedor: { home: 'Planta', nota: 'Venta de planta', clientes: 'Clientes generales', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
+    vendedor: { home: 'Planta', nota: 'Venta de planta', llenados: 'Llenados de producción', clientes: 'Clientes generales', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
     repartidor: { home: 'Mi jornada', nota: 'Ventas y pedidos', clientes: 'Clientes y control', creditos: 'Cobro de créditos', vehiculos: 'Mi jornada y vehículo', gerencia: 'Mi caja' }
   };
   const permTabs = permisoTabs(currentUser);
@@ -384,6 +384,10 @@ function App() {
     currentUser: currentUser,
     ventaRapida: modoNota === 'almacen' || modoNota === 'planta',
     modoVentaPlanta: modoNota === 'planta',
+    unidadesPlanta
+  }), tab === 'llenados' && React.createElement(LlenadosPlanta, {
+    productos,
+    currentUser: currentUser,
     unidadesPlanta
   }), tab === 'clientes' && React.createElement(Clientes, {
     ...ctx,
