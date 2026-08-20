@@ -239,6 +239,14 @@
         { "fieldPath": "activo", "order": "ASCENDING" },
         { "fieldPath": "nombre", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "vehiculos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tipoUnidad", "order": "ASCENDING" },
+        { "fieldPath": "operadorUid", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

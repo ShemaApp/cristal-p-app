@@ -52,10 +52,22 @@ function App() {
   const [abrirFormProducto, setAbrirFormProducto] = useState(false);
   const [abrirUsuarios, setAbrirUsuarios] = useState(false);
   const [offlineVentaResumen, setOfflineVentaResumen] = useState({ total: 0, pendientes: 0, incidencias: 0, registros: [] });
+  const [unidadesPlanta, setUnidadesPlanta] = useState([]);
   useEffect(() => {
     if (typeof fluttWaterSuscribirVentasOffline !== 'function') return undefined;
     return fluttWaterSuscribirVentasOffline(setOfflineVentaResumen);
   }, []);
+  useEffect(() => {
+    if (!currentUser?.uid || rolEfectivo(currentUser) !== 'vendedor') {
+      setUnidadesPlanta([]);
+      return undefined;
+    }
+    const unsub = db.collection('vehiculos')
+      .where('tipoUnidad', '==', 'planta')
+      .where('operadorUid', '==', currentUser.uid)
+      .onSnapshot(snap => setUnidadesPlanta(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.activo !== false)), () => setUnidadesPlanta([]));
+    return unsub;
+  }, [currentUser?.uid, currentUser?.role]);
   const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
   const rolApp = rolEfectivo(currentUser);
   const etiquetasPorRol = {
@@ -366,7 +378,8 @@ function App() {
     ...ctx,
     currentUser: currentUser,
     ventaRapida: modoNota === 'almacen' || modoNota === 'planta',
-    modoVentaPlanta: modoNota === 'planta'
+    modoVentaPlanta: modoNota === 'planta',
+    unidadesPlanta
   }), tab === 'clientes' && React.createElement(Clientes, {
     ...ctx,
     currentUser: currentUser

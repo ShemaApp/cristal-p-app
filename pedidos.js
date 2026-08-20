@@ -5,6 +5,7 @@ function VentaAlmacen({
   branding,
   ventaRapida,
   modoVentaPlanta = false,
+  unidadesPlanta = [],
   onVentaRapidaConsumida
 }) {
   const [cliOpen, setCliOpen] = useState(true);
@@ -20,19 +21,25 @@ function VentaAlmacen({
   const [pago, setPago] = useState('efectivo');
   const [done, setDone] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [unidadPlantaId, setUnidadPlantaId] = useState('');
   const ventaRequestIdRef = useRef(null);
   const esVendedor = rolEfectivo(currentUser) === 'vendedor';
-  const ventaDraftValor = { cliOpen, prodOpen, cliMode, cliSearch, cliSel, nuevoC, cart, pago };
+  useEffect(() => {
+    if (!modoVentaPlanta) return;
+    if (!unidadesPlanta.some(u => u.id === unidadPlantaId)) setUnidadPlantaId(unidadesPlanta[0]?.id || '');
+  }, [modoVentaPlanta, unidadesPlanta, unidadPlantaId]);
+  const unidadPlanta = unidadesPlanta.find(u => u.id === unidadPlantaId) || null;
+  const ventaDraftValor = { cliOpen, prodOpen, cliMode, cliSearch, cliSel, nuevoC, cart, pago, unidadPlantaId };
   const ventaDraft = useBorradorLocal(modoVentaPlanta ? 'pedido:venta-planta' : 'pedido:venta-almacen', ventaDraftValor, { uid: currentUser?.uid, habilitado: !done, etiqueta: modoVentaPlanta ? 'Ticket público de planta' : 'Venta directa de almacén' });
   const cancelarVenta = () => {
     if (!confirmarSalidaBorrador({ sucio: ventaDraft.sucio, borrador: ventaDraft.borrador, etiqueta: 'la venta directa' })) return;
     ventaDraft.descartar();
-    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo'); ventaRequestIdRef.current = null;
+    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo'); setUnidadPlantaId(''); ventaRequestIdRef.current = null;
   };
   const recuperarVenta = () => {
     const recuperado = ventaDraft.consumir();
     if (!recuperado) return;
-    setCliOpen(recuperado.cliOpen ?? true); setProdOpen(recuperado.prodOpen ?? false); setCliMode(recuperado.cliMode || 'buscar'); setCliSearch(recuperado.cliSearch || ''); setCliSel(recuperado.cliSel || null); setNuevoC(recuperado.nuevoC || { nombre: '', telefono: '' }); setCart(Array.isArray(recuperado.cart) ? recuperado.cart : []); setPago(recuperado.pago || 'efectivo');
+    setCliOpen(recuperado.cliOpen ?? true); setProdOpen(recuperado.prodOpen ?? false); setCliMode(recuperado.cliMode || 'buscar'); setCliSearch(recuperado.cliSearch || ''); setCliSel(recuperado.cliSel || null); setNuevoC(recuperado.nuevoC || { nombre: '', telefono: '' }); setCart(Array.isArray(recuperado.cart) ? recuperado.cart : []); setPago(recuperado.pago || 'efectivo'); setUnidadPlantaId(recuperado.unidadPlantaId || '');
   };
   useEffect(() => {
     if (ventaRapida) {
@@ -101,6 +108,10 @@ function VentaAlmacen({
   };
   const guardar = async () => {
     if (!canSave) return;
+    if (modoVentaPlanta && !unidadPlanta) {
+      alert('Selecciona una planta operativa antes de registrar la venta.');
+      return;
+    }
     if (!((currentUser.role === 'admin') || (modoVentaPlanta && esVendedor))) {
       alert('Este flujo solo está disponible para administración o venta pública de planta.');
       return;
@@ -109,6 +120,7 @@ function VentaAlmacen({
     try {
       const fecha = new Date().toISOString();
       const ventaRequest = requestIdVenta();
+      const unidadOperativaId = modoVentaPlanta ? unidadPlanta.id : null;
       const esPublicoGeneral = cliMode === 'nuevo' && String(nuevoC.nombre || '').trim().toLowerCase() === 'público general';
       if (modoVentaPlanta && !esPublicoGeneral) throw new Error('La venta pública de planta debe usar el cliente Público general');
       const clienteRef = cliMode === 'nuevo' ? (esPublicoGeneral ? db.collection('clientes').doc('publico_general') : db.collection('clientes').doc()) : db.collection('clientes').doc(cliSel.id);
@@ -133,6 +145,8 @@ function VentaAlmacen({
         tipoVenta: modoVentaPlanta ? 'planta_publico_general' : 'directa_administrador',
         productoIds: cartValido.map(item => item.id),
         medioOperacion: modoVentaPlanta ? 'planta' : 'vehiculo_administrador',
+        unidadOperativaId,
+        unidadOperativaTipo: modoVentaPlanta ? 'planta' : 'administracion',
             responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
             ambito: modoVentaPlanta ? 'planta' : 'administracion',
             capturadoPorUid: currentUser.uid,
@@ -196,6 +210,7 @@ function VentaAlmacen({
       });
       ventaDraft.descartar();
       setDone({ nota: { ...nota, id: notaRef.id }, cl });
+      setUnidadPlantaId('');
       ventaRequestIdRef.current = null;
       setCart([]);
       setCliSel(null);
@@ -259,7 +274,7 @@ function VentaAlmacen({
       lineHeight: 1.45,
       marginBottom: 12
     }
-  }, modoVentaPlanta ? "El ticket es público y pertenece a la caja de planta. No se asigna a una ruta ni a un repartidor." : "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), React.createElement(Card, null, React.createElement("button", {
+  }, modoVentaPlanta ? "El ticket es público y pertenece a la caja de la planta seleccionada. No se asigna a una ruta ni a un repartidor." : "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), modoVentaPlanta && React.createElement(Card, null, React.createElement(Lbl, null, 'Planta operativa'), React.createElement('select', { value: unidadPlantaId, onChange: e => setUnidadPlantaId(e.target.value), style: { width: '100%', padding: '9px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 8 } }, React.createElement('option', { value: '' }, unidadesPlanta.length ? 'Selecciona planta…' : 'No tienes una planta asignada'), unidadesPlanta.map(u => React.createElement('option', { key: u.id, value: u.id }, `${u.nombre} · Medidor ${u.numeroSerieMedidor || 'sin serie'}`))), !unidadPlanta && React.createElement('div', { style: { color: 'var(--warn-text)', fontSize: 11, marginTop: 6 } }, 'La administración debe asignarte una planta y su medidor antes de vender.')), React.createElement(Card, null, React.createElement("button", {
     onClick: () => setCliOpen(o => !o),
     style: {
       background: 'none',
@@ -677,7 +692,7 @@ function Pedidos({ productos, clientes, pedidos, currentUser, branding }) {
   ));
 }
 
-function CrearNota({ productos, clientes, pedidos, currentUser, branding, ventaRapida, modoVentaPlanta = false, onVentaRapidaConsumida }) {
+function CrearNota({ productos, clientes, pedidos, currentUser, branding, ventaRapida, modoVentaPlanta = false, unidadesPlanta = [], onVentaRapidaConsumida }) {
   useEffect(() => { if (ventaRapida && onVentaRapidaConsumida) onVentaRapidaConsumida(); }, [ventaRapida]);
-  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, branding, ventaRapida: true, modoVentaPlanta }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser, branding });
+  return ventaRapida ? React.createElement(VentaAlmacen, { productos, clientes, currentUser, branding, ventaRapida: true, modoVentaPlanta, unidadesPlanta }) : React.createElement(Pedidos, { productos, clientes, pedidos, currentUser, branding });
 }
