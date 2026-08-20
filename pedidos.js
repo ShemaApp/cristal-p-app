@@ -20,13 +20,14 @@ function VentaAlmacen({
   const [pago, setPago] = useState('efectivo');
   const [done, setDone] = useState(null);
   const [saving, setSaving] = useState(false);
+  const ventaRequestIdRef = useRef(null);
   const esVendedor = rolEfectivo(currentUser) === 'vendedor';
   const ventaDraftValor = { cliOpen, prodOpen, cliMode, cliSearch, cliSel, nuevoC, cart, pago };
   const ventaDraft = useBorradorLocal(modoVentaPlanta ? 'pedido:venta-planta' : 'pedido:venta-almacen', ventaDraftValor, { uid: currentUser?.uid, habilitado: !done, etiqueta: modoVentaPlanta ? 'Ticket público de planta' : 'Venta directa de almacén' });
   const cancelarVenta = () => {
     if (!confirmarSalidaBorrador({ sucio: ventaDraft.sucio, borrador: ventaDraft.borrador, etiqueta: 'la venta directa' })) return;
     ventaDraft.descartar();
-    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo');
+    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo'); ventaRequestIdRef.current = null;
   };
   const recuperarVenta = () => {
     const recuperado = ventaDraft.consumir();
@@ -86,6 +87,10 @@ function VentaAlmacen({
   const total = cartValido.reduce((s, x) => s + x.precio * x.cant, 0);
   const cliente = cliMode === 'nuevo' ? nuevoC : cliSel;
   const canSave = cliente?.nombre && cartValido.length > 0;
+  const requestIdVenta = () => {
+    if (!ventaRequestIdRef.current) ventaRequestIdRef.current = FluttWaterPlanta.crearIdempotencyKey('venta_planta');
+    return ventaRequestIdRef.current;
+  };
   const makeWA = (cl, items, tot, fp) => {
     const lines = items.map(x => `• ${x.nombre} x${x.cant} = ${fmt(x.precio * x.cant)}`).join('\n');
     const marca = normalizarBranding(branding).nombreComercial;
@@ -103,6 +108,7 @@ function VentaAlmacen({
     setSaving(true);
     try {
       const fecha = new Date().toISOString();
+      const ventaRequest = requestIdVenta();
       const esPublicoGeneral = cliMode === 'nuevo' && String(nuevoC.nombre || '').trim().toLowerCase() === 'público general';
       if (modoVentaPlanta && !esPublicoGeneral) throw new Error('La venta pública de planta debe usar el cliente Público general');
       const clienteRef = cliMode === 'nuevo' ? (esPublicoGeneral ? db.collection('clientes').doc('publico_general') : db.collection('clientes').doc()) : db.collection('clientes').doc(cliSel.id);
@@ -112,8 +118,8 @@ function VentaAlmacen({
         telefono: nuevoC.telefono || ''
       } : cliSel;
       if (esPublicoGeneral && pago === 'credito') throw new Error('Público general solo puede registrarse con pago de contado o transferencia');
-      const notaRef = db.collection('notas').doc();
-      const creditoRef = pago === 'credito' ? db.collection('creditos').doc() : null;
+      const notaRef = db.collection('notas').doc(ventaRequest);
+      const creditoRef = pago === 'credito' ? db.collection('creditos').doc(`credito_${ventaRequest}`) : null;
       const nota = {
         marcaComercial: normalizarBranding(branding).nombreComercial,
         fecha,
@@ -130,9 +136,13 @@ function VentaAlmacen({
             responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
             ambito: modoVentaPlanta ? 'planta' : 'administracion',
             capturadoPorUid: currentUser.uid,
-        capturadoPorNombre: currentUser.nombre || ''
+        capturadoPorNombre: currentUser.nombre || '',
+        requestId: ventaRequest,
+        idempotencyKey: ventaRequest
       };
       await db.runTransaction(async tx => {
+        const notaExistente = await tx.get(notaRef);
+        if (notaExistente.exists) return;
         const existencias = await Promise.all(cartValido.map(item => tx.get(db.collection('productos').doc(item.id))));
         existencias.forEach((snap, index) => {
           const item = cartValido[index];
@@ -166,7 +176,9 @@ function VentaAlmacen({
             ambito: modoVentaPlanta ? 'planta' : 'administracion',
             cobradorUids: [currentUser.uid],
             abonos: [],
-            capturadoPorUid: currentUser.uid
+            capturadoPorUid: currentUser.uid,
+            requestId: ventaRequest,
+            idempotencyKey: ventaRequest
           });
         }
         cartValido.forEach(item => {
@@ -184,6 +196,7 @@ function VentaAlmacen({
       });
       ventaDraft.descartar();
       setDone({ nota: { ...nota, id: notaRef.id }, cl });
+      ventaRequestIdRef.current = null;
       setCart([]);
       setCliSel(null);
       setNuevoC({ nombre: '', telefono: '' });
