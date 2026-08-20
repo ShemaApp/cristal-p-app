@@ -130,7 +130,7 @@ function Dashboard({
   }, {
     icon: 'box',
     label: 'Jornadas',
-    detalle: 'Iniciar, recargar y cerrar jornadas',
+    detalle: 'Iniciar, operar y cerrar jornadas',
     onClick: irA('ruta'),
     tab: 'ruta',
     soloAdmin: true
