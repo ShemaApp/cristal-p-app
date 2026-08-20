@@ -68,11 +68,11 @@ function App() {
       .onSnapshot(snap => setUnidadesPlanta(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.activo !== false)), () => setUnidadesPlanta([]));
     return unsub;
   }, [currentUser?.uid, currentUser?.role]);
-  const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Jornada'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
+  const ALL_TABS = [['home', 'home', 'Inicio'], ['productos', 'box', 'Productos'], ['barcodes', 'tag', 'Etiquetas'], ['nota', 'note', 'Pedidos'], ['clientes', 'users', 'Clientes'], ['creditos', 'credit', 'Créditos'], ['ruta', 'compass', 'Distribución física'], ['vehiculos', 'truck', 'Vehículos'], ['repartidores', 'route', 'Distribución'], ['inventario', 'inventory', 'Inventario'], ['reportes', 'chart', 'Reportes'], ['gerencia', 'cash', 'Gerencia']];
   const rolApp = rolEfectivo(currentUser);
   const etiquetasPorRol = {
     vendedor: { home: 'Planta', nota: 'Venta de planta', clientes: 'Clientes generales', creditos: 'Cobro de créditos', gerencia: 'Mi caja' },
-    repartidor: { home: 'Mi jornada', nota: 'Ventas y pedidos', clientes: 'Mi cartera', creditos: 'Cobro de mi cartera', ruta: 'Jornada', vehiculos: 'Mi vehículo', repartidores: 'Venta QR', gerencia: 'Mi caja' }
+    repartidor: { home: 'Mi jornada', nota: 'Ventas y pedidos', clientes: 'Clientes y control', creditos: 'Cobro de créditos', vehiculos: 'Mi jornada y vehículo', gerencia: 'Mi caja' }
   };
   const permTabs = permisoTabs(currentUser);
   const tabsPermitidos = ['home', ...ALL_TABS.filter(([id]) => id !== 'home' && permTabs[id]).map(([id]) => id)];
@@ -262,10 +262,10 @@ function App() {
     style: {
       gap: 6
     }
-  }, notificacionesTransferencias.length > 0 && React.createElement("button", {
+  }, permTabs.ruta && notificacionesTransferencias.length > 0 && React.createElement("button", {
     onClick: () => navegarA('ruta'),
-    title: 'Ver transferencias pendientes',
-    'aria-label': 'Ver transferencias pendientes',
+    title: 'Ver distribución física pendiente',
+    'aria-label': 'Ver distribución física pendiente',
     style: {
       position: 'relative',
       background: 'none',
@@ -353,6 +353,11 @@ function App() {
     notificacionesTransferencias: notificacionesTransferencias,
     onIrA: navegarA,
     onVentaRapida: () => {
+      if (rolApp === 'repartidor') {
+        navegarA('vehiculos');
+        setTimeout(() => window.dispatchEvent(new CustomEvent('flutt-water:abrir-venta-jornada')), 50);
+        return;
+      }
       setModoNota(rolApp === 'vendedor' ? 'planta' : 'almacen');
       navegarA('nota', { conservarModoNota: true });
     },
@@ -382,7 +387,15 @@ function App() {
     unidadesPlanta
   }), tab === 'clientes' && React.createElement(Clientes, {
     ...ctx,
-    currentUser: currentUser
+    currentUser: currentUser,
+    onAbrirVentaQR: cliente => {
+      if (rolApp === 'repartidor') {
+        navegarA('vehiculos');
+        setTimeout(() => window.dispatchEvent(new CustomEvent('flutt-water:abrir-ticket-medidor', { detail: cliente })), 50);
+      } else {
+        window.dispatchEvent(new CustomEvent('flutt-water:abrir-ticket-medidor', { detail: cliente }));
+      }
+    }
   }), tab === 'creditos' && React.createElement(Creditos, {
     ...ctx,
     currentUser: currentUser

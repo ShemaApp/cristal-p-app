@@ -252,8 +252,9 @@ service cloud.firestore {
     }
 
     // ── notas (ventas) ──
-    // Son inmutables. La venta desde transferencia exige una transacción que
-    // agregue su entrega a la misma transferencia del responsable autenticado.
+    // Son inmutables. Las ventas actuales de reparto se validan contra una
+    // jornada activa y su medidor; las transferencias solo cubren el flujo
+    // histórico de mercancía física.
     match /notas/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.capturadoPorUid == request.auth.uid);
       allow create: if signedIn() && request.resource.data.capturadoPorUid == request.auth.uid
@@ -266,6 +267,9 @@ service cloud.firestore {
             && request.resource.data.responsableTipo == 'vendedor'
             && request.resource.data.clienteId == 'publico_general'
             && request.resource.data.formaPago != 'credito'
+            && request.resource.data.unidadOperativaId is string
+            && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
+            && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
             && request.resource.data.productoIds is list
             && request.resource.data.productoIds.size() > 0)
           || ((request.resource.data.origen == 'transferencia_almacen' || request.resource.data.origen == 'qr_cliente_ruta')
@@ -274,7 +278,84 @@ service cloud.firestore {
             && (isAdmin() || getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.repartidorId == request.auth.uid)
             && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.estado == 'activa'
             && getAfter(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.entregas.size() == get(/databases/$(database)/documents/rutas/$(request.resource.data.transferenciaId)).data.entregas.size() + 1)
+          || (request.resource.data.origen == 'venta_medidor'
+            && request.resource.data.tipoVenta == 'venta_medidor'
+            && request.resource.data.unidadOperativaTipo == 'vehiculo'
+            && request.resource.data.jornadaId is string
+            && request.resource.data.vehiculoId is string
+            && request.resource.data.medidorId is string
+            && (isAdmin() || (isRepartidor()
+              && get(/databases/$(database)/documents/vehiculos/$(request.resource.data.vehiculoId)/jornadas/$(request.resource.data.jornadaId)).data.repartidorId == request.auth.uid))
+            && (
+              (request.resource.data.estado == 'confirmada'
+                && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.vehiculoId)/jornadas/$(request.resource.data.jornadaId)).data.estado == 'activa'
+                && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.vehiculoId)/jornadas/$(request.resource.data.jornadaId)).data.ventasCount == get(/databases/$(database)/documents/vehiculos/$(request.resource.data.vehiculoId)/jornadas/$(request.resource.data.jornadaId)).data.ventasCount + 1)
+              || (request.resource.data.estado == 'incidencia_jornada'
+                && request.resource.data.requiereRevision == true)
+            ))
         );
+      allow update, delete: if false;
+    }
+
+    // ── movimientos derivados de planta ──
+    // Se crean dentro de la misma transacción que la nota y el descuento de stock.
+    // Son inmutables y deben conservar el mismo requestId de la operación original.
+    match /operaciones_planta/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.capturadoPorUid == request.auth.uid
+        && request.resource.data.tipo == 'venta_producto_planta'
+        && request.resource.data.estado == 'confirmada'
+        && request.resource.data.unidadOperativaTipo == 'planta'
+        && request.resource.data.unidadOperativaId is string
+        && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
+        && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
+        && request.resource.data.requestId == request.resource.data.idempotencyKey;
+      allow update, delete: if false;
+    }
+
+    match /movimientos_inventario/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.capturadoPorUid == request.auth.uid
+        && request.resource.data.tipo == 'salida_venta'
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad > 0
+        && request.resource.data.unidadOperativaTipo == 'planta'
+        && request.resource.data.unidadOperativaId is string
+        && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
+        && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
+        && request.resource.data.requestId is string
+        && request.resource.data.idempotencyKey is string;
+      allow update, delete: if false;
+    }
+
+    match /movimientos_caja/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.capturadoPorUid == request.auth.uid
+        && request.resource.data.tipo in ['venta_efectivo', 'venta_no_efectivo']
+        && request.resource.data.importe is number
+        && request.resource.data.importe > 0
+        && request.resource.data.unidadOperativaTipo == 'planta'
+        && request.resource.data.unidadOperativaId is string
+        && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
+        && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
+        && request.resource.data.requestId == request.resource.data.idempotencyKey;
+      allow update, delete: if false;
+    }
+
+    match /movimientos_cxc/{id} {
+      allow read: if isAdmin() || (isVendedor() && resource.data.capturadoPorUid == request.auth.uid);
+      allow create: if (isAdmin() || isVendedor())
+        && request.resource.data.capturadoPorUid == request.auth.uid
+        && request.resource.data.tipo == 'venta_credito'
+        && request.resource.data.importe is number
+        && request.resource.data.importe > 0
+        && request.resource.data.unidadOperativaId is string
+        && getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.tipoUnidad == 'planta'
+        && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(request.resource.data.unidadOperativaId)).data.operadorUid == request.auth.uid)
+        && request.resource.data.requestId == request.resource.data.idempotencyKey;
       allow update, delete: if false;
     }
 
@@ -474,6 +555,8 @@ service cloud.firestore {
           && request.resource.data.vehiculoId == vehiculoId
           && request.resource.data.medidorId is string
           && request.resource.data.lecturaInicial >= 0
+          && request.resource.data.lecturaCierreAnterior >= 0
+          && request.resource.data.lecturaInicial > request.resource.data.lecturaCierreAnterior
           && request.resource.data.cantidadPorDigito > 0
           && request.resource.data.unidadMedida is string
           && request.resource.data.tipoFlujoMedidor == 'volumen_acumulado';
@@ -485,13 +568,15 @@ service cloud.firestore {
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'estado', 'lecturaCierre', 'fechaCierre', 'litrosCalculados', 'cantidadMedidaCalculada', 'cierreId'
               ])
-              && request.resource.data.lecturaCierre >= resource.data.lecturaInicial)
+              && request.resource.data.lecturaCierre > (('ultimaLectura' in resource.data) ? resource.data.ultimaLectura : resource.data.lecturaInicial)
+              && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.estado == 'cerrada'
+              && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaCierre == request.resource.data.lecturaCierre)
             || (resource.data.estado == 'activa'
               && request.resource.data.estado == 'activa'
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'ultimaLectura', 'litrosVendidosAcumulados', 'cantidadMedidaVendidaAcumulada', 'ventasCount'
               ])
-              && request.resource.data.ultimaLectura >= resource.data.ultimaLectura
+              && request.resource.data.ultimaLectura > (('ultimaLectura' in resource.data) ? resource.data.ultimaLectura : resource.data.lecturaInicial)
               && request.resource.data.litrosVendidosAcumulados >= resource.data.litrosVendidosAcumulados
               && request.resource.data.cantidadMedidaVendidaAcumulada >= (('cantidadMedidaVendidaAcumulada' in resource.data) ? resource.data.cantidadMedidaVendidaAcumulada : 0)
               && request.resource.data.ventasCount == resource.data.ventasCount + 1)
@@ -500,11 +585,26 @@ service cloud.firestore {
 
         match /lecturas/{lecturaId} {
           allow read: if jornadaVisible(vehiculoId, jornadaId);
-          allow create: if jornadaVisible(vehiculoId, jornadaId)
+          allow create: if signedIn()
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
             && request.resource.data.lectura >= 0
-            && (isAdmin() || request.resource.data.creadoPorUid == request.auth.uid);
+            && (isAdmin()
+              || request.resource.data.creadoPorUid == request.auth.uid
+              || request.resource.data.capturadoPorUid == request.auth.uid
+              || request.resource.data.cerradoPorUid == request.auth.uid)
+            && (
+              (request.resource.data.tipo == 'inicio_jornada'
+                && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaInicial == request.resource.data.lectura)
+              || (request.resource.data.tipo == 'venta'
+                && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.repartidorId == request.auth.uid)
+                && request.resource.data.lectura > (('ultimaLectura' in get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data) ? get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura : get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaInicial)
+                && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura == request.resource.data.lectura)
+              || (request.resource.data.tipo == 'cierre_jornada'
+                && (isAdmin() || getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.repartidorId == request.auth.uid)
+                && request.resource.data.lectura > (('ultimaLectura' in get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data) ? get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura : get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaInicial)
+                && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaCierre == request.resource.data.lectura)
+            );
           allow update, delete: if false;
         }
         match /recargas/{recargaId} {
@@ -525,6 +625,9 @@ service cloud.firestore {
             && request.resource.data.medidorId is string
             && request.resource.data.cierreCajaId is string
             && request.resource.data.lecturaFinal > request.resource.data.lecturaInicial
+            && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.estado == 'activa'
+            && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura == request.resource.data.lecturaFinal
+            && request.resource.data.lecturaFinal > (('ultimaLectura' in get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data) ? get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura : get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaInicial)
             && request.resource.data.cantidadMedida > 0
             && request.resource.data.unidadMedida is string
             && request.resource.data.precioPorUnidad > 0
@@ -537,7 +640,10 @@ service cloud.firestore {
           allow create: if jornadaVisible(vehiculoId, jornadaId)
             && request.resource.data.jornadaId == jornadaId
             && request.resource.data.vehiculoId == vehiculoId
-            && request.resource.data.lecturaCierre >= request.resource.data.lecturaInicial
+            && request.resource.data.lecturaCierre > request.resource.data.lecturaInicial
+            && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.estado == 'cerrada'
+            && getAfter(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaCierre == request.resource.data.lecturaCierre
+            && request.resource.data.lecturaCierre > (('ultimaLectura' in get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data) ? get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.ultimaLectura : get(/databases/$(database)/documents/vehiculos/$(vehiculoId)/jornadas/$(jornadaId)).data.lecturaInicial)
             && request.resource.data.cantidadMedida >= 0
             && request.resource.data.unidadMedida is string
             && (isAdmin() || request.resource.data.cerradoPorUid == request.auth.uid);

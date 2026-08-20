@@ -132,6 +132,10 @@ function VentaAlmacen({
       if (esPublicoGeneral && pago === 'credito') throw new Error('Público general solo puede registrarse con pago de contado o transferencia');
       const notaRef = db.collection('notas').doc(ventaRequest);
       const creditoRef = pago === 'credito' ? db.collection('creditos').doc(`credito_${ventaRequest}`) : null;
+      const operacionRef = modoVentaPlanta ? db.collection('operaciones_planta').doc(`op_${ventaRequest}`) : null;
+      const cajaMovimientoRef = modoVentaPlanta ? db.collection('movimientos_caja').doc(`caja_${ventaRequest}`) : null;
+      const cxcMovimientoRef = modoVentaPlanta && pago === 'credito' ? db.collection('movimientos_cxc').doc(`cxc_${ventaRequest}`) : null;
+      const inventarioMovimientoRefs = modoVentaPlanta ? Object.fromEntries(cartValido.map(item => [item.id, db.collection('movimientos_inventario').doc(`inv_${ventaRequest}_${encodeURIComponent(item.id)}`)])) : {};
       const nota = {
         marcaComercial: normalizarBranding(branding).nombreComercial,
         fecha,
@@ -147,6 +151,7 @@ function VentaAlmacen({
         medioOperacion: modoVentaPlanta ? 'planta' : 'vehiculo_administrador',
         unidadOperativaId,
         unidadOperativaTipo: modoVentaPlanta ? 'planta' : 'administracion',
+        operacionId: operacionRef ? operacionRef.id : null,
             responsableTipo: modoVentaPlanta ? 'vendedor' : 'administrador',
             ambito: modoVentaPlanta ? 'planta' : 'administracion',
             capturadoPorUid: currentUser.uid,
@@ -178,6 +183,56 @@ function VentaAlmacen({
           });
         }
         tx.set(notaRef, nota);
+        if (modoVentaPlanta) tx.set(operacionRef, {
+          tipo: 'venta_producto_planta',
+          estado: 'confirmada',
+          origen: 'nota',
+          origenId: notaRef.id,
+          notaId: notaRef.id,
+          unidadOperativaId,
+          unidadOperativaTipo: 'planta',
+          medidorId: unidadPlanta.medidorId || null,
+          clienteId: cl.id,
+          productoIds: cartValido.map(item => item.id),
+          cantidadMedida: 0,
+          unidadMedida: unidadPlanta.unidadMedida || 'L',
+          importe: total,
+          formaPago: pago,
+          requestId: ventaRequest,
+          idempotencyKey: ventaRequest,
+          capturadoPorUid: currentUser.uid,
+          capturadoPorNombre: currentUser.nombre || '',
+          fecha
+        });
+        if (modoVentaPlanta) tx.set(cajaMovimientoRef, {
+          tipo: pago === 'efectivo' ? 'venta_efectivo' : 'venta_no_efectivo',
+          cajaId: unidadOperativaId,
+          unidadOperativaId,
+          unidadOperativaTipo: 'planta',
+          importe: total,
+          signo: 1,
+          formaPago: pago,
+          origenTipo: 'nota',
+          origenId: notaRef.id,
+          requestId: ventaRequest,
+          idempotencyKey: ventaRequest,
+          capturadoPorUid: currentUser.uid,
+          fecha
+        });
+        if (modoVentaPlanta && cxcMovimientoRef) tx.set(cxcMovimientoRef, {
+          tipo: 'venta_credito',
+          clienteId: cl.id,
+          creditoId: creditoRef.id,
+          unidadOperativaId,
+          importe: total,
+          signo: 1,
+          origenTipo: 'nota',
+          origenId: notaRef.id,
+          requestId: ventaRequest,
+          idempotencyKey: ventaRequest,
+          capturadoPorUid: currentUser.uid,
+          fecha
+        });
         if (creditoRef) {
           tx.set(creditoRef, {
             notaId: notaRef.id,
@@ -195,7 +250,8 @@ function VentaAlmacen({
             idempotencyKey: ventaRequest
           });
         }
-        cartValido.forEach(item => {
+        cartValido.forEach((item, index) => {
+          const stockAnterior = Number(existencias[index].data()?.stock || 0);
           const cambiosStock = {
             stock: firebase.firestore.FieldValue.increment(-item.cant)
           };
@@ -206,6 +262,24 @@ function VentaAlmacen({
             cambiosStock.ultimaVentaPublicaCantidad = item.cant;
           }
           tx.update(db.collection('productos').doc(item.id), cambiosStock);
+          if (modoVentaPlanta) tx.set(inventarioMovimientoRefs[item.id], {
+            tipo: 'salida_venta',
+            productoId: item.id,
+            productoNombre: item.nombre,
+            cantidad: item.cant,
+            unidad: item.unidadInventario || 'pieza',
+            stockAnterior,
+            stockNuevo: stockAnterior - item.cant,
+            unidadOperativaId,
+            unidadOperativaTipo: 'planta',
+            origenTipo: 'nota',
+            origenId: notaRef.id,
+            operacionId: operacionRef ? operacionRef.id : null,
+            requestId: ventaRequest,
+            idempotencyKey: `${ventaRequest}:${item.id}`,
+            capturadoPorUid: currentUser.uid,
+            fecha
+          });
         });
       });
       ventaDraft.descartar();
