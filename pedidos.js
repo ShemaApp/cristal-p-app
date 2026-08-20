@@ -8,9 +8,9 @@ function VentaAlmacen({
   unidadesPlanta = [],
   onVentaRapidaConsumida
 }) {
-  const [cliOpen, setCliOpen] = useState(true);
+  const [cliOpen, setCliOpen] = useState(!modoVentaPlanta);
   const [prodOpen, setProdOpen] = useState(false);
-  const [cliMode, setCliMode] = useState('buscar');
+  const [cliMode, setCliMode] = useState(modoVentaPlanta ? 'caja_abierta' : 'buscar');
   const [cliSearch, setCliSearch] = useState('');
   const [cliSel, setCliSel] = useState(null);
   const [nuevoC, setNuevoC] = useState({
@@ -34,7 +34,7 @@ function VentaAlmacen({
   const cancelarVenta = () => {
     if (!confirmarSalidaBorrador({ sucio: ventaDraft.sucio, borrador: ventaDraft.borrador, etiqueta: 'la venta directa' })) return;
     ventaDraft.descartar();
-    setCliOpen(true); setProdOpen(false); setCliMode('buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo'); setUnidadPlantaId(''); ventaRequestIdRef.current = null;
+    setCliOpen(!modoVentaPlanta); setProdOpen(false); setCliMode(modoVentaPlanta ? 'caja_abierta' : 'buscar'); setCliSearch(''); setCliSel(null); setNuevoC({ nombre: '', telefono: '' }); setCart([]); setPago('efectivo'); setUnidadPlantaId(''); ventaRequestIdRef.current = null;
   };
   const recuperarVenta = () => {
     const recuperado = ventaDraft.consumir();
@@ -43,12 +43,12 @@ function VentaAlmacen({
   };
   useEffect(() => {
     if (ventaRapida) {
-      setCliMode('nuevo');
+      setCliMode(modoVentaPlanta ? 'caja_abierta' : 'nuevo');
       setNuevoC({
-        nombre: 'Público general',
+        nombre: modoVentaPlanta ? '' : 'Público general',
         telefono: ''
       });
-      setCliOpen(false);
+      setCliOpen(!modoVentaPlanta);
       setProdOpen(true);
     }
   }, [ventaRapida]);
@@ -92,8 +92,8 @@ function VentaAlmacen({
     cant: Number(x.cant)
   }));
   const total = cartValido.reduce((s, x) => s + x.precio * x.cant, 0);
-  const cliente = cliMode === 'nuevo' ? nuevoC : cliSel;
-  const canSave = cliente?.nombre && cartValido.length > 0;
+  const cliente = modoVentaPlanta ? { id: null, nombre: 'Venta de caja abierta', telefono: '' } : (cliMode === 'nuevo' ? nuevoC : cliSel);
+  const canSave = (modoVentaPlanta ? true : !!cliente?.nombre) && cartValido.length > 0;
   const requestIdVenta = () => {
     if (!ventaRequestIdRef.current) ventaRequestIdRef.current = FluttWaterPlanta.crearIdempotencyKey('venta_planta');
     return ventaRequestIdRef.current;
@@ -121,15 +121,14 @@ function VentaAlmacen({
       const fecha = new Date().toISOString();
       const ventaRequest = requestIdVenta();
       const unidadOperativaId = modoVentaPlanta ? unidadPlanta.id : null;
-      const esPublicoGeneral = cliMode === 'nuevo' && String(nuevoC.nombre || '').trim().toLowerCase() === 'público general';
-      if (modoVentaPlanta && !esPublicoGeneral) throw new Error('La venta pública de planta debe usar el cliente Público general');
-      const clienteRef = cliMode === 'nuevo' ? (esPublicoGeneral ? db.collection('clientes').doc('publico_general') : db.collection('clientes').doc()) : db.collection('clientes').doc(cliSel.id);
-      const cl = cliMode === 'nuevo' ? {
+      const esPublicoGeneral = false;
+      const clienteRef = !modoVentaPlanta && cliMode === 'nuevo' ? db.collection('clientes').doc() : (!modoVentaPlanta && cliSel ? db.collection('clientes').doc(cliSel.id) : null);
+      const cl = modoVentaPlanta ? { id: null, nombre: 'Venta de caja abierta', telefono: '' } : (cliMode === 'nuevo' ? {
         id: clienteRef.id,
         nombre: nuevoC.nombre.trim(),
         telefono: nuevoC.telefono || ''
-      } : cliSel;
-      if (esPublicoGeneral && pago === 'credito') throw new Error('Público general solo puede registrarse con pago de contado o transferencia');
+      } : cliSel);
+      if (modoVentaPlanta && pago === 'credito') throw new Error('La venta de caja abierta no puede registrarse a crédito sin cliente.');
       const notaRef = db.collection('notas').doc(ventaRequest);
       const creditoRef = pago === 'credito' ? db.collection('creditos').doc(`credito_${ventaRequest}`) : null;
       const operacionRef = modoVentaPlanta ? db.collection('operaciones_planta').doc(`op_${ventaRequest}`) : null;
@@ -170,7 +169,7 @@ function VentaAlmacen({
             throw new Error('Stock insuficiente para ' + item.nombre + ' (disponible: ' + disponible + ', solicitado: ' + item.cant + ')');
           }
         });
-        if (cliMode === 'nuevo') {
+        if (!modoVentaPlanta && cliMode === 'nuevo') {
           const clienteExistente = await tx.get(clienteRef);
           if (!clienteExistente.exists) tx.set(clienteRef, {
             nombre: cl.nombre,
@@ -192,7 +191,7 @@ function VentaAlmacen({
           unidadOperativaId,
           unidadOperativaTipo: 'planta',
           medidorId: unidadPlanta.medidorId || null,
-          clienteId: cl.id,
+          clienteId: cl.id || null,
           productoIds: cartValido.map(item => item.id),
           cantidadMedida: 0,
           unidadMedida: unidadPlanta.unidadMedida || 'L',
@@ -221,7 +220,7 @@ function VentaAlmacen({
         });
         if (modoVentaPlanta && cxcMovimientoRef) tx.set(cxcMovimientoRef, {
           tipo: 'venta_credito',
-          clienteId: cl.id,
+          clienteId: cl.id || null,
           creditoId: creditoRef.id,
           unidadOperativaId,
           importe: total,
@@ -236,7 +235,7 @@ function VentaAlmacen({
         if (creditoRef) {
           tx.set(creditoRef, {
             notaId: notaRef.id,
-            clienteId: cl.id,
+            clienteId: cl.id || null,
             clienteNombre: cl.nombre,
             fecha,
             total,
@@ -348,7 +347,7 @@ function VentaAlmacen({
       lineHeight: 1.45,
       marginBottom: 12
     }
-  }, modoVentaPlanta ? "El ticket es público y pertenece a la caja de la planta seleccionada. No se asigna a una ruta ni a un repartidor." : "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), modoVentaPlanta && React.createElement(Card, null, React.createElement(Lbl, null, 'Planta operativa'), React.createElement('select', { value: unidadPlantaId, onChange: e => setUnidadPlantaId(e.target.value), style: { width: '100%', padding: '9px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 8 } }, React.createElement('option', { value: '' }, unidadesPlanta.length ? 'Selecciona planta…' : 'No tienes una planta asignada'), unidadesPlanta.map(u => React.createElement('option', { key: u.id, value: u.id }, `${u.nombre} · Medidor ${u.numeroSerieMedidor || 'sin serie'}`))), !unidadPlanta && React.createElement('div', { style: { color: 'var(--warn-text)', fontSize: 11, marginTop: 6 } }, 'La administración debe asignarte una planta y su medidor antes de vender.')), React.createElement(Card, null, React.createElement("button", {
+  }, modoVentaPlanta ? "La venta se registra directamente en la caja abierta de la planta. No requiere cliente, QR, ruta ni pedido." : "La mercancía se descuenta directamente del almacén. Si la llevas en tu vehículo, no se crea una transferencia ni se asigna a un repartidor."), modoVentaPlanta && React.createElement(Card, null, React.createElement(Lbl, null, 'Planta operativa'), React.createElement('select', { value: unidadPlantaId, onChange: e => setUnidadPlantaId(e.target.value), style: { width: '100%', padding: '9px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--ink)', borderRadius: 8 } }, React.createElement('option', { value: '' }, unidadesPlanta.length ? 'Selecciona planta…' : 'No tienes una planta asignada'), unidadesPlanta.map(u => React.createElement('option', { key: u.id, value: u.id }, `${u.nombre} · Medidor ${u.numeroSerieMedidor || 'sin serie'}`))), !unidadPlanta && React.createElement('div', { style: { color: 'var(--warn-text)', fontSize: 11, marginTop: 6 } }, 'La administración debe asignarte una planta y su medidor antes de vender.')), !modoVentaPlanta && React.createElement(Card, null, React.createElement("button", {
     onClick: () => setCliOpen(o => !o),
     style: {
       background: 'none',
@@ -587,7 +586,7 @@ function VentaAlmacen({
       gap: 8,
       marginBottom: 12
     }
-  }, [['efectivo', ' Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', ' Transferencia', 'var(--info-bg)', 'var(--info-text)'], ['credito', ' Crédito', 'var(--warn-bg)', 'var(--warn-text)']].map(([v, l, bg, col]) => React.createElement("button", {
+  }, [['efectivo', ' Efectivo', 'var(--ok-bg)', 'var(--ok-text)'], ['transferencia', ' Transferencia', 'var(--info-bg)', 'var(--info-text)'], ...(!modoVentaPlanta ? [['credito', ' Crédito', 'var(--warn-bg)', 'var(--warn-text)']] : [])].map(([v, l, bg, col]) => React.createElement("button", {
     key: v,
     onClick: () => setPago(v),
     style: {
@@ -613,7 +612,7 @@ function VentaAlmacen({
       flex: 1
     },
     disabled: !canSave || saving
-  }, saving ? 'Guardando…' : ' Guardar pedido'), cliente?.telefono && React.createElement(BFill, {
+  }, saving ? 'Guardando…' : ' Guardar pedido'), !modoVentaPlanta && cliente?.telefono && React.createElement(BFill, {
     onClick: () => window.open(makeWA(cliente, cart, total, pago), '_blank'),
     bg: "#25d366",
     style: {

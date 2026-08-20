@@ -94,7 +94,17 @@ function Gerencia({ currentUser, notas, creditos }) {
     };
     const hoyISO = new Date().toISOString();
     const misGastos = gastos ? gastos.filter(g => g.capturadoPorUid === currentUser.uid) : [];
-    const misNotasHoy = (notas || []).filter(n => n.capturadoPorUid === currentUser.uid && mismoDia(n.fecha, hoyISO));
+    const misCierres = (cierres || []).filter(c => c.capturadoPorUid === currentUser.uid).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const ultimoCierre = misCierres[0] || null;
+    const fechaUltimoCierre = ultimoCierre ? new Date(ultimoCierre.fecha).getTime() : 0;
+    const movimientoCajaActiva = fecha => {
+        const fechaMovimiento = new Date(fecha).getTime();
+        return mismoDia(fecha, hoyISO) && fechaMovimiento > fechaUltimoCierre;
+    };
+    // El cierre conserva su comprobante histórico, pero sus movimientos dejan
+    // de pertenecer a la caja abierta. Solo se suman ventas/abonos/gastos
+    // capturados después del último cierre del mismo usuario.
+    const misNotasHoy = (notas || []).filter(n => n.capturadoPorUid === currentUser.uid && movimientoCajaActiva(n.fecha));
     const ventaEfectivoHoy = misNotasHoy.filter(n => esVentaEfectivo(n.formaPago)).reduce((s, n) => s + n.total, 0);
     // Los abonos nuevos permanecen pendientes hasta que administración los
     // valide. Los abonos embebidos antiguos se consideran históricos aprobados.
@@ -102,11 +112,11 @@ function Gerencia({ currentUser, notas, creditos }) {
         .flatMap(c => (c.abonos || []).map(a => ({ ...a, estado: a.estado || 'aprobado', clienteNombre: c.clienteNombre })));
     const abonosSubcoleccion = Object.values(abonosOperacion).flat();
     const misAbonosHoy = [...abonosHistoricos, ...abonosSubcoleccion]
-        .filter(a => a.capturadoPorUid === currentUser.uid && mismoDia(a.fecha, hoyISO));
+        .filter(a => a.capturadoPorUid === currentUser.uid && movimientoCajaActiva(a.fecha));
     const abonoEfectivoPendienteHoy = misAbonosHoy.filter(a => a.formaPago === 'efectivo' && a.estado === 'pendiente').reduce((s, a) => s + Number(a.monto || 0), 0);
     const abonoEfectivoAprobadoHoy = misAbonosHoy.filter(a => a.formaPago === 'efectivo' && a.estado === 'aprobado').reduce((s, a) => s + Number(a.monto || 0), 0);
     const abonoEfectivoHoy = abonoEfectivoPendienteHoy + abonoEfectivoAprobadoHoy;
-    const misGastosHoy = misGastos.filter(g => mismoDia(g.fecha, hoyISO));
+    const misGastosHoy = misGastos.filter(g => movimientoCajaActiva(g.fecha));
     const gastoEfectivoHoy = misGastosHoy.filter(g => g.formaPago === 'efectivo').reduce((s, g) => s + g.monto, 0);
     const gastosTarjetaHoy = misGastosHoy.filter(g => g.formaPago === 'tarjeta');
     // Fórmula base = la que pide modelo.md (HU11): Ventas efectivo + Abonos
