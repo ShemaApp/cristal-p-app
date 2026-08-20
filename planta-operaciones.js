@@ -170,12 +170,12 @@
     };
   }
 
-  function crearMovimientoInventario({ productoId, cantidad, tipo, unidadOperativaId, jornadaId, origenId, usuarioUid, fechaHora }) {
+  function crearMovimientoInventario({ productoId, cantidad, tipo, unidad = 'pieza', unidadOperativaId, jornadaId, origenId, usuarioUid, fechaHora }) {
     return {
       tipo: tipo || TIPOS_MOVIMIENTO_INVENTARIO.SALIDA_VENTA,
       productoId: texto(productoId),
       cantidad: Math.abs(numero(cantidad)),
-      unidad: 'pieza',
+      unidad: texto(unidad, 'pieza'),
       origenTipo: 'operacion_planta',
       origenId: texto(origenId),
       unidadOperativaId: texto(unidadOperativaId),
@@ -203,6 +203,85 @@
       requestId: texto(origenId),
       inmutable: true
     };
+  }
+
+  function normalizarLlenadoProduccion(input) {
+    const data = input || {};
+    const primeraLinea = Array.isArray(data.lineas) && data.lineas.length > 0 ? data.lineas[0] : {};
+    const base = normalizarOperacionPlanta({
+      ...data,
+      productoId: data.productoId || primeraLinea.productoTerminadoId,
+      tipo: TIPOS_OPERACION_PLANTA.LLENADO_PRODUCCION,
+      cantidadProducto: 0,
+      formaPago: null,
+      importe: 0
+    });
+    const lineas = Array.isArray(data.lineas) ? data.lineas : [];
+    const errores = [...base.errores];
+    if (lineas.length === 0) errores.push('lineas requeridas para producción');
+
+    const lineasNormalizadas = lineas.map((linea, index) => {
+      const cantidad = numero(linea.cantidad, 0);
+      const litrosPorUnidad = numero(linea.litrosPorUnidad, NaN);
+      if (!texto(linea.envaseVacioId)) errores.push(`lineas[${index}].envaseVacioId requerido`);
+      if (!texto(linea.productoTerminadoId)) errores.push(`lineas[${index}].productoTerminadoId requerido`);
+      if (!Number.isFinite(litrosPorUnidad) || litrosPorUnidad <= 0) errores.push(`lineas[${index}].litrosPorUnidad inválido`);
+      if (cantidad <= 0) errores.push(`lineas[${index}].cantidad debe ser mayor a cero`);
+      return {
+        envaseVacioId: texto(linea.envaseVacioId),
+        productoTerminadoId: texto(linea.productoTerminadoId),
+        cantidad,
+        litrosPorUnidad,
+        unidad: texto(linea.unidad, 'pieza')
+      };
+    });
+
+    const litrosPorLineas = Number(lineasNormalizadas.reduce((total, linea) => total + (linea.cantidad * (linea.litrosPorUnidad || 0)), 0).toFixed(6));
+    if (base.operacion.cantidadMedida > 0 && Math.abs(litrosPorLineas - base.operacion.cantidadMedida) > 0.000001) {
+      errores.push('el volumen de las líneas no coincide con la salida del medidor');
+    }
+
+    return {
+      ok: errores.length === 0,
+      errores,
+      operacion: {
+        ...base.operacion,
+        cantidadProducto: lineasNormalizadas.reduce((total, linea) => total + linea.cantidad, 0),
+        litrosAplicados: litrosPorLineas,
+        lineas: lineasNormalizadas
+      }
+    };
+  }
+
+  function crearMovimientosLlenadoProduccion(operacion) {
+    const op = operacion || {};
+    const lineas = Array.isArray(op.lineas) ? op.lineas : [];
+    const movimientos = [crearMovimientoAgua(op, TIPOS_MOVIMIENTO_AGUA.SALIDA_PRODUCCION)];
+    lineas.forEach(linea => {
+      movimientos.push(crearMovimientoInventario({
+        productoId: linea.envaseVacioId,
+        cantidad: linea.cantidad,
+        unidad: linea.unidad,
+        tipo: TIPOS_MOVIMIENTO_INVENTARIO.SALIDA_MERMA,
+        unidadOperativaId: op.unidadOperativaId,
+        jornadaId: op.jornadaId,
+        origenId: op.requestId,
+        usuarioUid: op.capturadoPorUid,
+        fechaHora: op.fechaHora
+      }));
+      movimientos.push(crearMovimientoInventario({
+        productoId: linea.productoTerminadoId,
+        cantidad: linea.cantidad,
+        unidad: linea.unidad,
+        tipo: TIPOS_MOVIMIENTO_INVENTARIO.ENTRADA_PRODUCCION,
+        unidadOperativaId: op.unidadOperativaId,
+        jornadaId: op.jornadaId,
+        origenId: op.requestId,
+        usuarioUid: op.capturadoPorUid,
+        fechaHora: op.fechaHora
+      }));
+    });
+    return movimientos;
   }
 
   function crearMovimientoCxc({ tipo, clienteId, creditoId, importe, unidadOperativaId, jornadaId, origenId, usuarioUid, fechaHora }) {
@@ -235,6 +314,8 @@
     calcularSalidaMedida,
     validarBaseOperacion,
     normalizarOperacionPlanta,
+    normalizarLlenadoProduccion,
+    crearMovimientosLlenadoProduccion,
     crearMovimientoAgua,
     crearMovimientoInventario,
     crearMovimientoCaja,
